@@ -189,6 +189,8 @@ describe("e-mail verification and password reset (Mailpit)", () => {
 
   it("reset: mail with link, new credential works, old one stops, link is single use", async () => {
     const u = await verifiedUser("rst");
+    await auth.api.signInEmail({ body: { email: u.email, password: PW }, headers });
+    expect(await admin.session.count({ where: { userId: u.userId } })).toBeGreaterThan(0);
     await auth.api.requestPasswordReset({ body: { email: u.email, redirectTo: "http://localhost:3000/passwort-zuruecksetzen" }, headers });
     const text = (await messagesTo(u.email)).join("\n");
     const m = text.match(/reset-password\/([A-Za-z0-9_-]+)/);
@@ -196,6 +198,7 @@ describe("e-mail verification and password reset (Mailpit)", () => {
     const token = m![1]!;
     const NEW = fresh();
     await auth.api.resetPassword({ body: { newPassword: NEW, token }, headers });
+    expect(await admin.session.count({ where: { userId: u.userId } })).toBe(0);
     await expect(auth.api.signInEmail({ body: { email: u.email, password: PW }, headers })).rejects.toThrow();
     await expect(auth.api.signInEmail({ body: { email: u.email, password: NEW }, headers })).resolves.toBeTruthy();
     await expect(auth.api.resetPassword({ body: { newPassword: fresh(), token }, headers })).rejects.toThrow();

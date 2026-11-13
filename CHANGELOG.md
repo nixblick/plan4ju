@@ -4,6 +4,10 @@
 
 - Docs: `docs/konzept.md` – Gesamtkonzept (Stand 13.11.2026), mit den entschiedenen Infrastrukturpunkten.
 
+### 0.0.8
+
+- Password reset revokes all open sessions of the account (test asserts it).
+
 ### 0.0.7
 
 - Authentication with Better Auth: e-mail + password (Argon2id), required e-mail verification via SMTP from env (Mailpit locally), password reset, rate limits for login/reset/sign-up (HTTP and server actions).

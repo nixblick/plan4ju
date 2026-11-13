@@ -32,6 +32,8 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
     requireEmailVerification: true,
     resetPasswordTokenExpiresIn: 60 * 60,
+    // A reset ends every open session (stolen session cookies stop working).
+    revokeSessionsOnPasswordReset: true,
     password: {
       hash: (plain) => hash(plain, ARGON),
       verify: ({ hash: stored, password: plain }) => verify(stored, plain),
