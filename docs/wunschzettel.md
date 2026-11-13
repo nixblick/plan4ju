@@ -34,6 +34,9 @@ kein Abruf fremder Server beim Anzeigen, keine Änderung der Content-Security-Po
   - Die Datenbank blendet diese Zeilen für die beschenkte Person aus und verbietet ihr das Anlegen (RLS-Policy
     mit Join auf das Profil; ein Kinderprofil, das später einen Login bekommt, ist sofort geschützt).
   - Versucht sie selbst zu reservieren, kommt immer dieselbe Ablehnung, egal ob schon reserviert ist.
+- Die beschenkte Person kann den Überraschungsmodus nicht ausschalten und die Liste keinem anderen Profil oder
+  Namen zuordnen (sonst sähe sie die Reservierungen); das darf nur, wer die Liste angelegt hat bzw. bei Kindern
+  ohne Login Admin oder Owner. Einschalten darf sie ihn jederzeit.
 - **Ohne Überraschungsmodus** sieht die beschenkte Person „Schon reserviert“, aber nie von wem.
 - **Erhalten** markiert die beschenkte Person (oder wer die Liste bearbeitet); das sehen alle.
 

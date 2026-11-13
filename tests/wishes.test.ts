@@ -193,13 +193,29 @@ describe("surprise protection", () => {
     expect((await getWishlist(f.userBoth, f.familyA, list)).wishes.find((w) => w.id === wish)!.reservation).toEqual({ state: "free" });
   });
 
-  it("without surprise mode the wishing person sees reserved, but not by whom", async () => {
-    await updateWishlist(f.userA, f.familyA, list, { title: "Überraschung", profileId: f.profileA, surprise: false });
+  it("the wishing person cannot switch off surprise mode or move the list away", async () => {
     await reserveWish(f.userBoth, f.familyA, wish);
+    await expect(updateWishlist(f.userA, f.familyA, list, { title: "Überraschung", profileId: f.profileA, surprise: false })).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(updateWishlist(f.userA, f.familyA, list, { title: "Überraschung", profileId: profileBoth })).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(updateWishlist(f.userA, f.familyA, list, { title: "Überraschung", personName: "Jemand" })).rejects.toBeInstanceOf(ForbiddenError);
+    await updateWishlist(f.userA, f.familyA, list, { title: "Überraschung neu", profileId: f.profileA });
     const own = await getWishlist(f.userA, f.familyA, list);
-    expect(own.wishes.find((w) => w.id === wish)!.reservation).toEqual({ state: "reserved-anonymous" });
-    expect(own.wishes.find((w) => w.title === "Ball")!.reservation).toEqual({ state: "free" });
+    expect(own.surprise).toBe(true);
+    expect(own.wishes.find((w) => w.id === wish)!.reservation).toBeNull();
+  });
+
+  it("without surprise mode the wishing person sees reserved, but not by whom", async () => {
+    const open = await createWishlist(f.userA, f.familyA, { title: "Offen", profileId: f.profileA, surprise: false });
+    const w = await createWish(f.userA, f.familyA, open.id, { title: "Ball" });
+    const free = await createWish(f.userA, f.familyA, open.id, { title: "Kreisel" });
+    await reserveWish(f.userBoth, f.familyA, w.id);
+    const own = await getWishlist(f.userA, f.familyA, open.id);
+    expect(own.wishes.find((x) => x.id === w.id)!.reservation).toEqual({ state: "reserved-anonymous" });
+    expect(own.wishes.find((x) => x.id === free.id)!.reservation).toEqual({ state: "free" });
     expect(JSON.stringify(own)).not.toContain("Bodo");
+    // switching surprise back on is allowed and hides it again
+    await updateWishlist(f.userA, f.familyA, open.id, { title: "Offen", profileId: f.profileA, surprise: true });
+    expect((await getWishlist(f.userA, f.familyA, open.id)).wishes.find((x) => x.id === w.id)!.reservation).toBeNull();
   });
 
   it("received is set by the wishing person and visible to everyone", async () => {

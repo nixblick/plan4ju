@@ -9,11 +9,14 @@ export function ListFields({
   birthdays,
   l,
   canMakePrivate = true,
+  lockOwner = false,
 }: {
   profiles: Profile[];
   birthdays: Birthday[];
   l?: { title: string; description: string | null; profileId: string | null; personName: string | null; visibility: string; surprise: boolean; birthday: { id: string } | null };
   canMakePrivate?: boolean;
+  /** the wishing person edits: owner and surprise mode (once on) stay as they are */
+  lockOwner?: boolean;
 }) {
   const owner = l ? (l.profileId ? `p:${l.profileId}` : "person") : "";
   return (
@@ -21,6 +24,13 @@ export function ListFields({
       <Field label="Name des Wunschzettels">
         <input className={inputCls} name="title" maxLength={100} defaultValue={l?.title} required />
       </Field>
+      {lockOwner ? (
+        <>
+          <input type="hidden" name="owner" value={owner} />
+          <input type="hidden" name="personName" value={l?.personName ?? ""} />
+        </>
+      ) : (
+      <>
       <Field label="Für wen?">
         <select className={inputCls} name="owner" defaultValue={owner} required>
           <option value="" disabled>Bitte wählen</option>
@@ -33,6 +43,8 @@ export function ListFields({
       <Field label="Name der Person (nur bei „Andere Person“)">
         <input className={inputCls} name="personName" maxLength={100} defaultValue={l?.personName ?? ""} />
       </Field>
+      </>
+      )}
       <Field label="Beschreibung (optional)">
         <input className={inputCls} name="description" maxLength={1000} defaultValue={l?.description ?? ""} />
       </Field>
@@ -50,6 +62,9 @@ export function ListFields({
           {canMakePrivate ? <option value="PRIVATE">Nur ich</option> : null}
         </select>
       </Field>
+      {lockOwner && l?.surprise ? (
+        <input type="hidden" name="surprise" value="on" />
+      ) : (
       <label className="mb-4 flex min-h-11 items-start gap-3">
         <input type="checkbox" name="surprise" defaultChecked={l?.surprise ?? true} className="mt-1 h-5 w-5" />
         <span className="text-sm">
@@ -57,6 +72,7 @@ export function ListFields({
           <span className="block text-stone-600">Die beschenkte Person sieht nicht, ob etwas reserviert ist. Ohne Haken sieht sie „reserviert“, aber nie von wem.</span>
         </span>
       </label>
+      )}
     </>
   );
 }

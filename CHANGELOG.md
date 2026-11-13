@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.3 (13.11.2026)
+
+- Wish lists: the wishing person can no longer lift the surprise protection by editing the list: switching surprise mode off and moving the list to another profile or name are refused on the server (only the creator, or an admin for a child without login, may); the settings form hides both for the wishing person. Tests for all three routes; the schema notes that the birthday foreign key deliberately uses `SET NULL ("birthdayId")`.
+
 ## 0.3.2 (13.11.2026)
 
 Release 0.4, block 1: wish lists.

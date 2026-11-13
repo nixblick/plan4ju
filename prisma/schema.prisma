@@ -636,6 +636,8 @@ model Wishlist {
   updatedAt   DateTime       @updatedAt
   family      Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
   profile     FamilyProfile? @relation(fields: [profileId, familyId], references: [id, familyId], onDelete: Cascade)
+  /// The SQL deliberately uses ON DELETE SET NULL ("birthdayId") (migration wishlists); Prisma cannot express it.
+  /// Drop any generated migration that changes this foreign key back.
   birthday    Birthday?      @relation(fields: [birthdayId, familyId], references: [id, familyId], onDelete: NoAction)
   wishes      Wish[]
 

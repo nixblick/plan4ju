@@ -183,7 +183,7 @@ export default async function Wunschzettel({
               <summary className={`${linkCls} cursor-pointer`}>Einstellungen öffnen</summary>
               <form action={updateWishlistAction} className="mt-2">
                 <Hidden listId={list.id} />
-                <ListFields profiles={profiles} birthdays={birthdays} l={list} />
+                <ListFields profiles={profiles} birthdays={birthdays} l={list} lockOwner={list.iAmWisher} />
                 <button className={buttonCls}>Änderungen speichern</button>
               </form>
               <form action={deleteWishlistAction} className="mt-2">

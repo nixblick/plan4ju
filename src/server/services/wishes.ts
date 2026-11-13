@@ -228,6 +228,9 @@ export async function updateWishlist(userId: string, familyId: string, id: strin
       await assertRefs(ctx, d);
       // only the creator may make a list private (it would vanish for everyone else, the creator keeps it)
       if (d.visibility === "PRIVATE" && l.createdById !== ctx.userId) throw new ForbiddenError("Only the creator can hide a list");
+      // the wishing person must not lift the surprise protection: no switching it off, no moving the list away
+      if (isWisher(ctx, l) && ((l.surprise && !d.surprise) || d.profileId !== l.profileId || d.personName !== l.personName))
+        throw new ForbiddenError("Surprise protection");
       await ctx.tx.wishlist.update({ where: { id: l.id }, data: d });
     },
     client,

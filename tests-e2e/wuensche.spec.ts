@@ -120,5 +120,9 @@ test.describe.serial("Wunschzettel", () => {
     await expect(own).not.toContainText(/reserviert/i);
     await expect(own).not.toContainText("Ben Muster");
     await expect(own.getByRole("button", { name: "Ich schenke das" })).toHaveCount(0);
+    // she cannot switch the surprise mode off or hand the list to someone else
+    await a.getByText("Einstellungen öffnen").click();
+    await expect(a.getByLabel(/Überraschungsmodus/)).toHaveCount(0);
+    await expect(a.getByLabel("Für wen?")).toHaveCount(0);
   });
 });
