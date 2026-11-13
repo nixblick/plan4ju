@@ -157,7 +157,8 @@ test.describe.serial("Dashboard: Als Nächstes, Zeitstrahl, Woche", () => {
     await expect(p.getByRole("heading", { name: "Familie wählen" })).toBeVisible();
     const dev = (await ctx.cookies()).find((c) => c.name.startsWith("p4j_dev_"));
     expect(dev?.httpOnly).toBe(true);
-    expect(dev?.value).toMatch(/^[\w-]+\.[\w-]+$/);
+    expect(dev?.value).toMatch(/^[\w-]+\.\d+\.[\w-]+$/); // id.iat.mac
+    expect(dev!.expires - Date.now() / 1000).toBeLessThanOrEqual(90 * 24 * 60 * 60); // at most 90 days
     await ctx.close();
   });
 });

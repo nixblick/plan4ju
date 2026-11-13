@@ -19,6 +19,9 @@ export const metadata: Metadata = {
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#c8553d" };
 
+// Visible without signing in (e.g. on /anmelden), so the deployed version can be checked from outside.
+const VERSION = `Plan4JU ${process.env.NEXT_PUBLIC_APP_VERSION ?? ""}`.trim();
+
 function Logo({ size }: { size: number }) {
   return <Image src="/logo.svg" alt="" width={size} height={size} unoptimized className="rounded-lg" />;
 }
@@ -48,6 +51,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <form action={logoutAction}>
                   <button className={`${ghostButtonCls} w-full`}>Abmelden</button>
                 </form>
+                <p className="px-3 text-xs text-stone-400" data-testid="app-version">{VERSION}</p>
               </div>
             </aside>
             <div className="min-w-0 flex-1">
@@ -59,7 +63,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                   <button className={ghostButtonCls}>Abmelden</button>
                 </form>
               </header>
-              <main className="mx-auto max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-10 md:pt-8">{children}</main>
+              <main className="mx-auto max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-10 md:pt-8">
+                {children}
+                <p className="mt-8 text-center text-xs text-stone-400 md:hidden">{VERSION}</p>
+              </main>
             </div>
             <nav
               aria-label="Hauptmenü"
@@ -79,6 +86,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               </div>
             </header>
             <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
+            <footer className="mx-auto max-w-3xl px-4 pb-6 text-center text-xs text-stone-400" data-testid="app-version">
+              {VERSION}
+            </footer>
           </>
         )}
       </body>

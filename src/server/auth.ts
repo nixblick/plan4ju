@@ -2,10 +2,11 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { hash, verify } from "@node-rs/argon2";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { CLIENT_IP_HEADER, withClientIp } from "./client-ip";
 import { prisma } from "./db";
+import { rotateSecurityStamp } from "./device-cookie";
 import { authSecret, baseUrl } from "./env";
 import { sendMailInBackground } from "./mail";
 
@@ -77,6 +78,15 @@ export const auth = betterAuth({
   // The client address is resolved once from the proxy headers (client-ip.ts, TRUSTED_PROXY_HOPS)
   // and handed over in our own header, which handleAuthRequest overwrites on every request.
   advanced: { ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] } },
+  // "Sign out everywhere" also forgets every known device (issue 8). Password change and reset
+  // rotate the stamp in the database (trigger on account.password, migration user_security_stamp).
+  hooks: {
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/revoke-sessions") return;
+      const userId = ctx.context.session?.user.id;
+      if (userId) await rotateSecurityStamp(userId);
+    }),
+  },
   databaseHooks: {
     user: {
       create: {

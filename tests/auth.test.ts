@@ -9,6 +9,7 @@ import { registerWithInvitation } from "../src/server/onboarding";
 import { rateLimit, resetRateLimits } from "../src/server/ratelimit";
 import { createInvitation, revokeInvitation } from "../src/server/services/invitations";
 import { hashToken } from "../src/server/tokens";
+import { newDeviceCookie, readDeviceCookie, securityStampFor } from "../src/server/device-cookie";
 import { withFamily } from "../src/server/tenant";
 
 const sfx = Math.random().toString(36).slice(2, 8);
@@ -204,6 +205,29 @@ describe("e-mail verification and password reset (Mailpit)", () => {
     await expect(auth.api.resetPassword({ body: { newPassword: fresh(), token }, headers })).rejects.toThrow();
     const hashed = (await admin.account.findFirstOrThrow({ where: { userId: u.userId } })).password;
     expect(hashed).toMatch(/^\$argon2id\$/);
+  });
+
+  it("a password reset and \"sign out everywhere\" invalidate old device cookies (issue 8)", async () => {
+    const u = await verifiedUser("devrst");
+    const stamp0 = (await securityStampFor(u.email))!;
+    expect(stamp0).toBeTruthy();
+    const cookie = newDeviceCookie(u.email, stamp0);
+    expect(readDeviceCookie(u.email, await securityStampFor(u.email), cookie)).not.toBeNull();
+    await auth.api.requestPasswordReset({ body: { email: u.email, redirectTo: "http://localhost:3000/passwort-zuruecksetzen" }, headers });
+    const token = (await messagesTo(u.email)).join("\n").match(/reset-password\/([A-Za-z0-9_-]+)/)![1]!;
+    const NEW = fresh();
+    await auth.api.resetPassword({ body: { newPassword: NEW, token }, headers });
+    const stamp1 = (await securityStampFor(u.email))!;
+    expect(stamp1).not.toBe(stamp0);
+    expect(readDeviceCookie(u.email, stamp1, cookie)).toBeNull();
+    // a cookie issued after the reset works until the user signs out everywhere
+    const cookie2 = newDeviceCookie(u.email, stamp1);
+    const signedIn = await auth.api.signInEmail({ body: { email: u.email, password: NEW }, headers, returnHeaders: true });
+    const sessionCookie = signedIn.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
+    await auth.api.revokeSessions({ headers: new Headers({ ...Object.fromEntries(headers), cookie: sessionCookie }) });
+    const stamp2 = (await securityStampFor(u.email))!;
+    expect(stamp2).not.toBe(stamp1);
+    expect(readDeviceCookie(u.email, stamp2, cookie2)).toBeNull();
   });
 
   it("reset for an unknown address sends nothing and does not reveal it", async () => {

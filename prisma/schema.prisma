@@ -17,6 +17,8 @@ model User {
   image         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  /// Signs known-device cookies; changes on password change/reset and "sign out everywhere" (issue 8).
+  securityStamp String   @default(dbgenerated("(gen_random_uuid())::text"))
 
   sessions    Session[]
   accounts    Account[]

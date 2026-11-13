@@ -56,13 +56,43 @@ export const loginFailureKey = (email: string, ip: string) => `login:pair:${JSON
 export const ACCOUNT_FAILURES = { threshold: 20, windowMs: 15 * 60 * 1000, maxDelayMs: 10_000 } as const;
 export const accountFailureKey = (email: string) => `login:acct:${JSON.stringify([email])}`;
 /**
- * A known device (signed cookie from an earlier successful login, see device-cookie.ts) has its own
- * counter and window per account. Strangers hammering the account only fill the account counter,
- * so they do not slow the owner's known device down.
+ * A known device (signed cookie from an earlier successful login, see device-cookie.ts) is exempt
+ * from the account's delay, but every failure still counts on the account counter (issue 8): many
+ * device cookies cannot spread failures to dodge the account brake. The device additionally has its
+ * own counter, so a leaked device cookie is braked like a stranger once it fails on its own.
  */
 export const deviceFailureKey = (email: string, deviceId: string) => `login:dev:${JSON.stringify([email, deviceId])}`;
-/** The counter that brakes this attempt: the device's own for a known device, else the account's. */
+/** The counter that delays this attempt: the device's own for a known device, else the account's. */
 export const brakeKey = (email: string, deviceId?: string | null) => (deviceId ? deviceFailureKey(email, deviceId) : accountFailureKey(email));
+
+/** At most this many known devices per account are exempt from the account delay at a time. */
+export const MAX_KNOWN_DEVICES = 5;
+const KNOWN_DEVICE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const knownDevices = new Map<string, Map<string, number>>();
+
+/**
+ * Admits a verified device id for the account's exemption, or returns null (treated as a stranger)
+ * when the account already has MAX_KNOWN_DEVICES other devices seen within the last 30 days.
+ */
+export function admitKnownDevice(email: string, deviceId: string | null | undefined, now = Date.now()): string | null {
+  if (!deviceId) return null;
+  let seen = knownDevices.get(email);
+  if (!seen) {
+    if (knownDevices.size > 10_000) knownDevices.clear();
+    seen = new Map();
+    knownDevices.set(email, seen);
+  }
+  for (const [id, t] of seen) if (t + KNOWN_DEVICE_TTL_MS <= now) seen.delete(id);
+  if (!seen.has(deviceId) && seen.size >= MAX_KNOWN_DEVICES) return null;
+  seen.set(deviceId, now);
+  return deviceId;
+}
+
+/** Forgets the known devices of an account (tests, and after its security stamp changed). */
+export function forgetKnownDevices(email?: string): void {
+  if (email) knownDevices.delete(email);
+  else knownDevices.clear();
+}
 
 function countOf(key: string, now: number): number {
   const h = hits.get(key);
@@ -74,20 +104,22 @@ export function assertLoginAllowed(email: string, ip: string, now = Date.now()):
   assertBelowLimit(loginFailureKey(email, ip), LOGIN_FAILURES.max, now);
 }
 
-/** Delay before verifying the password, growing with failures on the account. */
+/** Delay before verifying the password: account failures for strangers, the device's own for a known device. */
 export function loginDelayMs(email: string, now = Date.now(), deviceId?: string | null): number {
   const over = countOf(brakeKey(email, deviceId), now) - ACCOUNT_FAILURES.threshold;
   if (over < 0) return 0;
   return Math.min(1000 * 2 ** over, ACCOUNT_FAILURES.maxDelayMs);
 }
 
+/** Every failure counts on the address pair and the account; a known device's also on its own counter. */
 export function recordLoginFailure(email: string, ip: string, now = Date.now(), deviceId?: string | null): void {
   recordHit(loginFailureKey(email, ip), LOGIN_FAILURES.windowMs, now);
-  recordHit(brakeKey(email, deviceId), ACCOUNT_FAILURES.windowMs, now);
+  recordHit(accountFailureKey(email), ACCOUNT_FAILURES.windowMs, now);
+  if (deviceId) recordHit(deviceFailureKey(email, deviceId), ACCOUNT_FAILURES.windowMs, now);
 }
 
 /**
- * Success clears the address pair and the counter that braked this attempt. A known device only
+ * Success clears the address pair and the counter that delayed this attempt. A known device only
  * clears its own counter: a stranger's flood on the account must not be reset by the owner logging in.
  */
 export function recordLoginSuccess(email: string, ip: string, deviceId?: string | null): void {

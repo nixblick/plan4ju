@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { todayIn } from "../src/lib/week";
@@ -266,6 +267,9 @@ test.describe.serial("Familienwoche", () => {
     expect(h["x-frame-options"]).toBe("DENY");
     expect(h["referrer-policy"]).toBeTruthy();
     expect(h["x-powered-by"]).toBeUndefined();
+    // the version is visible without signing in, so a deployment can be checked from outside
+    const { version } = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
+    expect(await r.text()).toContain(`Plan4JU ${version}`);
   });
 
   test("Ohne Anmeldung kein Zugriff auf das Dashboard", async ({ browser }) => {

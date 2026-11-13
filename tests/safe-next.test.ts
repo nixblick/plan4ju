@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { safeNext } from "../src/lib/safe-next";
 import { clientIp, trustedProxyHops, withClientIp, CLIENT_IP_HEADER } from "../src/server/client-ip";
 import {
-  accountFailureKey, assertBelowLimit, assertLoginAllowed, clearLimit, loginDelayMs, loginFailureKey, normalizeLoginEmail,
+  ACCOUNT_FAILURES, MAX_KNOWN_DEVICES, accountFailureKey, admitKnownDevice, assertBelowLimit, assertLoginAllowed, clearLimit, loginDelayMs, loginFailureKey, normalizeLoginEmail,
   recordHit, recordLoginFailure, recordLoginSuccess,
 } from "../src/server/ratelimit";
 import { RateLimitError } from "../src/server/errors";
 import { guardedLogin, loginSucceeded, reserveLoginAttempt } from "../src/server/login-guard";
-import { newDeviceCookie, readDeviceCookie, deviceCookieName } from "../src/server/device-cookie";
+import { newDeviceCookie, readDeviceCookie, deviceCookieName, remainingMaxAge } from "../src/server/device-cookie";
 
 describe("safeNext (shared by the login page and the login action)", () => {
   it.each([
@@ -161,15 +161,16 @@ describe("one attempt per window above the account threshold", () => {
   });
 });
 
-describe("known devices are not braked by strangers (issue 5)", () => {
+describe("known devices are not braked by strangers (issue 5, issue 8)", () => {
+  const STAMP = "stamp-1";
   const overThreshold = (email: string) => {
     for (let i = 0; i < 20; i++) recordLoginFailure(email, `198.51.100.${i + 1}`);
   };
+  const uniq = (k: string) => `${k}-${Math.random().toString(36).slice(2)}@example.test`;
 
   it("50 parallel attempts on the account do not brake the owner's known device", async () => {
-    const email = `device-${Math.random().toString(36).slice(2)}@example.test`;
-    const cookie = newDeviceCookie(email);
-    const deviceId = readDeviceCookie(email, cookie);
+    const email = uniq("device");
+    const deviceId = readDeviceCookie(email, STAMP, newDeviceCookie(email, STAMP))?.deviceId ?? null;
     expect(deviceId).not.toBeNull();
     // attacker without a cookie: floods the account
     await Promise.allSettled(
@@ -187,22 +188,64 @@ describe("known devices are not braked by strangers (issue 5)", () => {
     expect(loginDelayMs(email)).toBeGreaterThan(0);
   });
 
-  it("a known device is braked on its own counter", () => {
-    const email = `own-${Math.random().toString(36).slice(2)}@example.test`;
-    const id = "device-a";
-    for (let i = 0; i < 20; i++) recordLoginFailure(email, `198.51.100.${i + 1}`, Date.now(), id);
-    expect(loginDelayMs(email, Date.now(), id)).toBe(1000);
-    expect(loginDelayMs(email)).toBe(0);
+  it("a known device's failures count on the account and on its own counter", () => {
+    const email = uniq("own");
+    for (let i = 0; i < 20; i++) recordLoginFailure(email, `198.51.100.${i + 1}`, Date.now(), "device-a");
+    expect(loginDelayMs(email, Date.now(), "device-a")).toBe(1000);
+    expect(loginDelayMs(email)).toBe(1000); // the account brake sees them too
     expect(loginDelayMs(email, Date.now(), "device-b")).toBe(0);
   });
 
-  it("cookie is bound to the account and rejects forgeries", () => {
-    const cookie = newDeviceCookie("a@example.test");
-    expect(readDeviceCookie("a@example.test", cookie)).not.toBeNull();
-    expect(readDeviceCookie("b@example.test", cookie)).toBeNull();
-    expect(readDeviceCookie("a@example.test", `x${cookie}`)).toBeNull();
-    expect(readDeviceCookie("a@example.test", undefined)).toBeNull();
-    expect(readDeviceCookie("a@example.test", "abc")).toBeNull();
+  it("many device cookies do not bypass the account counter", async () => {
+    const email = uniq("many");
+    const fail = async () => { throw new Error("no"); };
+    // the maximum of known devices spreads 25 failures (5 each): none of them is delayed ...
+    const devices = Array.from({ length: MAX_KNOWN_DEVICES }, () => readDeviceCookie(email, STAMP, newDeviceCookie(email, STAMP))!.deviceId);
+    for (let i = 0; i < 25; i++) {
+      await guardedLogin(email, `198.51.100.${i + 1}`, fail, () => true, devices[i % MAX_KNOWN_DEVICES]).catch(() => undefined);
+    }
+    // ... but every failure counted on the account: strangers are braked
+    expect(loginDelayMs(email)).toBe(ACCOUNT_FAILURES.maxDelayMs);
+    // a further device cookie is not admitted as known and is delayed like a stranger
+    const extra = readDeviceCookie(email, STAMP, newDeviceCookie(email, STAMP))!.deviceId;
+    expect(admitKnownDevice(email, extra)).toBeNull();
+    expect(reserveLoginAttempt(email, Date.now() + 600_000, admitKnownDevice(email, extra))).toBeGreaterThan(0);
+  });
+
+  it("at most MAX_KNOWN_DEVICES devices per account are known", () => {
+    const email = uniq("cap");
+    const ids = Array.from({ length: MAX_KNOWN_DEVICES + 2 }, (_, i) => `dev-${i}`);
+    const admitted = ids.map((id) => admitKnownDevice(email, id));
+    expect(admitted.filter(Boolean)).toHaveLength(MAX_KNOWN_DEVICES);
+    expect(admitKnownDevice(email, "dev-0")).toBe("dev-0"); // known ones stay known
+    expect(admitKnownDevice(email, null)).toBeNull();
+  });
+
+  it("cookie is bound to account and stamp, rejects forgeries and expires after 90 days", () => {
+    const t0 = Date.UTC(2026, 10, 13);
+    const cookie = newDeviceCookie("a@example.test", STAMP, {}, t0);
+    expect(readDeviceCookie("a@example.test", STAMP, cookie, t0)).not.toBeNull();
+    expect(readDeviceCookie("b@example.test", STAMP, cookie, t0)).toBeNull();
+    expect(readDeviceCookie("a@example.test", "stamp-2", cookie, t0)).toBeNull(); // stamp changed
+    expect(readDeviceCookie("a@example.test", null, cookie, t0)).toBeNull();
+    expect(readDeviceCookie("a@example.test", STAMP, `x${cookie}`, t0)).toBeNull();
+    expect(readDeviceCookie("a@example.test", STAMP, undefined, t0)).toBeNull();
+    expect(readDeviceCookie("a@example.test", STAMP, "abc", t0)).toBeNull();
+    // iat is signed: moving it forward breaks the MAC
+    const [id, iat, m] = cookie.split(".");
+    expect(readDeviceCookie("a@example.test", STAMP, `${id}.${Number(iat) + 86_400}.${m}`, t0 + 86_400_000)).toBeNull();
+    const day = 86_400_000;
+    expect(readDeviceCookie("a@example.test", STAMP, cookie, t0 + 89 * day)).not.toBeNull();
+    expect(readDeviceCookie("a@example.test", STAMP, cookie, t0 + 90 * day)).toBeNull();
     expect(deviceCookieName("a@example.test")).not.toBe(deviceCookieName("b@example.test"));
+  });
+
+  it("re-issuing keeps the iat, so the lifetime is not extended", () => {
+    const t0 = Date.UTC(2026, 10, 13);
+    const first = readDeviceCookie("a@example.test", STAMP, newDeviceCookie("a@example.test", STAMP, {}, t0), t0)!;
+    const later = t0 + 30 * 86_400_000;
+    const again = readDeviceCookie("a@example.test", STAMP, newDeviceCookie("a@example.test", STAMP, first, later), later)!;
+    expect(again).toEqual(first);
+    expect(remainingMaxAge(again.iat, later)).toBe(60 * 86_400);
   });
 });

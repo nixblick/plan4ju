@@ -1,5 +1,5 @@
 import { RateLimitError } from "./errors";
-import { assertLoginAllowed, brakeKey, loginDelayMs, recordLoginFailure, recordLoginSuccess } from "./ratelimit";
+import { admitKnownDevice, assertLoginAllowed, brakeKey, loginDelayMs, recordLoginFailure, recordLoginSuccess } from "./ratelimit";
 
 // Above the account threshold only one attempt per delay window. The window is reserved
 // before sleeping, so parallel requests cannot all sleep and then all try a credential.
@@ -35,7 +35,8 @@ export function loginSucceeded(email: string, ip: string, deviceId?: string | nu
  * The guarded login: hard limit per e-mail and address, one reserved attempt per window
  * above the account threshold, sleep, then verify. Failures (isFailure) are counted, a
  * success clears both counters and the window. `deviceId` is the verified id of a known device
- * (device-cookie.ts); it brakes on its own counter and window, unknown devices share the account's.
+ * (device-cookie.ts); it is exempt from the account delay (at most MAX_KNOWN_DEVICES per account)
+ * and braked on its own counter, but its failures still count on the account.
  */
 export async function guardedLogin<T>(
   email: string,
@@ -45,6 +46,7 @@ export async function guardedLogin<T>(
   deviceId: string | null = null,
 ): Promise<T> {
   assertLoginAllowed(email, ip);
+  deviceId = admitKnownDevice(email, deviceId);
   const delay = reserveLoginAttempt(email, Date.now(), deviceId);
   if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
   let out: T;
