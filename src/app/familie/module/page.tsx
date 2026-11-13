@@ -30,7 +30,7 @@ export default async function Module({ searchParams }: { searchParams: Promise<R
       <Card title="Zusatzmodule">
         <ul className="divide-y divide-stone-100">
           {(Object.keys(MODULES) as ModuleKey[]).map((k) => (
-            <li key={k} className="flex flex-wrap items-center justify-between gap-3 py-3" data-testid="module-row">
+            <li key={k} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between" data-testid="module-row">
               <span className="min-w-0 flex-1">
                 <strong>{MODULES[k].label}</strong>
                 <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${state[k] ? "bg-green-100 text-green-800" : "bg-stone-200 text-stone-700"}`}>

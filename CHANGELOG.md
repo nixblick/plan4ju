@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2 (13.11.2026)
+
+- Release 0.5 acceptance spec `tests-e2e/abnahme-0.5.spec.ts` (part of `test:abnahme`, against the container, no sign-up, 375 px): modules start off and members cannot switch them; Prospekte and Abfallkalender are switched independently and are gone (404) while off; flyer links are maintained by the owner and hidden ones stay hidden for members; pickups from an uploaded ICS file show on the page and in the start page tile; a subscription that cannot be resolved shows a notice while start page, calendar, shopping, tasks and meals keep working; the other family sees nothing.
+- Module page: description and switch stack on phones.
+
 ## 0.4.1 (13.11.2026)
 
 Release 0.5, block 1: optional modules.
