@@ -1,8 +1,10 @@
 import type { DashProfile } from "@/server/services/dashboard";
 import { Dots } from "../people";
+import { DEFAULT_PRIORITY, PRIORITIES, PRIORITY_BADGE, PRIORITY_LABEL, type Priority } from "@/lib/priority";
 import { Field, inputCls } from "../ui";
 
-export const PRIORITY_LABEL = { LOW: "Niedrig", NORMAL: "Normal", HIGH: "Hoch" } as const;
+export { PRIORITY_LABEL };
+
 export const STATUS_LABEL = { OPEN: "Offen", IN_PROGRESS: "In Bearbeitung", DONE: "Erledigt" } as const;
 
 export interface TaskValues {
@@ -10,7 +12,8 @@ export interface TaskValues {
   description: string | null;
   dueDate: Date | null;
   dueTime: string | null;
-  priority: keyof typeof PRIORITY_LABEL;
+  priority: Priority;
+  showOnDashboard: boolean;
   status: keyof typeof STATUS_LABEL;
   assigneeIds: string[];
 }
@@ -35,9 +38,9 @@ export function TaskFields({ profiles, t }: { profiles: DashProfile[]; t?: TaskV
       </div>
       <div className={`grid gap-3 ${t ? "grid-cols-2" : "grid-cols-1"}`}>
         <Field label="Priorität">
-          <select className={inputCls} name="priority" defaultValue={t?.priority ?? "NORMAL"}>
-            {Object.entries(PRIORITY_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
+          <select className={inputCls} name="priority" defaultValue={t?.priority ?? DEFAULT_PRIORITY}>
+            {PRIORITIES.map((k) => (
+              <option key={k} value={k}>{PRIORITY_LABEL[k]}</option>
             ))}
           </select>
         </Field>
@@ -51,6 +54,10 @@ export function TaskFields({ profiles, t }: { profiles: DashProfile[]; t?: TaskV
           </Field>
         ) : null}
       </div>
+      <label className="mb-4 flex min-h-11 items-center gap-3 text-sm font-medium">
+        <input type="checkbox" name="showOnDashboard" className="h-5 w-5" defaultChecked={t?.showOnDashboard ?? false} />
+        Im Kalender auf der Startseite anzeigen
+      </label>
       <fieldset className="mb-4">
         <legend className="mb-1 text-sm font-medium">Zuständig (keiner, eine oder mehrere Personen)</legend>
         <div className="flex flex-wrap gap-2">
@@ -64,5 +71,14 @@ export function TaskFields({ profiles, t }: { profiles: DashProfile[]; t?: TaskV
         </div>
       </fieldset>
     </>
+  );
+}
+
+/** Priority name as a coloured badge (the name is always visible, colour is only a second signal). */
+export function PriorityBadge({ p }: { p: Priority }) {
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${PRIORITY_BADGE[p]}`} data-testid="priority-badge" data-priority={p}>
+      {PRIORITY_LABEL[p]}
+    </span>
   );
 }

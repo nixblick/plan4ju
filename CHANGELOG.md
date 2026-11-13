@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+
+- Customer wish #10: six task priorities (Sofort, Dringend, Zeitnah, Demnächst, Bei Gelegenheit, Irgendwann; default Zeitnah) shown as pastel badges with the name (lila, rot, gelb, grün, blau, türkis) plus a coloured row edge; existing values mapped HIGH→Dringend, NORMAL→Zeitnah, LOW→Bei Gelegenheit (migration `task_priority_dashboard`, appended). New per-task checkbox "Im Kalender auf der Startseite anzeigen" (default off, existing tasks off): only these tasks appear in the dashboard week; the tiles Meine Aufgaben, Heute fällig and Überfällig still list every task. `/aufgaben` sorts open tasks strictly by due date (time, then priority; no date last). `/routinen` has three tabs (`?tab=neu|alle|woche`): Neu with templates, Alle Routinen with edit, Meine 7 Tage to tick off or skip own occurrences.
 ## 0.2.5 (13.11.2026)
 
 Release 0.3, block 3: shopping list.

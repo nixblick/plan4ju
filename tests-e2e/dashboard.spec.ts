@@ -66,6 +66,11 @@ test.describe.serial("Familienwoche", () => {
     await p.getByLabel("Was ist zu tun?").fill(TASK);
     await p.getByLabel("Fällig am (optional)").fill(today);
     await p.getByLabel("Anna Muster").check();
+    // Off by default; only switched-on tasks show in the dashboard calendar.
+    const onDashboard = p.getByLabel("Im Kalender auf der Startseite anzeigen");
+    await expect(onDashboard).not.toBeChecked();
+    await expect(p.getByLabel("Priorität")).toHaveValue("ZEITNAH");
+    await onDashboard.check();
     await p.getByRole("button", { name: "Aufgabe anlegen" }).click();
     await expect(p.getByText("Aufgabe angelegt.")).toBeVisible();
     await expect(p.getByTestId("task-row").filter({ hasText: TASK })).toContainText("Anna Muster");
@@ -135,9 +140,21 @@ test.describe.serial("Familienwoche", () => {
 
     await p.goto("/aufgaben");
     await p.getByLabel("Was ist zu tun?").fill(EDIT_TASK);
-    await p.getByLabel("Priorität").selectOption("HIGH");
+    await p.getByLabel("Fällig am (optional)").fill(today);
+    await p.getByLabel("Priorität").selectOption("SOFORT");
     await p.getByRole("button", { name: "Aufgabe anlegen" }).click();
-    await expect(p.getByTestId("task-row").filter({ hasText: EDIT_TASK })).toContainText("Priorität hoch");
+    const editRow = p.getByTestId("task-row").filter({ hasText: EDIT_TASK });
+    const badge = editRow.getByTestId("priority-badge");
+    await expect(badge).toHaveText("Sofort");
+    // pastel lila (violet-100), not white or transparent
+    const bg = await badge.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(bg).not.toMatch(/^rgba?\(255, 255, 255|rgba\(0, 0, 0, 0\)|transparent/);
+    expect(await editRow.evaluate((el) => getComputedStyle(el).borderLeftWidth)).toBe("4px");
+    // not switched on: due today, but not in the dashboard calendar; the tile still lists it
+    await p.goto("/");
+    await expect(p.getByTestId("day-today")).not.toContainText(EDIT_TASK);
+    await expect(p.getByRole("region", { name: "Heute fällig" })).toContainText(EDIT_TASK);
+    await p.goto("/aufgaben");
     await p.getByRole("link", { name: `„${EDIT_TASK}“ bearbeiten` }).click();
     await p.waitForLoadState("networkidle"); // let React hydrate before typing, or it resets the field
     await p.getByLabel("Beschreibung (optional)").fill("Nur ein Test");
@@ -160,13 +177,19 @@ test.describe.serial("Familienwoche", () => {
 
   test("Routine aus Vorlage mit fester Zuständigkeit, ein Termin einzeln für Ben", async () => {
     const p = sessions.anna!;
-    await p.goto("/routinen/neu?vorlage=abendessen");
+    await p.goto("/routinen?tab=neu&vorlage=abendessen");
+    await expect(p.getByRole("link", { name: "Neu", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(p.getByLabel("Titel")).toHaveValue("Abendessen kochen");
     await p.getByLabel("Titel").fill(ROUTINE);
     await p.getByLabel("Anna Muster").check();
     await p.getByRole("button", { name: "Routine anlegen" }).click();
     await expect(p.getByText("Routine angelegt.")).toBeVisible();
     await expect(p.getByTestId("routine-row").filter({ hasText: ROUTINE })).toContainText("täglich");
+    await expect(p.getByRole("link", { name: "Alle Routinen" })).toHaveAttribute("aria-current", "page");
+    // "Meine 7 Tage": seven daily occurrences for Anna
+    await p.getByRole("link", { name: "Meine 7 Tage" }).click();
+    await expect(p).toHaveURL(/tab=woche/);
+    await expect(p.getByTestId("occurrence-row").filter({ hasText: ROUTINE })).toHaveCount(7);
     const first = p.getByTestId("occurrence-row").filter({ hasText: ROUTINE }).first();
     await expect(first).toContainText("Anna Muster");
     await expect(first).toContainText("18:00 Uhr");
@@ -176,10 +199,15 @@ test.describe.serial("Familienwoche", () => {
     await first.getByLabel("Anna Muster").uncheck();
     await first.getByLabel("Ben Muster").check();
     await first.getByRole("button", { name: "Speichern" }).click();
+    // The reassigned occurrence leaves Anna's 7 days and shows up in Ben's.
     const rows = p.getByTestId("occurrence-row").filter({ hasText: ROUTINE });
-    await expect(rows.first()).toContainText("Ben Muster");
-    await expect(rows.first()).toContainText("einzeln zugewiesen");
-    await expect(rows.nth(1)).toContainText("Anna Muster");
+    await expect(p).toHaveURL(/tab=woche/);
+    await expect(rows).toHaveCount(6);
+    await expect(rows.first()).toContainText("Anna Muster");
+    await sessions.ben!.goto("/routinen?tab=woche");
+    const benRows = sessions.ben!.getByTestId("occurrence-row").filter({ hasText: ROUTINE });
+    await expect(benRows).toHaveCount(1);
+    await expect(benRows.first()).toContainText("einzeln zugewiesen");
 
     // Dashboard: shown for today and in the week, can be ticked off
     await p.goto("/");
@@ -190,7 +218,7 @@ test.describe.serial("Familienwoche", () => {
     await expect(tile.getByRole("button", { name: `„${ROUTINE}“ wieder öffnen` })).toBeVisible();
 
     // Ben (same family) sees it too; Clara's family never does
-    await sessions.ben!.goto("/routinen");
+    await sessions.ben!.goto("/routinen?tab=alle");
     await expect(sessions.ben!.getByTestId("routine-row").filter({ hasText: ROUTINE })).toBeVisible();
   });
 
@@ -221,7 +249,7 @@ test.describe.serial("Familienwoche", () => {
       storageState: await sessions.anna!.context().storageState(),
     });
     const p = await ctx.newPage();
-    for (const path of ["/", "/aufgaben", "/routinen", "/routinen/neu", "/geburtstage", "/familie/mitglieder", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", "/kalender/termin/neu", "/rezepte", "/rezepte/neu", "/essen", "/essen/idee", "/einkauf", "/einkauf/geschaefte", "/konto"]) {
+    for (const path of ["/", "/aufgaben", "/routinen", "/routinen?tab=neu", "/routinen?tab=alle", "/routinen?tab=woche", "/routinen/neu", "/geburtstage", "/familie/mitglieder", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", "/kalender/termin/neu", "/rezepte", "/rezepte/neu", "/essen", "/essen/idee", "/einkauf", "/einkauf/geschaefte", "/konto"]) {
       await p.goto(path);
       await expect(p.locator("main")).toBeVisible();
       const { scroll, client } = await p.evaluate(() => ({
@@ -230,6 +258,18 @@ test.describe.serial("Familienwoche", () => {
       }));
       expect(scroll, `${path}: scrollWidth ${scroll} > clientWidth ${client}`).toBeLessThanOrEqual(client);
     }
+    // Routine tabs at 375 px: three, reachable by keyboard
+    await p.goto("/routinen?tab=alle");
+    const rtabs = p.getByRole("navigation", { name: "Routinen" });
+    await expect(rtabs.getByRole("link")).toHaveText(["Neu", "Alle Routinen", "Meine 7 Tage"]);
+    for (const l of await rtabs.getByRole("link").all()) expect((await l.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await rtabs.getByRole("link", { name: "Meine 7 Tage" }).focus();
+    await p.keyboard.press("Enter");
+    await expect(p).toHaveURL(/tab=woche/);
+    await expect(p.getByRole("navigation", { name: "Routinen" }).getByRole("link", { name: "Meine 7 Tage" })).toHaveAttribute("aria-current", "page");
+    await p.screenshot({ path: "test-results/routinen-375.png", fullPage: true });
+    await p.goto("/aufgaben");
+    await expect(p.getByTestId("priority-badge").first()).toBeVisible();
     await p.goto("/");
     const tabs = p.getByRole("navigation", { name: "Hauptmenü" }).last();
     await expect(tabs).toBeVisible();

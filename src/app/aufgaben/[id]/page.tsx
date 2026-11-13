@@ -54,6 +54,7 @@ export default async function AufgabeBearbeiten({
               dueDate: task.dueDate,
               dueTime: task.dueTime,
               priority: task.priority,
+              showOnDashboard: task.showOnDashboard,
               status: task.status,
               assigneeIds: task.assignments.map((a) => a.profileId),
             }}

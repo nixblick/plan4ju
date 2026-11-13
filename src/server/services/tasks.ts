@@ -2,6 +2,7 @@ import { z } from "zod";
 import { NotFoundError } from "../errors";
 import { withFamily, type FamilyContext } from "../tenant";
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { compareByDue, DEFAULT_PRIORITY, PRIORITIES } from "../../lib/priority";
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -11,7 +12,9 @@ export const taskInput = z
     description: z.string().trim().max(2000).nullish(),
     dueDate: z.coerce.date().nullish(),
     dueTime: z.string().regex(HHMM).nullish(),
-    priority: z.enum(["LOW", "NORMAL", "HIGH"]).default("NORMAL"),
+    priority: z.enum(PRIORITIES).default(DEFAULT_PRIORITY),
+    /** Shown in the dashboard calendar. */
+    showOnDashboard: z.boolean().default(false),
     /** Omitted on update: the status stays as it is. */
     status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]).optional(),
     assigneeIds: z.array(z.string()).max(20).default([]),
@@ -83,12 +86,15 @@ export function findTasks(userId: string, familyId: string, query: TaskQuery = {
           ...(query.to ? { lte: new Date(query.to) } : {}),
         };
       }
-      return ctx.tx.task.findMany({
+      const byDone = query.filter === "archiv" || query.filter === "erledigt";
+      const rows = await ctx.tx.task.findMany({
         where,
         include,
-        orderBy: query.filter === "archiv" || query.filter === "erledigt" ? [{ doneAt: "desc" }, { createdAt: "desc" }] : order,
+        orderBy: byDone ? [{ doneAt: "desc" }, { createdAt: "desc" }] : order,
         take: 500,
       });
+      // Open lists: strictly by due date (no date last), then priority; the DB order is only a tie-break.
+      return byDone ? rows : rows.sort(compareByDue);
     },
     client,
   );
@@ -122,6 +128,7 @@ export async function createTask(userId: string, familyId: string, raw: TaskInpu
           dueDate: data.dueDate ?? null,
           dueTime: data.dueDate ? data.dueTime ?? null : null,
           priority: data.priority,
+          showOnDashboard: data.showOnDashboard,
           status: data.status ?? "OPEN",
           doneAt: data.status === "DONE" ? new Date() : null,
           createdById: ctx.userId,
@@ -161,6 +168,7 @@ export async function updateTask(
           dueDate: data.dueDate ?? null,
           dueTime: data.dueDate ? data.dueTime ?? null : null,
           priority: data.priority,
+          showOnDashboard: data.showOnDashboard,
           status,
           doneAt: status === "DONE" ? current.doneAt ?? new Date() : null,
         },

@@ -165,10 +165,14 @@ enum TaskStatus {
   DONE
 }
 
+// Order matters: most urgent first (the list sorts by it).
 enum TaskPriority {
-  LOW
-  NORMAL
-  HIGH
+  SOFORT
+  DRINGEND
+  ZEITNAH
+  DEMNAECHST
+  BEI_GELEGENHEIT
+  IRGENDWANN
 }
 
 model Task {
@@ -178,7 +182,9 @@ model Task {
   description String?
   dueDate     DateTime?    @db.Date
   dueTime     String? // local "HH:MM" in the family time zone
-  priority    TaskPriority @default(NORMAL)
+  priority    TaskPriority @default(ZEITNAH)
+  /// Shown in the dashboard calendar (week). Off by default.
+  showOnDashboard Boolean  @default(false)
   status      TaskStatus   @default(OPEN)
   doneAt      DateTime?
   archivedAt  DateTime? // archived tasks stay in the database but leave lists and the dashboard

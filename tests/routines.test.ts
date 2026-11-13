@@ -194,14 +194,14 @@ describe("dashboard shows routines", () => {
 
 describe("tasks: extended features", () => {
   it("priority, time, in-progress, done timestamps and description", async () => {
-    const t = await createTask(f.userA, f.familyA, { title: "Mit Details", description: " Text ", dueDate: "2026-11-20", dueTime: "09:30", priority: "HIGH" }, app);
-    expect([t.priority, t.dueTime, t.description, t.status]).toEqual(["HIGH", "09:30", "Text", "OPEN"]);
+    const t = await createTask(f.userA, f.familyA, { title: "Mit Details", description: " Text ", dueDate: "2026-11-20", dueTime: "09:30", priority: "DRINGEND" }, app);
+    expect([t.priority, t.dueTime, t.description, t.status]).toEqual(["DRINGEND", "09:30", "Text", "OPEN"]);
     await expect(createTask(f.userA, f.familyA, { title: "x", dueTime: "09:30" }, app)).rejects.toThrow();
     await expect(createTask(f.userA, f.familyA, { title: "x", dueDate: "2026-11-20", dueTime: "9:5" }, app)).rejects.toThrow();
     await setTaskStatus(f.userA, f.familyA, t.id, "IN_PROGRESS", app);
     expect((await findTasks(f.userA, f.familyA, { filter: "offen" }, app)).some((x) => x.id === t.id)).toBe(true);
-    const u = await updateTask(f.userA, f.familyA, t.id, { title: "Mit Details", status: "DONE", priority: "LOW" }, app);
-    expect([u.status, u.priority, u.dueTime, u.doneAt !== null]).toEqual(["DONE", "LOW", null, true]);
+    const u = await updateTask(f.userA, f.familyA, t.id, { title: "Mit Details", status: "DONE", priority: "BEI_GELEGENHEIT" }, app);
+    expect([u.status, u.priority, u.dueTime, u.doneAt !== null]).toEqual(["DONE", "BEI_GELEGENHEIT", null, true]);
     const kept = await updateTask(f.userA, f.familyA, t.id, { title: "Mit Details" }, app); // status omitted: unchanged
     expect(kept.status).toBe("DONE");
     await admin.task.delete({ where: { id: t.id } });
