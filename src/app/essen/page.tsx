@@ -10,6 +10,7 @@ import { addSlotAction, copyWeekAction, deleteMealAction, deleteSlotAction, move
 import { Dots, names } from "../people";
 import { buttonCls, ghostButtonCls, inputCls, Notice } from "../ui";
 import { EssenTabs } from "./tabs";
+import { pageModule } from "@/server/active-modules";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +80,7 @@ function MealForm({ week, date, slotId, meal, slots, days, recipes, profiles }: 
 }
 
 export default async function Essen({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await pageModule("meals");
   const { user, familyId } = await requireFamily();
   const sp = await searchParams;
   const fehler = one(sp.fehler);

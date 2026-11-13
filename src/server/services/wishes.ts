@@ -3,7 +3,8 @@ import { z } from "zod";
 import { httpsUrl, OCCASIONS, WISH_LIMITS as L, type Occasion } from "../../lib/wishes";
 import { atLeast } from "../permissions";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
-import { withFamily, type FamilyContext } from "../tenant";
+import { type FamilyContext } from "../tenant";
+import { withModule } from "./modules";
 
 // Surprise protection (docs/wunschzettel.md): the wishing person is the user linked to the list's profile.
 // In surprise mode that person gets no reservation information at all; row level security hides the
@@ -170,11 +171,11 @@ async function viewLists(ctx: FamilyContext, where: { id?: string }) {
 
 /** Every list this user may see (private lists of others are invisible). */
 export function listWishlists(userId: string, familyId: string, client?: PrismaClient): Promise<WishlistView[]> {
-  return withFamily(userId, familyId, (ctx) => viewLists(ctx, {}), client);
+  return withModule("wishes", userId, familyId, (ctx) => viewLists(ctx, {}), client);
 }
 
 export function getWishlist(userId: string, familyId: string, id: string, client?: PrismaClient): Promise<WishlistView> {
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {
@@ -188,7 +189,7 @@ export function getWishlist(userId: string, familyId: string, id: string, client
 
 /** Lists linked to birthdays, for the birthday page. */
 export function wishlistsByBirthday(userId: string, familyId: string, client?: PrismaClient): Promise<Map<string, { id: string; title: string }[]>> {
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {
@@ -203,7 +204,7 @@ export function wishlistsByBirthday(userId: string, familyId: string, client?: P
 
 export async function createWishlist(userId: string, familyId: string, raw: ListInput, client?: PrismaClient) {
   const d = listInput.parse(raw);
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {
@@ -220,7 +221,7 @@ export async function createWishlist(userId: string, familyId: string, raw: List
 
 export async function updateWishlist(userId: string, familyId: string, id: string, raw: ListInput, client?: PrismaClient) {
   const d = listInput.parse(raw);
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {
@@ -238,7 +239,7 @@ export async function updateWishlist(userId: string, familyId: string, id: strin
 }
 
 export function deleteWishlist(userId: string, familyId: string, id: string, client?: PrismaClient) {
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {
@@ -251,7 +252,7 @@ export function deleteWishlist(userId: string, familyId: string, id: string, cli
 
 export async function createWish(userId: string, familyId: string, listId: string, raw: WishInput, client?: PrismaClient) {
   const d = wishInput.parse(raw);
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {
@@ -265,7 +266,7 @@ export async function createWish(userId: string, familyId: string, listId: strin
 
 export async function updateWish(userId: string, familyId: string, wishId: string, raw: WishInput, client?: PrismaClient) {
   const d = wishInput.parse(raw);
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {
@@ -278,7 +279,7 @@ export async function updateWish(userId: string, familyId: string, wishId: strin
 }
 
 export function deleteWish(userId: string, familyId: string, wishId: string, client?: PrismaClient) {
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {
@@ -292,7 +293,7 @@ export function deleteWish(userId: string, familyId: string, wishId: string, cli
 
 /** The wishing person (or whoever edits the list) marks a wish as received; visible to everyone. */
 export function setWishReceived(userId: string, familyId: string, wishId: string, received: boolean, client?: PrismaClient) {
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {
@@ -309,7 +310,7 @@ export function setWishReceived(userId: string, familyId: string, wishId: string
  * lookup of the reservation, so they cannot probe "already reserved" through a conflict.
  */
 export function reserveWish(userId: string, familyId: string, wishId: string, client?: PrismaClient) {
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {
@@ -328,7 +329,7 @@ export function reserveWish(userId: string, familyId: string, wishId: string, cl
 
 /** Only the member who reserved can release the reservation or mark it as given. */
 export function releaseWish(userId: string, familyId: string, wishId: string, client?: PrismaClient) {
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {
@@ -342,7 +343,7 @@ export function releaseWish(userId: string, familyId: string, wishId: string, cl
 }
 
 export function setReservationGiven(userId: string, familyId: string, wishId: string, given: boolean, client?: PrismaClient) {
-  return withFamily(
+  return withModule("wishes", 
     userId,
     familyId,
     async (ctx) => {

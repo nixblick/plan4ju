@@ -6,6 +6,7 @@ import { listCategories, type CategoryView } from "@/server/services/map";
 import { requireFamily } from "@/server/session";
 import { buttonCls, Card, Field, inputCls, Notice } from "../../ui";
 import { createCategoryAction, updateCategoryAction } from "../../karte-actions";
+import { pageModule } from "@/server/active-modules";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ function CategoryFields({ c }: { c?: CategoryView }) {
 }
 
 export default async function Kategorien({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await pageModule("map");
   const { user, familyId, role } = await requireFamily();
   const sp = await searchParams;
   const fehler = one(sp.fehler);

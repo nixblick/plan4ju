@@ -148,12 +148,13 @@ export default async function Home() {
       </section>
         </div>
         <aside className="grid content-start gap-4 sm:grid-cols-3 xl:grid-cols-1" aria-label="Weitere Module">
+          {d.mealsToday ? (
           <Tile title="Essen heute" href="/essen">
-            {(d.mealsToday ?? []).length === 0 ? (
+            {d.mealsToday.length === 0 ? (
               <p className="text-sm text-stone-600">Für heute ist noch nichts geplant.</p>
             ) : (
               <ul className="space-y-2">
-                {(d.mealsToday ?? []).map((m) => (
+                {d.mealsToday.map((m) => (
                   <li key={m.id} className="flex items-start gap-2 text-sm" data-testid="today-meal">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-xl" aria-hidden="true">🍽</span>
                     <span className="min-w-0 flex-1">
@@ -176,6 +177,7 @@ export default async function Home() {
               </ul>
             )}
           </Tile>
+          ) : null}
           {d.nextPickups ? (
             <Tile title="Abfuhr" href="/kalender/abfall">
               {d.nextPickups.length === 0 ? (
@@ -185,7 +187,7 @@ export default async function Home() {
                   {d.nextPickups.map((p) => (
                     <li key={p.id} className="flex items-center gap-2 text-sm">
                       <span aria-hidden="true">🗑</span>
-                      <span className="shrink-0 text-xs text-stone-600">{p.date.slice(8, 10)}.{p.date.slice(5, 7)}.</span>
+                      <span className="shrink-0 text-xs font-medium text-stone-700">{p.label}:</span>
                       <span className="min-w-0 break-words">{p.title}</span>
                     </li>
                   ))}

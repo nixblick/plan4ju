@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2 (14.11.2026)
+
+- Module: Essen und Rezepte, Wunschzettel, Karte und Achtsamkeit are switchable per family too (on by default, admins only, DB trigger extended). Migration `core_modules` (appended). Off is enforced in the services (`withModule`), pages answer 404, sub tabs, the meal tile and wish list links disappear; without meal planning the Essen tab leads to the shopping list. Switching off deletes nothing.
+- Abfuhr tile: pickups say "Heute" or "Morgen" (family time zone) instead of a bare date.
+- Tests: `modules.test.ts` (new switches, trigger, NotFound per service, core functions with all off, other family untouched), `module.spec.ts` (switch four modules off and on, 375 px).
+
 ## 0.5.1 (14.11.2026)
 
 - E2E `module.spec.ts` (runs in CI, no sign-up, 375 px): modules start off, a member sees no switches, the owner switches Prospekte on and off, the page is 404 while off.

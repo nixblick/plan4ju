@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { analyticsConfig } from "@/server/analytics";
 import { activeFamilyId, getSessionUser } from "@/server/session";
+import { DEFAULT_MODULES } from "@/server/active-modules";
+import { getModules } from "@/server/services/modules";
 import { logoutAction } from "./actions";
 import { FeedbackOpenButton, FeedbackWidget } from "./feedback";
 import { NavLinks } from "./nav";
@@ -30,7 +32,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const user = await getSessionUser();
   const analytics = analyticsConfig();
   // Feedback is stored in the active family (RLS); without one the button is hidden instead of failing.
-  const hasFamily = user ? Boolean(await activeFamilyId(user)) : false;
+  const familyId = user ? await activeFamilyId(user) : null;
+  const hasFamily = Boolean(familyId);
+  // Switched-off modules leave the navigation; their pages answer 404 anyway.
+  const modules = user && familyId ? await getModules(user.id, familyId) : DEFAULT_MODULES;
   return (
     <html lang="de">
       <body className="min-h-screen antialiased">
@@ -43,7 +48,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <Logo size={36} /> Plan4JU
               </Link>
               <nav aria-label="Hauptmenü" className="flex flex-col gap-1">
-                <NavLinks variant="side" />
+                <NavLinks variant="side" modules={modules} />
               </nav>
               <div className="mt-auto flex flex-col gap-2">
                 {hasFamily ? <FeedbackOpenButton className="px-3 py-2 text-left text-sm text-stone-600 underline">Feedback geben</FeedbackOpenButton> : null}
@@ -80,7 +85,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               aria-label="Hauptmenü"
               className="fixed inset-x-0 bottom-0 z-10 flex border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
             >
-              <NavLinks variant="tabs" />
+              <NavLinks variant="tabs" modules={modules} />
             </nav>
             {hasFamily ? <FeedbackWidget /> : null}
           </div>

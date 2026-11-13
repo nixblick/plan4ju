@@ -10,28 +10,68 @@ import { withFamily, type FamilyContext } from "../tenant";
 // Optional modules (docs/module.md). Switched per family by admins; a switched-off module answers like an
 // unknown page (NotFound), so nothing of it is reachable, and core functions never depend on it.
 
-export interface ModuleState {
-  flyers: boolean;
-  waste: boolean;
-}
+export type ModuleState = Record<ModuleKey, boolean>;
 
-const COLUMN: Record<ModuleKey, "moduleFlyers" | "moduleWaste"> = { flyers: "moduleFlyers", waste: "moduleWaste" };
+const COLUMN = {
+  flyers: "moduleFlyers",
+  waste: "moduleWaste",
+  map: "moduleMap",
+  wishes: "moduleWishes",
+  mindfulness: "moduleMindfulness",
+  meals: "moduleMeals",
+} as const satisfies Record<ModuleKey, string>;
 
 async function familyRow(ctx: FamilyContext) {
   return ctx.tx.family.findFirstOrThrow({
     where: { id: ctx.familyId },
-    select: { moduleFlyers: true, moduleWaste: true, flyerLinks: true, wasteCalendarId: true, timezone: true },
+    select: {
+      moduleFlyers: true,
+      moduleWaste: true,
+      moduleMap: true,
+      moduleWishes: true,
+      moduleMindfulness: true,
+      moduleMeals: true,
+      flyerLinks: true,
+      wasteCalendarId: true,
+      timezone: true,
+    },
   });
 }
 
 export async function modulesOf(ctx: FamilyContext): Promise<ModuleState> {
   const f = await familyRow(ctx);
-  return { flyers: f.moduleFlyers, waste: f.moduleWaste };
+  return {
+    flyers: f.moduleFlyers,
+    waste: f.moduleWaste,
+    map: f.moduleMap,
+    wishes: f.moduleWishes,
+    mindfulness: f.moduleMindfulness,
+    meals: f.moduleMeals,
+  };
 }
 
 /** Throws NotFound when the module is off: the page and its actions behave as if they did not exist. */
 export async function requireModule(ctx: FamilyContext, key: ModuleKey): Promise<void> {
   if (!(await modulesOf(ctx))[key]) throw new NotFoundError("Module off");
+}
+
+/** Like withFamily, but the module must be on: every service of a switchable module goes through this. */
+export function withModule<T>(
+  key: ModuleKey,
+  userId: string,
+  familyId: string,
+  fn: (ctx: FamilyContext) => Promise<T>,
+  client?: PrismaClient,
+): Promise<T> {
+  return withFamily(
+    userId,
+    familyId,
+    async (ctx) => {
+      await requireModule(ctx, key);
+      return fn(ctx);
+    },
+    client,
+  );
 }
 
 export function getModules(userId: string, familyId: string, client?: PrismaClient): Promise<ModuleState> {

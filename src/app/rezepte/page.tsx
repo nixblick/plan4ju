@@ -4,10 +4,12 @@ import { listRecipes } from "@/server/services/recipes";
 import { requireFamily } from "@/server/session";
 import { buttonCls, Card, Notice } from "../ui";
 import { EssenTabs } from "../essen/tabs";
+import { pageModule } from "@/server/active-modules";
 
 export const dynamic = "force-dynamic";
 
 export default async function Rezepte({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await pageModule("meals");
   const { user, familyId } = await requireFamily();
   const sp = await searchParams;
   const fehler = one(sp.fehler);

@@ -5,7 +5,8 @@ import { RECIPE_LIMITS as L, safeHttpsUrl } from "../../lib/recipes";
 import { NotFoundError } from "../errors";
 import { rateLimit } from "../ratelimit";
 import { fetchPublicText, parsePublicUrl, type FetchOptions } from "../safe-fetch";
-import { withFamily, type Tx } from "../tenant";
+import { type Tx } from "../tenant";
+import { withModule } from "./modules";
 
 const optText = (max: number) =>
   z.string().trim().max(max).nullish().transform((v) => (v ? v : null));
@@ -54,7 +55,7 @@ export class RecipeImportError extends Error {
 const withIngredients = { ingredients: { orderBy: { position: "asc" as const } } };
 
 export function listRecipes(userId: string, familyId: string, client?: PrismaClient) {
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     (ctx) =>
@@ -68,7 +69,7 @@ export function listRecipes(userId: string, familyId: string, client?: PrismaCli
 }
 
 export function getRecipe(userId: string, familyId: string, id: string, client?: PrismaClient) {
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -89,7 +90,7 @@ function ingredientRows(tx: Tx, familyId: string, recipeId: string, list: z.outp
 
 export async function createRecipe(userId: string, familyId: string, raw: RecipeInput, client?: PrismaClient) {
   const d = recipeInput.parse(raw);
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -104,7 +105,7 @@ export async function createRecipe(userId: string, familyId: string, raw: Recipe
 
 export async function updateRecipe(userId: string, familyId: string, id: string, raw: RecipeInput, client?: PrismaClient) {
   const d = recipeInput.parse(raw);
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -119,7 +120,7 @@ export async function updateRecipe(userId: string, familyId: string, id: string,
 }
 
 export function deleteRecipe(userId: string, familyId: string, id: string, client?: PrismaClient) {
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -147,7 +148,7 @@ export async function importRecipeDraft(
   opts: FetchOptions = {},
   client?: PrismaClient,
 ): Promise<RecipeDraft> {
-  await withFamily(userId, familyId, async () => undefined, client);
+  await withModule("meals", userId, familyId, async () => undefined, client);
   parsePublicUrl(url); // an obviously refused address does not use up the limit
   rateLimit(`recipe-import:user:${userId}`, IMPORT_LIMIT.max, IMPORT_LIMIT.windowMs);
   const html = await fetchPublicText(url, {

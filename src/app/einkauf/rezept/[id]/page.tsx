@@ -9,11 +9,13 @@ import { getShoppingList } from "@/server/services/shopping";
 import { requireFamily } from "@/server/session";
 import { transferAction } from "../../../einkauf-actions";
 import { buttonCls, Card, inputCls, Notice } from "../../../ui";
+import { pageModule } from "@/server/active-modules";
 
 export const dynamic = "force-dynamic";
 
 /** Preview before the transfer: choose ingredients, adjust quantity, unit and shop. */
 export default async function ZutatenEinkaufen({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await pageModule("meals");
   const { user, familyId } = await requireFamily();
   const { id } = await params;
   const sp = await searchParams;

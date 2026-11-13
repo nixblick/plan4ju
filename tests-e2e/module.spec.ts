@@ -73,4 +73,31 @@ test.describe.serial("Zusatzmodule", () => {
     await a.context().close();
     await b.context().close();
   });
+
+  test("Anna schaltet Karte, Wunschzettel, Achtsamkeit und Essen aus: weg aus Navigation und Startseite, Einkauf bleibt", async ({ browser }) => {
+    const a = await signIn(browser, anna);
+    await a.goto("/familie/module");
+    for (const label of ["Karte", "Wunschzettel", "Achtsamkeit", "Essen und Rezepte"]) {
+      await a.getByRole("button", { name: `${label} ausschalten` }).click();
+      await expect(a.getByRole("status")).toHaveText("Modul ausgeschaltet.");
+    }
+    for (const path of ["/karte", "/wuensche", "/achtsamkeit", "/essen", "/rezepte"]) expect((await a.goto(path))?.status()).toBe(404);
+    await a.goto("/");
+    await expect(a.getByRole("region", { name: "Essen heute" })).toHaveCount(0);
+    await a.goto("/geburtstage");
+    await expect(a.getByRole("navigation", { name: "Unterseiten" })).toHaveCount(0);
+    await a.goto("/einkauf");
+    await expect(a.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(a.getByRole("link", { name: "Einkauf" }).first()).toBeVisible();
+    await expect(a.getByRole("navigation", { name: "Essen" })).toHaveCount(0);
+    await noOverflow(a);
+
+    await a.goto("/familie/module");
+    for (const label of ["Karte", "Wunschzettel", "Achtsamkeit", "Essen und Rezepte"]) {
+      await a.getByRole("button", { name: `${label} einschalten` }).click();
+      await expect(a.getByRole("status")).toHaveText("Modul eingeschaltet.");
+    }
+    expect((await a.goto("/karte"))?.status()).toBe(200);
+    await a.context().close();
+  });
 });

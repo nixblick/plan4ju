@@ -11,6 +11,7 @@ import { requireFamily } from "@/server/session";
 import { deleteEntryAction, saveEntryAction } from "../achtsamkeit-actions";
 import { FamilieTabs } from "../familie/tabs";
 import { buttonCls, Card, ghostButtonCls, inputCls, Notice } from "../ui";
+import { pageModule } from "@/server/active-modules";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const dayFmt = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "numeric", month: "numeric", timeZone: "UTC" });
@@ -25,6 +26,7 @@ function monthRange(iso: string): { from: string; to: string } {
 }
 
 export default async function Achtsamkeit({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await pageModule("mindfulness");
   const { user, familyId } = await requireFamily();
   const sp = await searchParams;
   const fehler = one(sp.fehler);

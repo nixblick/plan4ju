@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { activeModules } from "@/server/active-modules";
+import type { ModuleKey } from "@/lib/modules";
 
 const TABS = [
   { key: "mitglieder", href: "/familie/mitglieder", label: "Mitglieder" },
@@ -6,11 +8,19 @@ const TABS = [
   { key: "module", href: "/familie/module", label: "Module" },
 ] as const;
 
+const MODULE_OF: Partial<Record<string, ModuleKey>> = { achtsamkeit: "mindfulness" };
+
 /** Sub navigation of the "Familie" area (the bottom bar keeps 7 tabs). */
-export function FamilieTabs({ active }: { active: (typeof TABS)[number]["key"] }) {
+export async function FamilieTabs({ active }: { active: (typeof TABS)[number]["key"] }) {
+  const modules = await activeModules();
+  const tabs = TABS.filter((t) => {
+    const m = MODULE_OF[t.key];
+    return !m || modules[m];
+  });
+  if (tabs.length < 2) return null;
   return (
     <nav aria-label="Bereiche der Familie" className="flex gap-1 rounded-xl bg-stone-100 p-1 text-sm">
-      {TABS.map((t) => (
+      {tabs.map((t) => (
         <Link
           key={t.key}
           href={t.href}

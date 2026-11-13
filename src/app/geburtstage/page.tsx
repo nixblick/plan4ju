@@ -6,6 +6,7 @@ import { createBirthdayAction, deleteBirthdayAction, updateBirthdayAction } from
 import { buttonCls, Card, Field, ghostButtonCls, inputCls, Notice } from "../ui";
 import { getDashboard } from "@/server/services/dashboard";
 import { wishlistsByBirthday } from "@/server/services/wishes";
+import { activeModules } from "@/server/active-modules";
 import Link from "next/link";
 import { FesteTabs } from "./tabs";
 
@@ -47,7 +48,12 @@ export default async function Geburtstage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const fehler = one(sp.fehler);
   const ok = one(sp.ok);
-  const [dash, list, wishlists] = await Promise.all([getDashboard(user.id, familyId), listBirthdays(user.id, familyId), wishlistsByBirthday(user.id, familyId)]);
+  const modules = await activeModules();
+  const [dash, list, wishlists] = await Promise.all([
+    getDashboard(user.id, familyId),
+    listBirthdays(user.id, familyId),
+    modules.wishes ? wishlistsByBirthday(user.id, familyId) : Promise.resolve(new Map<string, never[]>()),
+  ]);
   const today = todayIn(dash.timezone);
   const rows = list
     .map((b) => {

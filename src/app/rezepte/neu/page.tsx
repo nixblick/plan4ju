@@ -4,10 +4,12 @@ import { requireFamily } from "@/server/session";
 import { createRecipeAction } from "../../rezepte-actions";
 import { Notice } from "../../ui";
 import { ImportAndForm } from "../recipe-form";
+import { pageModule } from "@/server/active-modules";
 
 export const dynamic = "force-dynamic";
 
 export default async function NeuesRezept({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await pageModule("meals");
   await requireFamily();
   const fehler = one((await searchParams).fehler);
   return (

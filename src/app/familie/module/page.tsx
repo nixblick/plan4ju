@@ -1,5 +1,5 @@
 import { errorMessages, okMessages, one } from "@/lib/messages";
-import { MODULES, type ModuleKey } from "@/lib/modules";
+import { MODULE_KEYS, MODULES } from "@/lib/modules";
 import { atLeast } from "@/server/permissions";
 import { getModules } from "@/server/services/modules";
 import { requireFamily } from "@/server/session";
@@ -24,12 +24,13 @@ export default async function Module({ searchParams }: { searchParams: Promise<R
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
       {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}
       <p className="text-sm text-stone-600">
-        Zusatzmodule sind ausgeschaltet, bis ein Admin sie einschaltet. Sie hängen von keinem fremden Dienst ab, den der Rest der App braucht:
-        ausgeschaltet oder ohne Verbindung läuft alles andere wie gewohnt.
+        Jedes Modul lässt sich für die ganze Familie einzeln ein- und ausschalten. Ausgeschaltet verschwindet es aus Navigation und
+        Startseite, gespeicherte Einträge bleiben erhalten und sind nach dem Einschalten wieder da. Aufgaben, Routinen, Kalender,
+        Geburtstage und Einkaufsliste bleiben immer an. Prospekte und Abfallkalender sind zu Beginn aus.
       </p>
-      <Card title="Zusatzmodule">
+      <Card title="Schalter">
         <ul className="divide-y divide-stone-100">
-          {(Object.keys(MODULES) as ModuleKey[]).map((k) => (
+          {MODULE_KEYS.map((k) => (
             <li key={k} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between" data-testid="module-row">
               <span className="min-w-0 flex-1">
                 <strong>{MODULES[k].label}</strong>

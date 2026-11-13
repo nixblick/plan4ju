@@ -3,7 +3,8 @@ import { z } from "zod";
 import { allowedVisibilities, NOTE_MAX, TOPICS, VISIBILITIES, type Topic, type Visibility } from "../../lib/achtsamkeit";
 import { todayIn } from "../../lib/week";
 import { ForbiddenError, NotFoundError } from "../errors";
-import { withFamily, type FamilyContext } from "../tenant";
+import { type FamilyContext } from "../tenant";
+import { withModule } from "./modules";
 
 // Mindfulness (docs/achtsamkeit.md). Every read runs as the app role inside the family context, so row
 // level security decides what is visible: the author, the family (FAMILY) or selected viewers
@@ -55,12 +56,12 @@ async function writableProfiles(ctx: FamilyContext) {
 }
 
 export function listWritableProfiles(userId: string, familyId: string, client?: PrismaClient) {
-  return withFamily(userId, familyId, (ctx) => writableProfiles(ctx), client);
+  return withModule("mindfulness", userId, familyId, (ctx) => writableProfiles(ctx), client);
 }
 
 /** Other members who can be picked as viewers. */
 export function listViewerCandidates(userId: string, familyId: string, client?: PrismaClient) {
-  return withFamily(userId, familyId, async ({ tx }) => {
+  return withModule("mindfulness", userId, familyId, async ({ tx }) => {
     const ms = await tx.familyMembership.findMany({
       where: { familyId, userId: { not: userId } },
       select: { userId: true, user: { select: { name: true } } },
@@ -87,7 +88,7 @@ async function setViewers(ctx: FamilyContext, entryId: string, visibility: Visib
  */
 export async function saveEntry(userId: string, familyId: string, input: EntryInput, client?: PrismaClient) {
   const v = entryInput.parse(input);
-  return withFamily(userId, familyId, async (ctx) => {
+  return withModule("mindfulness", userId, familyId, async (ctx) => {
     const profiles = await writableProfiles(ctx);
     if (!profiles.some((p) => p.id === v.profileId)) throw new ForbiddenError("Not your profile");
     const date = new Date(`${v.date}T00:00:00Z`);
@@ -108,7 +109,7 @@ export async function saveEntry(userId: string, familyId: string, input: EntryIn
 }
 
 export function deleteEntry(userId: string, familyId: string, entryId: string, client?: PrismaClient) {
-  return withFamily(userId, familyId, async ({ tx }) => {
+  return withModule("mindfulness", userId, familyId, async ({ tx }) => {
     const r = await tx.mindfulnessEntry.deleteMany({ where: { id: entryId, createdById: userId } });
     if (r.count === 0) throw new NotFoundError("Entry not found");
   }, client);
@@ -133,7 +134,7 @@ function toView(userId: string, e: {
 }
 
 export function getEntry(userId: string, familyId: string, entryId: string, client?: PrismaClient) {
-  return withFamily(userId, familyId, async ({ tx }) => {
+  return withModule("mindfulness", userId, familyId, async ({ tx }) => {
     const e = await tx.mindfulnessEntry.findUnique({ where: { id: entryId }, select: entrySelect });
     if (!e) throw new NotFoundError("Entry not found");
     return toView(userId, e);
@@ -147,7 +148,7 @@ export function listEntries(
   q: { from: string; to: string; profileId?: string | null; topic?: Topic | null },
   client?: PrismaClient,
 ) {
-  return withFamily(userId, familyId, async ({ tx }) => {
+  return withModule("mindfulness", userId, familyId, async ({ tx }) => {
     const rows = await tx.mindfulnessEntry.findMany({
       where: {
         familyId,
@@ -168,7 +169,7 @@ export function listEntries(
  * entries are all hidden is not listed, so the picker gives no hint either.
  */
 export function listVisibleProfiles(userId: string, familyId: string, client?: PrismaClient) {
-  return withFamily(userId, familyId, async ({ tx }) => {
+  return withModule("mindfulness", userId, familyId, async ({ tx }) => {
     const rows = await tx.mindfulnessEntry.findMany({
       where: { familyId }, distinct: ["profileId"], select: { profileId: true, profile: { select: { displayName: true } } },
     });
@@ -178,7 +179,7 @@ export function listVisibleProfiles(userId: string, familyId: string, client?: P
 
 /** Today in the family time zone (default date of a new entry). */
 export function familyToday(userId: string, familyId: string, now: Date = new Date(), client?: PrismaClient) {
-  return withFamily(userId, familyId, async ({ tx }) => {
+  return withModule("mindfulness", userId, familyId, async ({ tx }) => {
     const f = await tx.family.findFirst({ where: { id: familyId }, select: { timezone: true } });
     return todayIn(f?.timezone ?? "Europe/Berlin", now);
   }, client);

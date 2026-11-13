@@ -4,7 +4,7 @@ import type { RecipeDraft } from "../../lib/recipe-extract";
 import { RECIPE_LIMITS as L } from "../../lib/recipes";
 import { rateLimit } from "../ratelimit";
 import { recipeInput } from "../services/recipes";
-import { withFamily } from "../tenant";
+import { withModule } from "../services/modules";
 
 /**
  * Optional AI recipe ideas. Only the wish fields below ever leave the server: no names, no family
@@ -152,7 +152,7 @@ export function toDraft(raw: unknown): IdeaDraft {
  * limit (failed provider calls count too). Nothing is stored: the result is a draft for the form.
  */
 export async function suggestRecipe(userId: string, familyId: string, raw: IdeaRequest, client?: PrismaClient): Promise<IdeaDraft> {
-  await withFamily(userId, familyId, async () => undefined, client);
+  await withModule("meals", userId, familyId, async () => undefined, client);
   const provider = recipeIdeaProvider();
   if (!provider) throw new AiNotConfiguredError();
   const wishes = ideaRequest.parse(raw);

@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { addSource, DEFAULT_SHOPS, mergeAmounts, nameKey, SHOPPING_LIMITS as L } from "../../lib/shopping";
 import { ConflictError, NotFoundError } from "../errors";
+import { withModule } from "./modules";
 import { withFamily, type FamilyContext } from "../tenant";
 
 /** Unique index race, shop limit, last shop: conflict, not 500. */
@@ -266,7 +267,8 @@ export function deleteShop(userId: string, familyId: string, id: string, client?
  */
 export function transferIngredients(userId: string, familyId: string, raw: TransferInput, client?: PrismaClient) {
   const d = transferInput.parse(raw);
-  return withFamily(
+  return withModule(
+    "meals",
     userId,
     familyId,
     async (ctx) => {

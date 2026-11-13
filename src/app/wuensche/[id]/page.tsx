@@ -16,6 +16,7 @@ import {
   updateWishAction, updateWishlistAction,
 } from "../../wunsch-actions";
 import { ListFields, WishFields } from "../list-fields";
+import { pageModule } from "@/server/active-modules";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +69,7 @@ export default async function Wunschzettel({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await pageModule("wishes");
   const { user, familyId } = await requireFamily();
   const { id } = await params;
   const sp = await searchParams;

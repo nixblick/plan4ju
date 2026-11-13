@@ -8,10 +8,12 @@ import { requireFamily } from "@/server/session";
 import { deleteRecipeAction, updateRecipeAction } from "../../rezepte-actions";
 import { Card, ghostButtonCls, inputCls, Notice } from "../../ui";
 import { RecipeForm } from "../recipe-form";
+import { pageModule } from "@/server/active-modules";
 
 export const dynamic = "force-dynamic";
 
 export default async function Rezept({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await pageModule("meals");
   const { user, familyId } = await requireFamily();
   const { id } = await params;
   const sp = await searchParams;

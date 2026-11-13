@@ -1,6 +1,7 @@
 import { modulesOf, wastePickups } from "./modules";
 import type { PrismaClient } from "@prisma/client";
 import { addDays, daysBetween, nextBirthday, todayIn, weekOf } from "../../lib/week";
+import { pickupDayLabel } from "../../lib/modules";
 import { itemsOnDay, type CalendarItem } from "../../lib/calendar-items";
 import { withFamily } from "../tenant";
 import { itemsBetween } from "./calendar";
@@ -127,11 +128,16 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
         }),
         ctx.tx.birthday.findMany({ where: { familyId }, take: 1000 }),
       ]);
-      const [slots, meals] = await Promise.all([
-        ctx.tx.mealSlot.findMany({ where: { familyId }, orderBy: [{ position: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
-        mealsOn(ctx, today),
-      ]);
-      const mealsToday = slots.flatMap((sl) => meals.filter((m) => m.slotId === sl.id).map((m) => ({ ...m, slotName: sl.name })));
+      const mods = await modulesOf(ctx);
+      // switchable module: no meal tile (and no meal query) while meal planning is off
+      let mealsToday: DashboardData["mealsToday"] = undefined;
+      if (mods.meals) {
+        const [slots, meals] = await Promise.all([
+          ctx.tx.mealSlot.findMany({ where: { familyId }, orderBy: [{ position: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
+          mealsOn(ctx, today),
+        ]);
+        mealsToday = slots.flatMap((sl) => meals.filter((m) => m.slotId === sl.id).map((m) => ({ ...m, slotName: sl.name })));
+      }
       const built = buildDashboard(
         {
           familyName: family.name,
@@ -152,9 +158,8 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
         userId,
         now,
       );
-      const mods = await modulesOf(ctx);
       // optional module: the next 7 days of pickups from stored events only (never a fetch here)
-      const nextPickups = mods.waste ? (await wastePickups(ctx, now, 20)).pickups.filter((p) => p.date <= addDays(today, 7)).slice(0, 3) : null;
+      const nextPickups = mods.waste ? (await wastePickups(ctx, now, 20)).pickups.filter((p) => p.date <= addDays(today, 7)).slice(0, 3).map((p) => ({ ...p, label: pickupDayLabel(p.date, today) })) : null;
       return { ...built, mealsToday, nextPickups };
     },
     client,

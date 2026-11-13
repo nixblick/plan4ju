@@ -4,11 +4,16 @@ Stand 0.4.x. Dieses Dokument sagt, was gebaut ist und was bewusst nicht.
 
 ## Schalter
 
-- Je Familie, unter **Familie → Module** (`/familie/module`). Jedes Modul ist zunächst **aus** und wird unabhängig von den
-  anderen ein- und ausgeschaltet. Schalten dürfen nur Owner und Admins; die Datenbank prüft das zusätzlich (Trigger auf der
+- Je Familie, unter **Familie → Module** (`/familie/module`). Schaltbar sind sechs Module, jedes unabhängig von den anderen:
+  Essen und Rezepte, Wunschzettel, Karte und Achtsamkeit (zu Beginn **an**, damit bestehende Familien nichts verlieren) sowie
+  Prospekte und Abfallkalender (zu Beginn **aus**). Immer an bleiben die Kernfunktionen: Startseite, Kalender, Aufgaben,
+  Routinen, Geburtstage, Einkaufsliste und Familie. Schalten dürfen nur Owner und Admins; die Datenbank prüft das zusätzlich (Trigger auf der
   Tabelle `family`), auch wenn ein Mitglied die Zeile sonst ändern dürfte.
 - Ausgeschaltet heißt serverseitig aus: Seiten des Moduls antworten mit „nicht gefunden“, Aktionen werden abgelehnt,
-  Kachel und Links verschwinden. Die Einstellungen bleiben erhalten und sind beim Wiedereinschalten zurück.
+  Kachel und Links verschwinden. Durchgesetzt wird das in den Services (`withModule`), nicht nur in der Oberfläche.
+  Ausschalten **löscht nichts**: Einträge und Einstellungen bleiben gespeichert und sind beim Wiedereinschalten zurück.
+- Ohne „Essen und Rezepte“ führt der Haupt-Tab „Essen“ als „Einkauf“ direkt zur Einkaufsliste; Rezeptzutaten lassen sich dann
+  nicht übertragen. Ohne Wunschzettel und Karte fällt die Unter-Navigation bei Geburtstage weg, ohne Achtsamkeit deren Reiter.
 - Kein Modul ist Voraussetzung für eine Kernfunktion. Startseite, Kalender, Aufgaben und Einkauf lesen nur gespeicherte Daten;
   kein Seitenaufruf wartet auf einen fremden Dienst.
 
@@ -25,7 +30,8 @@ Stand 0.4.x. Dieses Dokument sagt, was gebaut ist und was bewusst nicht.
 
 ## Abfallkalender
 
-- Unter **Kalender → Abfallkalender** (`/kalender/abfall`) und als Kachel „Abfuhr“ auf der Startseite (nächste 7 Tage).
+- Unter **Kalender → Abfallkalender** (`/kalender/abfall`) und als Kachel „Abfuhr“ auf der Startseite (nächste 7 Tage,
+  mit „Heute“ und „Morgen“ in der Zeitzone der Familie, z. B. „Morgen: Biotonne“). Eine Push- oder E-Mail-Erinnerung gibt es nicht.
 - Recherche (13.11.2026, Masterprompt Abschnitt 18): Für den FES-Abfallkalender Frankfurt bzw. die App FrankfurtPlus ist **keine
   offizielle, dokumentierte Schnittstelle und kein dokumentierter Kalender-Feed** zu finden. Die App bietet einen Export in den
   Kalender des Telefons; private App-Endpunkte setzen wir nicht voraus.

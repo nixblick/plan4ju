@@ -98,7 +98,7 @@ test.describe.serial("Abnahme Release 0.5", () => {
   test("Zunächst ist alles aus; ein Mitglied kann nichts schalten", async () => {
     const b = pages.ben!;
     await b.goto("/familie/module");
-    await expect(b.getByTestId("module-row")).toHaveCount(2);
+    await expect(b.getByTestId("module-row")).toHaveCount(6);
     await expect(b.getByTestId("module-row").filter({ hasText: "Prospekte" })).toContainText("aus");
     await expect(b.getByTestId("module-row").filter({ hasText: "Abfallkalender" })).toContainText("aus");
     await expect(b.getByRole("button", { name: /einschalten/ })).toHaveCount(0);

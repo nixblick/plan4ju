@@ -11,11 +11,13 @@ import { FesteTabs } from "../geburtstage/tabs";
 import { buttonCls, Card, Notice } from "../ui";
 import { createWishlistAction } from "../wunsch-actions";
 import { ListFields } from "./list-fields";
+import { pageModule } from "@/server/active-modules";
 
 export const dynamic = "force-dynamic";
 
 
 export default async function Wuensche({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await pageModule("wishes");
   const { user, familyId } = await requireFamily();
   const sp = await searchParams;
   const fehler = one(sp.fehler);

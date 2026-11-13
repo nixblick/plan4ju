@@ -5,7 +5,8 @@ import { todayIn } from "../../lib/week";
 import { httpsUrl } from "../../lib/wishes";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { assertRole, atLeast } from "../permissions";
-import { withFamily, type FamilyContext } from "../tenant";
+import { type FamilyContext } from "../tenant";
+import { withModule } from "./modules";
 
 // Map module (docs/karte.md): categories (ADMIN and up manage them), points shared within the family.
 // Temporary points (endDate set) are archived lazily once their last local day is over; permanent
@@ -164,7 +165,7 @@ async function viewPois(ctx: FamilyContext, where: object): Promise<PoiView[]> {
 }
 
 export function listCategories(userId: string, familyId: string, client?: PrismaClient): Promise<CategoryView[]> {
-  return withFamily(
+  return withModule("map", 
     userId,
     familyId,
     async (ctx) => {
@@ -189,7 +190,7 @@ export function listCategories(userId: string, familyId: string, client?: Prisma
 }
 
 export function listPois(userId: string, familyId: string, filter: PoiFilter = {}, client?: PrismaClient, now = new Date()): Promise<PoiView[]> {
-  return withFamily(
+  return withModule("map", 
     userId,
     familyId,
     async (ctx) => {
@@ -207,7 +208,7 @@ export function listPois(userId: string, familyId: string, filter: PoiFilter = {
 }
 
 export function getPoi(userId: string, familyId: string, id: string, client?: PrismaClient): Promise<PoiView> {
-  return withFamily(
+  return withModule("map", 
     userId,
     familyId,
     async (ctx) => {
@@ -221,7 +222,7 @@ export function getPoi(userId: string, familyId: string, id: string, client?: Pr
 
 /** Members who created at least one point (for the creator filter). */
 export function listPoiCreators(userId: string, familyId: string, client?: PrismaClient): Promise<{ id: string; name: string }[]> {
-  return withFamily(
+  return withModule("map", 
     userId,
     familyId,
     async (ctx) => {
@@ -246,7 +247,7 @@ function poiData(d: z.output<typeof poiInput>) {
 }
 
 export function createPoi(userId: string, familyId: string, raw: PoiInput, client?: PrismaClient): Promise<{ id: string }> {
-  return withFamily(
+  return withModule("map", 
     userId,
     familyId,
     async (ctx) => {
@@ -266,7 +267,7 @@ async function loadEditablePoi(ctx: FamilyContext, id: string) {
 }
 
 export function updatePoi(userId: string, familyId: string, id: string, raw: PoiInput, client?: PrismaClient, now = new Date()): Promise<void> {
-  return withFamily(
+  return withModule("map", 
     userId,
     familyId,
     async (ctx) => {
@@ -284,7 +285,7 @@ export function updatePoi(userId: string, familyId: string, id: string, raw: Poi
 
 /** Moves a point (drag on the map or new coordinates). */
 export function movePoi(userId: string, familyId: string, id: string, lat: number, lng: number, client?: PrismaClient): Promise<void> {
-  return withFamily(
+  return withModule("map", 
     userId,
     familyId,
     async (ctx) => {
@@ -297,7 +298,7 @@ export function movePoi(userId: string, familyId: string, id: string, lat: numbe
 }
 
 export function deletePoi(userId: string, familyId: string, id: string, client?: PrismaClient): Promise<void> {
-  return withFamily(
+  return withModule("map", 
     userId,
     familyId,
     async (ctx) => {
@@ -309,7 +310,7 @@ export function deletePoi(userId: string, familyId: string, id: string, client?:
 }
 
 export function createCategory(userId: string, familyId: string, raw: CategoryInput, client?: PrismaClient): Promise<{ id: string }> {
-  return withFamily(
+  return withModule("map", 
     userId,
     familyId,
     async (ctx) => {
@@ -325,7 +326,7 @@ export function createCategory(userId: string, familyId: string, raw: CategoryIn
 }
 
 export function updateCategory(userId: string, familyId: string, id: string, raw: CategoryInput, client?: PrismaClient): Promise<void> {
-  return withFamily(
+  return withModule("map", 
     userId,
     familyId,
     async (ctx) => {

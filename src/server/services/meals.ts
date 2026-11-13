@@ -2,7 +2,8 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { addDays, todayIn, weekOf } from "../../lib/week";
 import { ConflictError, NotFoundError } from "../errors";
-import { withFamily, type FamilyContext } from "../tenant";
+import { type FamilyContext } from "../tenant";
+import { withModule } from "./modules";
 
 export const DEFAULT_MEAL_SLOTS = ["Frühstück", "Mittag", "Abend"] as const;
 export const MEAL_LIMITS = { slots: 8, slotName: 40, text: 200, cooks: 10 } as const;
@@ -94,7 +95,7 @@ async function familyToday(ctx: FamilyContext, now: Date) {
 
 /** The week (Mon-Sun) containing `iso`, or the current week of the family. */
 export function getMealWeek(userId: string, familyId: string, iso?: string | null, now = new Date(), client?: PrismaClient): Promise<MealWeek> {
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -134,7 +135,7 @@ async function slotTaken(ctx: FamilyContext, date: string, slotId: string, excep
 /** Plans a meal in an empty slot. */
 export async function createMeal(userId: string, familyId: string, raw: MealInput, client?: PrismaClient) {
   const d = mealInput.parse(raw);
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -154,7 +155,7 @@ export async function createMeal(userId: string, familyId: string, raw: MealInpu
 /** Edits a meal; a new date or slot moves it (refused if the target is taken). */
 export async function updateMeal(userId: string, familyId: string, id: string, raw: MealInput, client?: PrismaClient) {
   const d = mealInput.parse(raw);
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -174,7 +175,7 @@ export async function updateMeal(userId: string, familyId: string, id: string, r
 }
 
 export function deleteMeal(userId: string, familyId: string, id: string, client?: PrismaClient) {
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -192,7 +193,7 @@ export function deleteMeal(userId: string, familyId: string, id: string, client?
 export function copyMealWeek(userId: string, familyId: string, fromIso: string, toIso?: string | null, client?: PrismaClient) {
   const from = isoDate.parse(fromIso);
   const target = toIso ? isoDate.parse(toIso) : addDays(from, 7);
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -222,7 +223,7 @@ export function copyMealWeek(userId: string, familyId: string, fromIso: string, 
 
 export function addMealSlot(userId: string, familyId: string, rawName: string, client?: PrismaClient) {
   const name = slotName.parse(rawName);
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -238,7 +239,7 @@ export function addMealSlot(userId: string, familyId: string, rawName: string, c
 
 export function renameMealSlot(userId: string, familyId: string, id: string, rawName: string, client?: PrismaClient) {
   const name = slotName.parse(rawName);
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -253,7 +254,7 @@ export function renameMealSlot(userId: string, familyId: string, id: string, raw
 
 /** Moves a slot one place up (-1) or down (+1). */
 export function moveMealSlot(userId: string, familyId: string, id: string, dir: -1 | 1, client?: PrismaClient) {
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {
@@ -272,7 +273,7 @@ export function moveMealSlot(userId: string, familyId: string, id: string, dir: 
 
 /** Deletes a slot with its planned meals; the last slot stays. */
 export function deleteMealSlot(userId: string, familyId: string, id: string, client?: PrismaClient) {
-  return withFamily(
+  return withModule("meals", 
     userId,
     familyId,
     async (ctx) => {

@@ -10,10 +10,12 @@ import { deletePoiAction, updatePoiAction } from "../../karte-actions";
 import { MapView } from "../map-view";
 import { PoiFields } from "../poi-fields";
 import { periodText } from "../period";
+import { pageModule } from "@/server/active-modules";
 
 export const dynamic = "force-dynamic";
 
 export default async function Ort({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await pageModule("map");
   const { user, familyId } = await requireFamily();
   const { id } = await params;
   const sp = await searchParams;

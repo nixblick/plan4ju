@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { activeModules } from "@/server/active-modules";
+import type { ModuleKey } from "@/lib/modules";
 
 const TABS = [
   { key: "geburtstage", href: "/geburtstage", label: "Geburtstage" },
@@ -6,11 +8,19 @@ const TABS = [
   { key: "karte", href: "/karte", label: "Karte" },
 ] as const;
 
+const MODULE_OF: Partial<Record<string, ModuleKey>> = { wuensche: "wishes", karte: "map" };
+
 /** Sub navigation of the "Geburtstage" area (the bottom bar has no room for another tab). */
-export function FesteTabs({ active }: { active: (typeof TABS)[number]["key"] }) {
+export async function FesteTabs({ active }: { active: (typeof TABS)[number]["key"] }) {
+  const modules = await activeModules();
+  const tabs = TABS.filter((t) => {
+    const m = MODULE_OF[t.key];
+    return !m || modules[m];
+  });
+  if (tabs.length < 2) return null;
   return (
     <nav aria-label="Unterseiten" className="flex gap-1 rounded-xl bg-stone-100 p-1 text-sm">
-      {TABS.map((t) => (
+      {tabs.map((t) => (
         <Link
           key={t.key}
           href={t.href}

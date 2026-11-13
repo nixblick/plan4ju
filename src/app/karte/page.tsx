@@ -10,12 +10,14 @@ import { createPoiAction } from "../karte-actions";
 import { MapView } from "./map-view";
 import { PoiFields } from "./poi-fields";
 import { periodText } from "./period";
+import { pageModule } from "@/server/active-modules";
 
 export const dynamic = "force-dynamic";
 
 const idParam = (v: string | undefined) => (v && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : null);
 
 export default async function Karte({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await pageModule("map");
   const { user, familyId, role } = await requireFamily();
   const sp = await searchParams;
   const fehler = one(sp.fehler);

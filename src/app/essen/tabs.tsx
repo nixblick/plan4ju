@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { activeModules } from "@/server/active-modules";
+import type { ModuleKey } from "@/lib/modules";
 
 const TABS = [
   { key: "plan", href: "/essen", label: "Wochenplan" },
@@ -7,11 +9,19 @@ const TABS = [
   { key: "idee", href: "/essen/idee", label: "Idee" },
 ] as const;
 
+const MODULE_OF: Partial<Record<string, ModuleKey>> = { plan: "meals", rezepte: "meals", idee: "meals" };
+
 /** Sub navigation of the "Essen" area (the bottom bar has no room for more tabs). */
-export function EssenTabs({ active }: { active: (typeof TABS)[number]["key"] }) {
+export async function EssenTabs({ active }: { active: (typeof TABS)[number]["key"] }) {
+  const modules = await activeModules();
+  const tabs = TABS.filter((t) => {
+    const m = MODULE_OF[t.key];
+    return !m || modules[m];
+  });
+  if (tabs.length < 2) return null;
   return (
     <nav aria-label="Essen" className="flex gap-1 rounded-xl bg-stone-100 p-1 text-sm">
-      {TABS.map((t) => (
+      {tabs.map((t) => (
         <Link
           key={t.key}
           href={t.href}

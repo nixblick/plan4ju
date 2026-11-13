@@ -1,13 +1,30 @@
 import { z } from "zod";
 import { httpsUrl } from "./wishes";
 
-/** Optional modules of Release 0.5 (docs/module.md). Off by default, switched per family by admins. */
+/**
+ * Optional modules (docs/module.md), switched per family by admins. The 0.4 features and meal planning start
+ * on (existing families keep them), the integrations of 0.5 start off. Off hides a module, its data stays.
+ */
 export const MODULES = {
-  flyers: { label: "Prospekte", description: "Links zu den Prospekten der Händler, unter Einkauf." },
-  waste: { label: "Abfallkalender", description: "Nächste Abfuhrtermine aus einem eigenen Kalender (ICS), im Kalender und auf der Startseite." },
+  meals: { label: "Essen und Rezepte", description: "Wochenplan, Rezepte und Ideen. Die Einkaufsliste bleibt immer da.", defaultOn: true },
+  wishes: { label: "Wunschzettel", description: "Wunschlisten mit Reservierung, unter Geburtstage.", defaultOn: true },
+  map: { label: "Karte", description: "Orte und Veranstaltungen auf der Karte, unter Geburtstage.", defaultOn: true },
+  mindfulness: { label: "Achtsamkeit", description: "Persönliche Bewertungen mit Sichtbarkeit je Eintrag, unter Familie.", defaultOn: true },
+  flyers: { label: "Prospekte", description: "Links zu den Prospekten der Händler, unter Einkauf.", defaultOn: false },
+  waste: { label: "Abfallkalender", description: "Nächste Abfuhrtermine aus einem eigenen Kalender (ICS), im Kalender und auf der Startseite.", defaultOn: false },
 } as const;
 export type ModuleKey = keyof typeof MODULES;
-export const isModuleKey = (k: string): k is ModuleKey => k === "flyers" || k === "waste";
+export const MODULE_KEYS = Object.keys(MODULES) as ModuleKey[];
+export const isModuleKey = (k: string): k is ModuleKey => (MODULE_KEYS as string[]).includes(k);
+
+/** "Heute", "Morgen" or the short date of a pickup day, relative to the family's today (both YYYY-MM-DD). */
+export function pickupDayLabel(date: string, today: string): string {
+  if (date === today) return "Heute";
+  const t = new Date(`${today}T12:00:00Z`);
+  t.setUTCDate(t.getUTCDate() + 1);
+  if (date === t.toISOString().slice(0, 10)) return "Morgen";
+  return `${date.slice(8, 10)}.${date.slice(5, 7)}.`;
+}
 
 export interface FlyerLink {
   id: string;

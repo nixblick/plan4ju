@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import type { ModuleKey } from "@/lib/modules";
 
 const icon = (d: string) => (
   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -20,11 +21,13 @@ const ITEMS: { href: string; label: string; icon: ReactNode; match: (p: string) 
   { href: "/familie/mitglieder", label: "Familie", icon: icon("M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM21 20v-1a4 4 0 0 0-3-3.9M16 4.1a3.5 3.5 0 0 1 0 6.8"), match: (p) => p.startsWith("/familie") || p.startsWith("/achtsamkeit") },
 ];
 
-export function NavLinks({ variant }: { variant: "tabs" | "side" }) {
+export function NavLinks({ variant, modules }: { variant: "tabs" | "side"; modules: Record<ModuleKey, boolean> }) {
   const path = usePathname() ?? "/";
+  // Without meal planning the Essen tab is the shopping list (a core function that always stays).
+  const items = modules.meals ? ITEMS : ITEMS.map((i) => (i.href === "/essen" ? { ...i, href: "/einkauf", label: "Einkauf" } : i));
   return (
     <>
-      {ITEMS.map((i) => {
+      {items.map((i) => {
         const active = i.match(path);
         const base = variant === "tabs"
           ? "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-medium"
