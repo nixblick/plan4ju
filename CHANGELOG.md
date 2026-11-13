@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### 0.1.2
+- `create-family`: `--family <id>` stellt eine neue Owner-Einladung für eine bestehende Familie aus; `--send` verweigert Links auf localhost (ohne `--allow-localhost`).
+
 ### 0.1.1
 
 Security fixes before the 0.1 release (issues #3 and #4).

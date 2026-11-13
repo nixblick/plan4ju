@@ -26,3 +26,17 @@ export async function createFamilyWithOwnerInvitation(owner: PrismaClient, raw: 
   });
   return { familyId: family.id, token, expiresAt, email: data.ownerEmail };
 }
+
+/** Instance administration: a fresh OWNER invitation for an existing family (e.g. resend). */
+export async function inviteOwnerToFamily(owner: PrismaClient, raw: { familyId: string; ownerEmail: string }) {
+  const familyId = z.string().trim().min(1).max(64).parse(raw.familyId);
+  const email = input.shape.ownerEmail.parse(raw.ownerEmail);
+  const family = await owner.family.findUnique({ where: { id: familyId } });
+  if (!family) throw new Error(`Family not found: ${familyId}`);
+  const token = generateToken();
+  const expiresAt = new Date(Date.now() + INVITATION_DAYS * 24 * 60 * 60 * 1000);
+  await owner.familyInvitation.create({
+    data: { familyId, email, role: "OWNER", tokenHash: hashToken(token), expiresAt },
+  });
+  return { familyId, familyName: family.name, token, expiresAt, email };
+}

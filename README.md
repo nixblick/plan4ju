@@ -131,7 +131,7 @@ lists the protected tables. Creating families is an administrative task (owner c
 - **Keine Selbstregistrierung.** Konten entstehen nur über eine Einladung (Token 256 Bit, nur der Hash wird gespeichert,
   7 Tage gültig, einmal verwendbar, widerrufbar). Ein direkter Aufruf von `/api/auth/sign-up/email` legt nichts an.
 - Neue Familie und ersten Owner legt der Instanz-Administrator an:
-  `npm run admin:create-family -- --name "Familie Muster" --owner owner@example.test [--send]`
+  `npm run admin:create-family -- --name "Familie Muster" --owner owner@example.test [--send]`, neue Einladung für eine bestehende Familie mit `--family <id>` statt `--name`. Für `--send` muss `BETTER_AUTH_URL` die öffentliche Adresse sein, lokal mit `--allow-localhost`.
   (nutzt `DATABASE_ADMIN_URL`, gibt den Einladungslink einmal aus). Für Produktion einen Owner ohne Superuser-Recht verwenden;
   die Migration legt für die Owner-Rolle eigene Policies an, damit FORCE RLS sie nicht aussperrt.
 - Rollen: Owner (alles, Rollen ändern), Admin (Mitglieder einladen und entfernen, Kinderprofile), Mitglied.
