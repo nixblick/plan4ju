@@ -5,6 +5,14 @@
 - Feedback in der Testphase: schwebender Knopf „Feedback“ (Sprechblase, mobil über der Tab-Leiste) auf jeder Seite für angemeldete Nutzer, Menüeintrag „Feedback geben“ und eine Kachel auf dem Dashboard. Formular mit Art (Fehler/Idee/Sonstiges), Text (max. 5000 Zeichen), optional Name, optional Aufnahme der aktuellen Seite (html2canvas-pro, nur auf Klick) oder eigenes PNG/JPEG bis 5 MB (Typ per Magic Bytes geprüft). Mitgeschickt: Seitenpfad ohne Query, App-Version, Browser/Gerät grob, Bildschirmbreite.
 - Neue Tabelle `feedback` (Migration `feedback`, nach den Routinen-Migrationen, RLS wie alle Familientabellen, Autor muss der angemeldete Nutzer sein); jede Meldung wird zuerst gespeichert und dann als reiner Text mit Bild im Anhang an `FEEDBACK_MAIL_TO` gemailt (Reply-To = Absender). Ohne Empfänger oder bei Versandfehler bleibt sie gespeichert, das Log enthält keinen Inhalt. Limit 10 Meldungen je Konto und Stunde. Server-Actions nehmen bis 6 MB an.
 
+### 0.1.4
+
+Release 0.2, block 2: calendar (work in progress, built in three commits).
+
+- Calendar plumbing: `src/lib/tz.ts` (wall clock to UTC and back with Intl, DST gap and overlap handled), `src/server/safe-fetch.ts` (SSRF-safe retrieval of calendar subscription URLs: https and port 443 only, no user info, every resolved address must be public, connection pinned to the validated address, redirects followed by hand and re-checked, 10 s deadline, 5 MB limit, errors carry a fixed code and never the address), `src/server/calendar-crypto.ts` (AES-256-GCM, key derived from `BETTER_AUTH_SECRET` with HKDF; rotating that secret means subscription URLs must be entered again), `src/server/ics.ts` (iCalendar parsing and bounded expansion, -31 to +366 days, max 5000 instances).
+- New dependency `ical.js` (server only, no further dependencies): real calendar feeds use RRULE with BYDAY/BYSETPOS, EXDATE and RECURRENCE-ID overrides, which are too error-prone to parse by hand.
+- Tests: SSRF cases (loopback, private, link local, metadata address, IPv4-mapped IPv6, redirects to http or to blocked hosts, DNS answers with one private address, size and time limits), ICS cases (TZID without VTIMEZONE, own VTIMEZONE, floating, all-day with exclusive end, EXDATE, overridden instance, DST), encryption round trip, other-row and tamper refusal.
+
 ### 0.1.3
 
 Release 0.2, block 1: tasks completed, routines.

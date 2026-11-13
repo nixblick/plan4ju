@@ -1,6 +1,6 @@
 {
   "name": "plan4ju",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -21,6 +21,7 @@
     "@prisma/client": "^6.0.0",
     "better-auth": "^1.7.0",
     "html2canvas-pro": "^2.5.0",
+    "ical.js": "^2.2.1",
     "next": "^16.4.6",
     "nodemailer": "^10.5.0",
     "react": "^19.0.0",
