@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Better Auth core tables (user, session, account, verification).
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions    Session[]
+  accounts    Account[]
+  memberships FamilyMembership[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// Tenancy. Every family-scoped table carries familyId (RLS in migration).
+model Family {
+  id        String   @id @default(cuid())
+  name      String
+  timezone  String   @default("Europe/Berlin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships FamilyMembership[]
+  profiles    FamilyProfile[]
+  invitations FamilyInvitation[]
+  tasks       Task[]
+  birthdays   Birthday[]
+
+  @@map("family")
+}
+
+enum FamilyRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model FamilyMembership {
+  id        String     @id @default(cuid())
+  familyId  String
+  userId    String
+  role      FamilyRole @default(MEMBER)
+  createdAt DateTime   @default(now())
+  family    Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, userId])
+  @@index([userId])
+  @@map("family_membership")
+}
+
+// A person in the family. userId is null for children without login.
+model FamilyProfile {
+  id          String   @id @default(cuid())
+  familyId    String
+  userId      String?
+  displayName String
+  isChild     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  assignments TaskAssignment[]
+
+  @@unique([familyId, userId])
+  @@index([familyId])
+  @@map("family_profile")
+}
+
+model FamilyInvitation {
+  id         String     @id @default(cuid())
+  familyId   String
+  email      String
+  role       FamilyRole @default(MEMBER)
+  tokenHash  String     @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime   @default(now())
+  family     Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@map("family_invitation")
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  familyId    String
+  title       String
+  description String?
+  dueDate     DateTime?  @db.Date
+  status      TaskStatus @default(OPEN)
+  doneAt      DateTime?
+  createdById String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  family      Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  assignments TaskAssignment[]
+
+  @@index([familyId, dueDate])
+  @@map("task")
+}
+
+// n:m, zero assignments allowed.
+model TaskAssignment {
+  taskId    String
+  profileId String
+  familyId  String
+  task      Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  profile   FamilyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, profileId])
+  @@index([familyId])
+  @@map("task_assignment")
+}
+
+// Birthday is a local date, not a UTC instant. birthYear null = year unknown.
+model Birthday {
+  id          String   @id @default(cuid())
+  familyId    String
+  name        String
+  month       Int
+  day         Int
+  birthYear   Int?
+  note        String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, month, day])
+  @@map("birthday")
+}

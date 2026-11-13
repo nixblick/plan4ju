@@ -58,3 +58,10 @@ credentials.yaml
 .htpasswd
 *.kdbx
 # <<< nixblick-geheimnisse <<<
+
+# Node / Next.js
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+coverage/
