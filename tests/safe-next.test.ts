@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { safeNext } from "../src/lib/safe-next";
 import { clientIp, trustedProxyHops, withClientIp, CLIENT_IP_HEADER } from "../src/server/client-ip";
 import {
-  ACCOUNT_FAILURES, MAX_KNOWN_DEVICES, accountFailureKey, admitKnownDevice, assertBelowLimit, assertLoginAllowed, clearLimit, loginDelayMs, loginFailureKey, normalizeLoginEmail,
+  ACCOUNT_FAILURES, MAX_KNOWN_DEVICES, accountFailureKey, admitKnownDevice, forgetKnownDevices, assertBelowLimit, assertLoginAllowed, clearLimit, loginDelayMs, loginFailureKey, normalizeLoginEmail,
   recordHit, recordLoginFailure, recordLoginSuccess,
 } from "../src/server/ratelimit";
 import { RateLimitError } from "../src/server/errors";
@@ -219,6 +219,18 @@ describe("known devices are not braked by strangers (issue 5, issue 8)", () => {
     expect(admitted.filter(Boolean)).toHaveLength(MAX_KNOWN_DEVICES);
     expect(admitKnownDevice(email, "dev-0")).toBe("dev-0"); // known ones stay known
     expect(admitKnownDevice(email, null)).toBeNull();
+  });
+
+  it("a new security stamp starts an empty device list; forgetKnownDevices clears it", () => {
+    const email = uniq("stamp");
+    for (let i = 0; i < MAX_KNOWN_DEVICES; i++) expect(admitKnownDevice(email, `old-${i}`, "stamp-old")).toBe(`old-${i}`);
+    expect(admitKnownDevice(email, "new-0", "stamp-old")).toBeNull(); // full under the old stamp
+    // after a reset the old devices neither count nor stay known
+    expect(admitKnownDevice(email, "new-0", "stamp-new")).toBe("new-0");
+    for (let i = 1; i < MAX_KNOWN_DEVICES; i++) expect(admitKnownDevice(email, `new-${i}`, "stamp-new")).toBe(`new-${i}`);
+    expect(admitKnownDevice(email, "old-0", "stamp-new")).toBeNull();
+    forgetKnownDevices(email);
+    expect(admitKnownDevice(email, "old-0", "stamp-new")).toBe("old-0");
   });
 
   it("cookie is bound to account and stamp, rejects forgeries and expires after 90 days", () => {

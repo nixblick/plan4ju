@@ -6,10 +6,10 @@ import { createFamilyWithOwnerInvitation } from "../src/server/admin";
 import { ConflictError, InvalidInvitationError, RateLimitError } from "../src/server/errors";
 import { readFamilyChoice, signFamilyChoice } from "../src/server/familyCookie";
 import { registerWithInvitation } from "../src/server/onboarding";
-import { rateLimit, resetRateLimits } from "../src/server/ratelimit";
+import { MAX_KNOWN_DEVICES, admitKnownDevice, rateLimit, resetRateLimits } from "../src/server/ratelimit";
 import { createInvitation, revokeInvitation } from "../src/server/services/invitations";
 import { hashToken } from "../src/server/tokens";
-import { newDeviceCookie, readDeviceCookie, securityStampFor } from "../src/server/device-cookie";
+import { newDeviceCookie, readDeviceCookie, rotateSecurityStamp, securityStampFor } from "../src/server/device-cookie";
 import { withFamily } from "../src/server/tenant";
 
 const sfx = Math.random().toString(36).slice(2, 8);
@@ -228,6 +228,10 @@ describe("e-mail verification and password reset (Mailpit)", () => {
     const stamp2 = (await securityStampFor(u.email))!;
     expect(stamp2).not.toBe(stamp1);
     expect(readDeviceCookie(u.email, stamp2, cookie2)).toBeNull();
+    // the in-memory device list was forgotten with the rotation
+    for (let i = 0; i < MAX_KNOWN_DEVICES; i++) admitKnownDevice(u.email, `d-${i}`, stamp2);
+    await rotateSecurityStamp(u.userId);
+    expect(admitKnownDevice(u.email, "d-new", stamp2)).toBe("d-new");
   });
 
   it("reset for an unknown address sends nothing and does not reveal it", async () => {

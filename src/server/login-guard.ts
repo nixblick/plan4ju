@@ -44,9 +44,10 @@ export async function guardedLogin<T>(
   verify: () => Promise<T>,
   isFailure: (e: unknown) => boolean,
   deviceId: string | null = null,
+  stamp: string | null = null,
 ): Promise<T> {
   assertLoginAllowed(email, ip);
-  deviceId = admitKnownDevice(email, deviceId);
+  deviceId = admitKnownDevice(email, deviceId, stamp);
   const delay = reserveLoginAttempt(email, Date.now(), deviceId);
   if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
   let out: T;

@@ -7,6 +7,7 @@ import { nextCookies } from "better-auth/next-js";
 import { CLIENT_IP_HEADER, withClientIp } from "./client-ip";
 import { prisma } from "./db";
 import { rotateSecurityStamp } from "./device-cookie";
+import { forgetKnownDevices } from "./ratelimit";
 import { authSecret, baseUrl } from "./env";
 import { sendMailInBackground } from "./mail";
 
@@ -79,12 +80,14 @@ export const auth = betterAuth({
   // and handed over in our own header, which handleAuthRequest overwrites on every request.
   advanced: { ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] } },
   // "Sign out everywhere" also forgets every known device (issue 8). Password change and reset
-  // rotate the stamp in the database (trigger on account.password, migration user_security_stamp).
+  // rotate the stamp in the database (trigger on account.password, migration user_security_stamp);
+  // known devices are keyed by the stamp in ratelimit.ts, so they no longer count after any rotation.
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path !== "/revoke-sessions") return;
-      const userId = ctx.context.session?.user.id;
-      if (userId) await rotateSecurityStamp(userId);
+      const user = ctx.context.session?.user;
+      if (ctx.path === "/revoke-sessions" && user) await rotateSecurityStamp(user.id);
+      // The trigger already rotated the stamp; drop the in-memory list of known devices too.
+      if (ctx.path === "/change-password" && user) forgetKnownDevices(user.email);
     }),
   },
   databaseHooks: {

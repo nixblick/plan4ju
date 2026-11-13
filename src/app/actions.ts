@@ -53,13 +53,15 @@ export async function loginAction(form: FormData) {
   try {
     rateLimit(`login:ip:${ip}`, 20, 15 * MIN);
     if (!email) throw new APIError("UNAUTHORIZED");
-    device = readDeviceCookie(email, await securityStampFor(email), (await cookies()).get(deviceCookieName(email))?.value);
+    const stampBefore = await securityStampFor(email);
+    device = readDeviceCookie(email, stampBefore, (await cookies()).get(deviceCookieName(email))?.value);
     await guardedLogin(
       email,
       ip,
       () => auth.api.signInEmail({ body: { email, password: text(form, "password") }, headers: h }),
       (e) => e instanceof APIError && e.status !== "FORBIDDEN",
       device?.deviceId ?? null,
+      stampBefore,
     );
   } catch (e) {
     if (e instanceof RateLimitError) failure = "zu-viele";

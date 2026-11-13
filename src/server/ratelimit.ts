@@ -68,27 +68,38 @@ export const brakeKey = (email: string, deviceId?: string | null) => (deviceId ?
 /** At most this many known devices per account are exempt from the account delay at a time. */
 export const MAX_KNOWN_DEVICES = 5;
 const KNOWN_DEVICE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const knownDevices = new Map<string, Map<string, number>>();
+// Per account: the security stamp the devices were seen under, and device id -> last seen. A new
+// stamp (password change or reset, "sign out everywhere") starts an empty list, so old devices
+// neither stay known nor count against the maximum.
+const knownDevices = new Map<string, { stamp: string; seen: Map<string, number> }>();
 
 /**
  * Admits a verified device id for the account's exemption, or returns null (treated as a stranger)
- * when the account already has MAX_KNOWN_DEVICES other devices seen within the last 30 days.
+ * when the account already has MAX_KNOWN_DEVICES other devices seen within the last 30 days under
+ * the current security stamp.
  */
-export function admitKnownDevice(email: string, deviceId: string | null | undefined, now = Date.now()): string | null {
+export function admitKnownDevice(
+  email: string,
+  deviceId: string | null | undefined,
+  stamp: string | null = null,
+  now = Date.now(),
+): string | null {
   if (!deviceId) return null;
-  let seen = knownDevices.get(email);
-  if (!seen) {
-    if (knownDevices.size > 10_000) knownDevices.clear();
-    seen = new Map();
-    knownDevices.set(email, seen);
+  const st = stamp ?? "";
+  let entry = knownDevices.get(email);
+  if (!entry || entry.stamp !== st) {
+    if (!entry && knownDevices.size > 10_000) knownDevices.clear();
+    entry = { stamp: st, seen: new Map() };
+    knownDevices.set(email, entry);
   }
+  const { seen } = entry;
   for (const [id, t] of seen) if (t + KNOWN_DEVICE_TTL_MS <= now) seen.delete(id);
   if (!seen.has(deviceId) && seen.size >= MAX_KNOWN_DEVICES) return null;
   seen.set(deviceId, now);
   return deviceId;
 }
 
-/** Forgets the known devices of an account (tests, and after its security stamp changed). */
+/** Forgets the known devices of an account (after its security stamp changed), or all (tests). */
 export function forgetKnownDevices(email?: string): void {
   if (email) knownDevices.delete(email);
   else knownDevices.clear();

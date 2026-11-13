@@ -1,6 +1,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { prisma } from "./db";
 import { authSecret } from "./env";
+import { forgetKnownDevices } from "./ratelimit";
 
 // "Known device" marker for the login brake: after a successful login the browser gets a signed
 // cookie with a random device id, bound to the account's e-mail and its security stamp. It is not a
@@ -72,7 +73,12 @@ export async function securityStampFor(email: string): Promise<string | null> {
   return u?.securityStamp ?? null;
 }
 
-/** New stamp: every device cookie of this user stops working. */
+/** New stamp: every device cookie of this user stops working, and its known devices are forgotten. */
 export async function rotateSecurityStamp(userId: string): Promise<void> {
-  await prisma.user.update({ where: { id: userId }, data: { securityStamp: randomBytes(16).toString("base64url") } });
+  const u = await prisma.user.update({
+    where: { id: userId },
+    data: { securityStamp: randomBytes(16).toString("base64url") },
+    select: { email: true },
+  });
+  forgetKnownDevices(u.email);
 }
