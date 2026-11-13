@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.9 (13.11.2026)
+
+- Release 0.4 acceptance spec `tests-e2e/abnahme-0.4.spec.ts` (part of `test:abnahme`, against the container, no sign-up, 375 px): two members share a place and a dated event and filter by category and creator; a wish reserved by Ben stays invisible to Anna; Anna's private mindfulness entry is invisible to Ben, Clara and the other family, the family entry is visible to both members, the entry shared with Ben only to Ben.
+
 ## 0.3.8 (13.11.2026)
 
 - Achtsamkeit: deleting an entry needs a second click ("Löschen …", then "Endgültig löschen"); the emoji rating shows a focus ring for keyboard use.
