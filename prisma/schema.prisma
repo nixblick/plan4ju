@@ -87,6 +87,8 @@ model Family {
   birthdays   Birthday[]
   feedback    Feedback[]
   routines    Routine[]
+  events      CalendarEvent[]
+  calendars   ExternalCalendar[]
 
   @@map("family")
 }
@@ -125,8 +127,10 @@ model FamilyProfile {
   assignments           TaskAssignment[]
   routineAssignments    RoutineAssignment[]
   occurrenceAssignments RoutineOccurrenceAssignment[]
+  eventParticipations   CalendarEventParticipant[]
 
   @@unique([familyId, userId])
+  @@unique([id, familyId]) // target of the composite foreign keys that keep references inside one family
   @@index([familyId])
   @@map("family_profile")
 }
@@ -341,4 +345,102 @@ model RoutineOccurrenceAssignment {
   @@id([occurrenceId, profileId])
   @@index([familyId])
   @@map("routine_occurrence_assignment")
+}
+
+// ---- Calendar (release 0.2, block 2) -------------------------------------------------------
+enum CalendarKind {
+  FILE // one-off ICS import
+  SUBSCRIPTION // ICS address fetched by the server, read only
+}
+
+// Internal appointments. Timed ones are UTC instants; all-day ones are local calendar days (last day inclusive).
+// Repetition works like routines (local days), the wall clock time is taken from startsAt in the family zone.
+model CalendarEvent {
+  id          String       @id @default(cuid())
+  familyId    String
+  title       String
+  description String?
+  location    String?
+  allDay      Boolean      @default(false)
+  startsAt    DateTime? // timed
+  endsAt      DateTime? // timed
+  startDate   DateTime?    @db.Date // all day: first day
+  endDate     DateTime?    @db.Date // all day: last day, inclusive
+  freq        RoutineFreq? // null = no repetition
+  interval    Int          @default(1)
+  weekdays    Int[] // 0 = Monday .. 6 = Sunday
+  monthDay    Int?
+  repeatUntil DateTime?    @db.Date
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  participants CalendarEventParticipant[]
+
+  @@unique([id, familyId])
+  @@index([familyId, startsAt])
+  @@index([familyId, startDate])
+  @@map("calendar_event")
+}
+
+model CalendarEventParticipant {
+  eventId   String
+  profileId String
+  familyId  String
+  event     CalendarEvent @relation(fields: [eventId, familyId], references: [id, familyId], onDelete: Cascade)
+  profile   FamilyProfile @relation(fields: [profileId, familyId], references: [id, familyId], onDelete: Cascade)
+
+  @@id([eventId, profileId])
+  @@index([familyId])
+  @@map("calendar_event_participant")
+}
+
+// An imported file or a subscription. `urlEnc` is the encrypted subscription address (a secret): it is
+// never selected for the UI, never logged and never returned.
+model ExternalCalendar {
+  id            String       @id @default(cuid())
+  familyId      String
+  name          String
+  colorIndex    Int          @default(0)
+  kind          CalendarKind
+  enabled       Boolean      @default(true)
+  urlEnc        String?
+  lastAttemptAt DateTime?
+  lastSuccessAt DateTime?
+  lastError     String? // fixed code, e.g. "status-404", never an address
+  eventCount    Int          @default(0)
+  truncated     Boolean      @default(false)
+  createdById   String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  family        Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  events ExternalCalendarEvent[]
+
+  @@unique([id, familyId])
+  @@index([familyId])
+  @@map("external_calendar")
+}
+
+model ExternalCalendarEvent {
+  id          String           @id @default(cuid())
+  familyId    String
+  calendarId  String
+  uid         String
+  instanceKey String
+  title       String
+  description String?
+  location    String?
+  allDay      Boolean          @default(false)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  startDate   DateTime?        @db.Date
+  endDate     DateTime?        @db.Date
+  calendar    ExternalCalendar @relation(fields: [calendarId, familyId], references: [id, familyId], onDelete: Cascade)
+
+  @@unique([calendarId, uid, instanceKey])
+  @@index([familyId, startsAt])
+  @@index([familyId, startDate])
+  @@map("external_calendar_event")
 }

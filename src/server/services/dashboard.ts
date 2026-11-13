@@ -1,6 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
 import { addDays, daysBetween, nextBirthday, todayIn, weekOf } from "../../lib/week";
+import { itemsOnDay, type CalendarItem } from "../../lib/calendar-items";
 import { withFamily } from "../tenant";
+import { itemsBetween } from "./calendar";
 import { ensureOccurrences, occurrencesIn, type OccurrenceView } from "./routines";
 
 export interface DashProfile {
@@ -35,8 +37,9 @@ export interface DashboardData {
   today: string;
   profiles: DashProfile[];
   myProfileId: string | null;
-  week: { iso: string; isToday: boolean; tasks: DashTask[]; birthdays: DashBirthdayNext[]; routines: DashOccurrence[] }[];
+  week: { iso: string; isToday: boolean; tasks: DashTask[]; birthdays: DashBirthdayNext[]; routines: DashOccurrence[]; events: CalendarItem[] }[];
   routinesToday: DashOccurrence[];
+  eventsToday: CalendarItem[];
   mine: DashTask[];
   dueToday: DashTask[];
   overdue: DashTask[];
@@ -51,6 +54,8 @@ export interface RawDashboard {
   birthdays: DashBirthday[];
   /** Routine occurrences of the displayed week (skipped ones may be included, they are hidden here). */
   occurrences?: DashOccurrence[];
+  /** Calendar items (internal and external) touching the displayed week. */
+  events?: CalendarItem[];
 }
 
 /** Pure: shapes the raw family data into what the dashboard shows. */
@@ -80,8 +85,10 @@ export function buildDashboard(raw: RawDashboard, userId: string, now: Date = ne
       tasks: raw.tasks.filter((t) => t.due === iso).sort((a, b) => Number(a.done) - Number(b.done) || a.title.localeCompare(b.title, "de")),
       birthdays: upcoming.filter((b) => b.date === iso),
       routines: occurrences.filter((o) => o.date === iso),
+      events: itemsOnDay(raw.events ?? [], iso),
     })),
     routinesToday: occurrences.filter((o) => o.date === today),
+    eventsToday: itemsOnDay(raw.events ?? [], today),
     mine: myProfileId ? open.filter((t) => t.assigneeIds.includes(myProfileId)).sort(byDue) : [],
     dueToday: open.filter((t) => t.due === today).sort(byDue),
     overdue: open.filter((t) => t.due !== null && t.due < today).sort(byDue),
@@ -100,6 +107,7 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
       const weekDays = weekOf(today);
       const from = new Date(addDays(today, -366)); // older overdue tasks still matter, but bound the query
       const occurrences = await occurrencesIn(ctx, weekDays[0]!, weekDays[6]!, false);
+      const events = await itemsBetween(ctx, weekDays[0]!, weekDays[6]!);
       const [profiles, tasks, birthdays] = await Promise.all([
         ctx.tx.familyProfile.findMany({
           where: { familyId },
@@ -127,6 +135,7 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
           })),
           birthdays: birthdays.map((b) => ({ id: b.id, name: b.name, month: b.month, day: b.day, birthYear: b.birthYear })),
           occurrences,
+          events,
         },
         userId,
         now,

@@ -35,8 +35,8 @@ describe("database role", () => {
   it("every family-scoped table has forced row level security", async () => {
     const rows = await admin.$queryRaw<{ relname: string; relrowsecurity: boolean; relforcerowsecurity: boolean }[]>`
       SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
-      WHERE relname IN ('family','family_membership','family_profile','family_invitation','task','task_assignment','birthday','routine','routine_assignment','routine_occurrence','routine_occurrence_assignment','feedback')`;
-    expect(rows).toHaveLength(12);
+      WHERE relname IN ('family','family_membership','family_profile','family_invitation','task','task_assignment','birthday','routine','routine_assignment','routine_occurrence','routine_occurrence_assignment','feedback','calendar_event','calendar_event_participant','external_calendar','external_calendar_event')`;
+    expect(rows).toHaveLength(16);
     for (const r of rows) expect([r.relname, r.relrowsecurity, r.relforcerowsecurity]).toEqual([r.relname, true, true]);
   });
 });
@@ -341,5 +341,70 @@ describe("owner rows are written by owners only, the last owner stays", () => {
       expect((await tx.familyMembership.updateMany({ where: { familyId: fam, userId: u.owner }, data: { role: "ADMIN" } })).count).toBe(1);
     });
     expect([await roleOf(u.owner), await roleOf(u.admin)]).toEqual(["ADMIN", "OWNER"]);
+  });
+});
+
+describe("calendar tables", () => {
+  it("family A sees nothing of B, by list and by id; B sees its own", async () => {
+    await raw(f.familyA, f.userA, async (tx) => {
+      expect(await tx.calendarEvent.findMany()).toHaveLength(0);
+      expect(await tx.calendarEventParticipant.findMany()).toHaveLength(0);
+      expect(await tx.externalCalendar.findMany()).toHaveLength(0);
+      expect(await tx.externalCalendarEvent.findMany()).toHaveLength(0);
+      expect(await tx.calendarEvent.findUnique({ where: { id: f.eventB } })).toBeNull();
+      expect(await tx.externalCalendar.findUnique({ where: { id: f.calendarB } })).toBeNull();
+      expect(await tx.externalCalendarEvent.findUnique({ where: { id: f.externalEventB } })).toBeNull();
+    });
+    await raw(f.familyB, f.userB, async (tx) => {
+      expect((await tx.calendarEvent.findMany()).map((r) => r.id)).toEqual([f.eventB]);
+      expect((await tx.externalCalendar.findMany()).map((r) => r.id)).toEqual([f.calendarB]);
+      expect((await tx.externalCalendarEvent.findMany()).map((r) => r.id)).toEqual([f.externalEventB]);
+    });
+    expect(await app.calendarEvent.findMany()).toHaveLength(0); // no context at all
+    expect(await app.externalCalendar.findMany()).toHaveLength(0);
+  });
+
+  it("foreign rows cannot be changed or deleted, and nothing can be inserted for another family", async () => {
+    await raw(f.familyA, f.userA, async (tx) => {
+      expect((await tx.calendarEvent.updateMany({ where: { id: f.eventB }, data: { title: "gehackt" } })).count).toBe(0);
+      expect((await tx.calendarEvent.deleteMany({ where: { id: f.eventB } })).count).toBe(0);
+      expect((await tx.externalCalendar.updateMany({ where: { id: f.calendarB }, data: { enabled: false } })).count).toBe(0);
+      expect((await tx.externalCalendar.deleteMany({ where: { id: f.calendarB } })).count).toBe(0);
+      expect((await tx.externalCalendarEvent.deleteMany({ where: { id: f.externalEventB } })).count).toBe(0);
+    });
+    const ev = { title: "x", startsAt: new Date("2026-11-20T10:00:00Z"), endsAt: new Date("2026-11-20T11:00:00Z"), createdById: f.userA };
+    await expect(raw(f.familyA, f.userA, (tx) => tx.calendarEvent.create({ data: { familyId: f.familyB, ...ev } }))).rejects.toThrow();
+    await expect(
+      raw(f.familyA, f.userA, (tx) => tx.externalCalendar.create({ data: { familyId: f.familyB, name: "x", kind: "FILE", createdById: f.userA } })),
+    ).rejects.toThrow();
+    await expect(
+      raw(f.familyA, f.userA, (tx) =>
+        tx.externalCalendarEvent.create({ data: { familyId: f.familyB, calendarId: f.calendarB, uid: "u", instanceKey: "k", title: "x", startsAt: new Date(), endsAt: new Date() } }),
+      ),
+    ).rejects.toThrow();
+    // an own row cannot be moved to B
+    await expect(raw(f.familyB, f.userB, (tx) => tx.calendarEvent.update({ where: { id: f.eventB }, data: { familyId: f.familyA } }))).rejects.toThrow();
+    expect(await admin.calendarEvent.count({ where: { id: f.eventB, familyId: f.familyB } })).toBe(1);
+  });
+
+  it("composite foreign keys: no event participant or calendar event across families", async () => {
+    // A event, B profile (own family A context): refused by RLS or by the composite key
+    const own = await admin.calendarEvent.create({
+      data: { familyId: f.familyA, title: "A-Termin", startsAt: new Date("2026-11-20T10:00:00Z"), endsAt: new Date("2026-11-20T11:00:00Z"), createdById: f.userA },
+    });
+    await expect(admin.calendarEventParticipant.create({ data: { eventId: own.id, profileId: f.profileB, familyId: f.familyA } })).rejects.toThrow();
+    await expect(admin.calendarEventParticipant.create({ data: { eventId: f.eventB, profileId: f.profileA, familyId: f.familyA } })).rejects.toThrow();
+    await expect(
+      admin.externalCalendarEvent.create({ data: { familyId: f.familyA, calendarId: f.calendarB, uid: "u", instanceKey: "k", title: "x", startsAt: new Date(), endsAt: new Date() } }),
+    ).rejects.toThrow();
+  });
+
+  it("the time shape check refuses a timed event without instants and an all-day event without days", async () => {
+    await expect(
+      admin.calendarEvent.create({ data: { familyId: f.familyA, title: "x", createdById: f.userA } }),
+    ).rejects.toThrow();
+    await expect(
+      admin.calendarEvent.create({ data: { familyId: f.familyA, title: "x", allDay: true, startDate: new Date("2026-11-20"), endDate: new Date("2026-11-19"), createdById: f.userA } }),
+    ).rejects.toThrow();
   });
 });

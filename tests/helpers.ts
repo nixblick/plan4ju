@@ -25,6 +25,9 @@ export interface Fixture {
   birthdayB: string;
   routineB: string;
   occurrenceB: string;
+  eventB: string;
+  calendarB: string;
+  externalEventB: string;
 }
 
 export async function seed(): Promise<Fixture> {
@@ -68,7 +71,21 @@ export async function seed(): Promise<Fixture> {
       assignments: { create: { profileId: pb.id, familyId: fb.id } },
     },
   });
+  const eb = await admin.calendarEvent.create({
+    data: {
+      familyId: fb.id, title: "Geheimer Termin B", startsAt: new Date("2026-11-17T09:00:00Z"), endsAt: new Date("2026-11-17T10:00:00Z"),
+      createdById: ub.id,
+    },
+  });
+  await admin.calendarEventParticipant.createMany({ data: [{ eventId: eb.id, profileId: pb.id, familyId: fb.id }] });
+  const cb = await admin.externalCalendar.create({
+    data: { familyId: fb.id, name: "Fremder Kalender B", kind: "FILE", createdById: ub.id },
+  });
+  const xb = await admin.externalCalendarEvent.create({
+    data: { familyId: fb.id, calendarId: cb.id, uid: "x1@example.test", instanceKey: "2026-11-18", title: "Fremder externer Termin", allDay: true, startDate: new Date("2026-11-18"), endDate: new Date("2026-11-18") },
+  });
   return {
+    eventB: eb.id, calendarB: cb.id, externalEventB: xb.id,
     routineB: rb.id, occurrenceB: ob.id,
     familyA: fa.id, familyB: fb.id, userA: ua.id, userB: ub.id, userBoth: uboth.id, userNone: unone.id,
     profileA: pa.id, profileB: pb.id, taskA: ta.id, taskB: tb.id, birthdayB: bb.id,

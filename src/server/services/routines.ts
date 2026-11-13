@@ -17,7 +17,7 @@ export const HORIZON_DAYS = 56;
 export const REFILL_BELOW_DAYS = 28;
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
-const isoDate = z
+export const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .refine((s) => {
