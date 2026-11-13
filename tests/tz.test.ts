@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localParts, zonedToUtc } from "../src/lib/tz";
+import { isValidTimeZone, localParts, TZ_CACHE_MAX, tzCacheSize, zonedToUtc } from "../src/lib/tz";
 
 const TZ = "Europe/Berlin";
 
@@ -25,5 +25,28 @@ describe("zonedToUtc / localParts", () => {
   });
   it("works for zones west of UTC", () => {
     expect(zonedToUtc("2026-11-16", "09:00", "America/New_York").toISOString()).toBe("2026-11-16T14:00:00.000Z");
+  });
+});
+
+describe("formatter cache", () => {
+  it("does not cache invalid names and stays bounded for many spellings", () => {
+    const before = tzCacheSize();
+    for (let i = 0; i < 2000; i++) expect(isValidTimeZone(`Nowhere/Zone${i}`)).toBe(false);
+    expect(tzCacheSize()).toEqual(before);
+    // case variants of one zone share one formatter (canonical key)
+    expect(isValidTimeZone("Asia/Tokyo")).toBe(true);
+    const zones0 = tzCacheSize().zones;
+    for (const v of ["asia/tokyo", "ASIA/TOKYO", "Asia/tokyo"]) expect(isValidTimeZone(v)).toBe(true);
+    expect(tzCacheSize().zones).toBe(zones0);
+    // many distinct spellings: the cache never exceeds its bound
+    const zones = Intl.supportedValuesOf("timeZone");
+    for (const z of zones) {
+      localParts(new Date(0), z);
+      localParts(new Date(0), z.toLowerCase());
+      localParts(new Date(0), z.toUpperCase());
+    }
+    expect(tzCacheSize().names).toBeLessThanOrEqual(TZ_CACHE_MAX);
+    expect(tzCacheSize().zones).toBeLessThanOrEqual(TZ_CACHE_MAX);
+    expect(localParts(new Date("2026-01-15T17:00:00Z"), "europe/berlin").time).toBe("18:00");
   });
 });
