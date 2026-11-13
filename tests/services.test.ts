@@ -3,6 +3,8 @@ import { admin, app, cleanup, seed, type Fixture } from "./helpers";
 import { ForbiddenError, NotFoundError } from "../src/server/errors";
 import { createTask, deleteTask, getTask, listTasks, setTaskDone, updateTask } from "../src/server/services/tasks";
 import { createBirthday, deleteBirthday, listBirthdays, updateBirthday } from "../src/server/services/birthdays";
+import { todayIn } from "../src/lib/week";
+import { getDashboard } from "../src/server/services/dashboard";
 import { listFamiliesForUser } from "../src/server/services/families";
 
 let f: Fixture;
@@ -81,5 +83,20 @@ describe("families service", () => {
     expect((await listFamiliesForUser(f.userA, app)).map((m) => m.family.id)).toEqual([f.familyA]);
     expect((await listFamiliesForUser(f.userBoth, app)).map((m) => m.family.id).sort()).toEqual([f.familyA, f.familyB].sort());
     expect(await listFamiliesForUser(f.userNone, app)).toHaveLength(0);
+  });
+});
+
+describe("dashboard service", () => {
+  it("shows only the own family's data", async () => {
+    const today = todayIn("Europe/Berlin");
+    await createTask(f.userA, f.familyA, { title: "Heute fällige Aufgabe A", dueDate: new Date(today) }, app);
+    const a = JSON.stringify(await getDashboard(f.userA, f.familyA, new Date(), app));
+    expect(a).toContain("Heute fällige Aufgabe A");
+    expect(a).not.toContain("Geheime Aufgabe B");
+    expect(a).not.toContain("Oma Beispiel");
+    const b = JSON.stringify(await getDashboard(f.userB, f.familyB, new Date(), app));
+    expect(b).toContain("Oma Beispiel");
+    expect(b).not.toContain("Heute fällige Aufgabe A");
+    await expect(getDashboard(f.userA, f.familyB, new Date(), app)).rejects.toThrow(ForbiddenError);
   });
 });

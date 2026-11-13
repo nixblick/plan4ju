@@ -65,3 +65,5 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 coverage/
+test-results/
+playwright-report/

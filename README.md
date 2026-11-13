@@ -16,6 +16,15 @@ npm test                    # integration tests against the real database
 
 Mailpit (web UI and SMTP) listens on localhost only; ports are set in `.env`.
 
+## Oberfläche und E2E
+
+Dashboard (`/`), Aufgaben (`/aufgaben`), Geburtstage (`/geburtstage`); mobil zuerst mit Tab-Leiste, ab `md` Seitenleiste.
+PWA: `manifest.webmanifest`, Icons aus `public/`; der Service Worker (`public/sw.js`) cached bewusst nichts.
+Security-Header und CSP stehen in `next.config.mjs` (`script-src` braucht `'unsafe-inline'` wegen der Next-Bootstrap-Skripte).
+
+E2E (Playwright, braucht laufende DB aus `npm run db:up` und einmal `npx playwright install chromium-headless-shell`):
+`npm run test:e2e` baut die App, startet sie auf Port 3000 (`E2E_PORT` ändert das) und legt seine Testfamilien selbst an und wieder weg.
+
 ## Mandantentrennung
 
 Every family-scoped table has `familyId` and PostgreSQL row level security (forced).

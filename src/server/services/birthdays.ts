@@ -3,13 +3,17 @@ import { NotFoundError } from "../errors";
 import { withFamily } from "../tenant";
 import type { PrismaClient } from "@prisma/client";
 
-export const birthdayInput = z.object({
+const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+export const birthdayInput = z
+  .object({
   name: z.string().trim().min(1).max(100),
   month: z.number().int().min(1).max(12),
   day: z.number().int().min(1).max(31),
   birthYear: z.number().int().min(1900).max(2100).nullish(),
   note: z.string().trim().max(500).nullish(),
-});
+  })
+  .refine((v) => v.day <= DAYS_IN_MONTH[v.month - 1]!, { message: "Invalid day for month", path: ["day"] });
 export type BirthdayInput = z.input<typeof birthdayInput>;
 
 export function listBirthdays(userId: string, familyId: string, client?: PrismaClient) {

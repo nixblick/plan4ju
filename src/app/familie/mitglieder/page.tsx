@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { errorMessages, okMessages, one, roleLabels } from "@/lib/messages";
 import { atLeast, canManage } from "@/server/permissions";
 import { listInvitations } from "@/server/services/invitations";
@@ -22,6 +23,9 @@ export default async function Mitglieder({ searchParams }: { searchParams: Promi
 
   return (
     <div className="space-y-6">
+      <p className="text-sm">
+        <Link href="/familie-waehlen" className="text-terracotta-dark underline">Familie wechseln</Link>
+      </p>
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
       {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}
 

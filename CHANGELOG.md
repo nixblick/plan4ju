@@ -4,6 +4,14 @@
 
 - Docs: `docs/konzept.md` – Gesamtkonzept (Stand 13.11.2026), mit den entschiedenen Infrastrukturpunkten.
 
+### 0.0.9
+
+- Tasks (optional due date, none/one/several assignees, tick off, delete) and birthdays (create, edit, delete, next upcoming) with German pages.
+- Dashboard: clock, date and greeting in the family time zone, "Diese Woche" Monday to Sunday with tasks and birthdays (today highlighted), tiles for own / due today / overdue tasks and next birthdays, later modules as "kommt bald". One fixed colour per person.
+- App shell mobile first (bottom tab bar, sidebar on desktop), logo and icons, PWA manifest, minimal service worker that caches nothing.
+- Security headers and CSP (`next.config.mjs`).
+- Playwright E2E (`npm run test:e2e`): two accounts of one family see task and birthday, an account of another family does not, no horizontal overflow at 375 px, manifest and headers. Vitest: week helpers and dashboard shaping.
+
 ### 0.0.8
 
 - Password reset revokes all open sessions of the account (test asserts it).
