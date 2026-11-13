@@ -3,14 +3,15 @@ import { PrismaClient } from "@prisma/client";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { createFamilyWithOwnerInvitation } from "../src/server/admin";
 
-// Familie Muster (Anna) keeps recipes; Familie Beispiel (Clara) must not see them.
+// Familie Muster (Anna) keeps recipes; a recipe of Familie Beispiel (created directly, no second
+// sign-up: the E2E run is close to the sign-up limit per address) must stay invisible to her.
 const run = randomBytes(4).toString("hex");
 const admin = new PrismaClient({ datasourceUrl: process.env.DATABASE_ADMIN_URL });
 const secret = () => randomBytes(12).toString("base64url");
 const anna = { name: "Anna Muster", email: `anna-r-${run}@example.test`, phrase: secret() };
-const clara = { name: "Clara Beispiel", email: `clara-r-${run}@example.test`, phrase: secret() };
 const TITLE = `Kartoffelsuppe ${run}`;
 const pages: Record<string, Page> = {};
+let foreignId = "";
 
 async function join(browser: Browser, token: string, who: { name: string; phrase: string }, width = 375): Promise<Page> {
   const ctx = await browser.newContext({ viewport: { width, height: 812 } });
@@ -31,9 +32,10 @@ async function noOverflow(p: Page) {
 test.describe.serial("Rezepte", () => {
   test.beforeAll(async ({ browser }) => {
     const a = await createFamilyWithOwnerInvitation(admin, { name: "Familie Muster", ownerEmail: anna.email });
-    const b = await createFamilyWithOwnerInvitation(admin, { name: "Familie Beispiel", ownerEmail: clara.email });
+    const b = await createFamilyWithOwnerInvitation(admin, { name: "Familie Beispiel", ownerEmail: `clara-r-${run}@example.test` });
+    const r = await admin.recipe.create({ data: { familyId: b.familyId, title: `Fremdes Rezept ${run}`, createdById: "niemand" } });
+    foreignId = r.id;
     pages.anna = await join(browser, a.token, anna);
-    pages.clara = await join(browser, b.token, clara);
   });
 
   test.afterAll(async () => {
@@ -78,12 +80,11 @@ test.describe.serial("Rezepte", () => {
     await noOverflow(p);
   });
 
-  test("andere Familie sieht das Rezept nicht, auch nicht per Adresse", async () => {
-    const id = (await admin.recipe.findFirstOrThrow({ where: { title: `${TITLE} neu` } })).id;
-    const c = pages.clara!;
-    await c.goto("/rezepte");
-    await expect(c.locator("main")).not.toContainText(TITLE);
-    const res = await c.goto(`/rezepte/${id}`);
+  test("Rezept einer anderen Familie bleibt unsichtbar, auch per Adresse", async () => {
+    const p = pages.anna!;
+    await p.goto("/rezepte");
+    await expect(p.locator("main")).not.toContainText("Fremdes Rezept");
+    const res = await p.goto(`/rezepte/${foreignId}`);
     expect(res?.status()).toBe(404);
   });
 
