@@ -9,6 +9,7 @@ import { DashboardHeader } from "./clock";
 import { FeedbackOpenButton } from "./feedback";
 import { occurrenceStatusAction } from "./planung-actions";
 import { Dots, names } from "./people";
+import { NextCard, TodayStrip } from "./heute";
 import { CalendarBadge, timeLabel } from "./kalender/parts";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +70,10 @@ export default async function Home() {
     <div className="space-y-6">
       <DashboardHeader timeZone={d.timezone} familyName={d.familyName} initial={now.getTime()} />
 
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 space-y-6">
+          <NextCard d={d} now={now} />
+          <TodayStrip d={d} now={now} />
       <section aria-labelledby="woche" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200" data-testid="week">
         <h2 id="woche" className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-600">Diese Woche</h2>
         <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
@@ -98,6 +103,7 @@ export default async function Home() {
                 <ul className="space-y-1">
                   {shownEvents.map((e) => (
                     <li key={`${e.key}@${day.iso}`} className="flex items-start gap-1.5 text-sm" data-testid="week-event">
+                      {e.participantIds.length ? <Dots profiles={d.profiles} ids={e.participantIds} /> : null}
                       <span aria-hidden="true">{e.source === "external" ? "◇" : "◆"}</span>
                       <span className="min-w-0 break-words">
                         {e.allDay || e.startDate < day.iso ? "" : `${e.startTime} `}{e.title}
@@ -140,6 +146,15 @@ export default async function Home() {
           </ul>
         ) : null}
       </section>
+        </div>
+        <aside className="grid content-start gap-4 sm:grid-cols-3 xl:grid-cols-1" aria-label="Weitere Module">
+          {["Essen heute", "Schule heute", "Sterne"].map((t) => (
+            <Tile key={t} title={t} soon>
+              <p className="text-sm text-stone-600">Dieses Modul folgt in einer späteren Version.</p>
+            </Tile>
+          ))}
+        </aside>
+      </div>
 
       <Tile title="Termine heute" href="/kalender" count={d.eventsToday.length}>
         {d.eventsToday.length === 0 ? (
@@ -220,14 +235,6 @@ export default async function Home() {
           Feedback geben
         </FeedbackOpenButton>
       </section>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {["Heute zu Hause", "Essen heute", "Schule heute", "Sterne"].map((t) => (
-          <Tile key={t} title={t} soon>
-            <p className="text-sm text-stone-600">Dieses Modul folgt in einer späteren Version.</p>
-          </Tile>
-        ))}
-      </div>
     </div>
   );
 }
