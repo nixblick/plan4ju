@@ -23,6 +23,8 @@ export interface Fixture {
   taskA: string;
   taskB: string;
   birthdayB: string;
+  routineB: string;
+  occurrenceB: string;
 }
 
 export async function seed(): Promise<Fixture> {
@@ -54,7 +56,20 @@ export async function seed(): Promise<Fixture> {
   const bb = await admin.birthday.create({
     data: { familyId: fb.id, name: "Oma Beispiel", month: 3, day: 14, createdById: ub.id },
   });
+  const rb = await admin.routine.create({
+    data: {
+      familyId: fb.id, title: "Geheime Routine B", startDate: new Date("2026-11-02"), createdById: ub.id,
+      assignments: { create: { profileId: pb.id, familyId: fb.id } },
+    },
+  });
+  const ob = await admin.routineOccurrence.create({
+    data: {
+      familyId: fb.id, routineId: rb.id, date: new Date("2026-11-16"),
+      assignments: { create: { profileId: pb.id, familyId: fb.id } },
+    },
+  });
   return {
+    routineB: rb.id, occurrenceB: ob.id,
     familyA: fa.id, familyB: fb.id, userA: ua.id, userB: ub.id, userBoth: uboth.id, userNone: unone.id,
     profileA: pa.id, profileB: pb.id, taskA: ta.id, taskB: tb.id, birthdayB: bb.id,
   };

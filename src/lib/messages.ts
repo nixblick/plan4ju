@@ -6,7 +6,7 @@ export const errorMessages: Record<string, string> = {
   konflikt: "Das geht so nicht (zum Beispiel ist die Person schon Mitglied oder es wäre der letzte Owner).",
   "nicht-gefunden": "Eintrag nicht gefunden.",
   einladung: "Diese Einladung ist ungültig, abgelaufen oder wurde schon verwendet.",
-  "eingabe-plan": "Bitte prüfe deine Eingaben (Titel oder Name fehlt, Datum ungültig).",
+  "eingabe-plan": "Bitte prüfe deine Eingaben (Titel oder Name fehlt, Datum oder Uhrzeit ungültig, Enddatum vor dem Start).",
   eingabe: "Bitte prüfe deine Eingaben (Kennwort mindestens 10 Zeichen).",
 };
 
@@ -21,6 +21,11 @@ export const okMessages: Record<string, string> = {
   "aufgabe-weg": "Aufgabe gelöscht.",
   geburtstag: "Geburtstag gespeichert.",
   "geburtstag-weg": "Geburtstag gelöscht.",
+  "aufgabe-archiviert": "Aufgabe archiviert. Du findest sie unter „Archiv“.",
+  routine: "Routine angelegt.",
+  "routine-pausiert": "Routine pausiert. Offene künftige Termine sind entfernt.",
+  "routine-aktiv": "Routine ist wieder aktiv.",
+  "routine-archiviert": "Routine archiviert.",
   gespeichert: "Gespeichert.",
 };
 

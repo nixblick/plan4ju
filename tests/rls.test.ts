@@ -35,8 +35,8 @@ describe("database role", () => {
   it("every family-scoped table has forced row level security", async () => {
     const rows = await admin.$queryRaw<{ relname: string; relrowsecurity: boolean; relforcerowsecurity: boolean }[]>`
       SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
-      WHERE relname IN ('family','family_membership','family_profile','family_invitation','task','task_assignment','birthday')`;
-    expect(rows).toHaveLength(7);
+      WHERE relname IN ('family','family_membership','family_profile','family_invitation','task','task_assignment','birthday','routine','routine_assignment','routine_occurrence','routine_occurrence_assignment')`;
+    expect(rows).toHaveLength(11);
     for (const r of rows) expect([r.relname, r.relrowsecurity, r.relforcerowsecurity]).toEqual([r.relname, true, true]);
   });
 });
@@ -90,6 +90,49 @@ describe("database level isolation (queries without any familyId filter)", () =>
       raw(f.familyA, f.userA, (tx) => tx.task.update({ where: { id: f.taskA }, data: { familyId: f.familyB } })),
     ).rejects.toThrow();
     expect((await admin.task.findUniqueOrThrow({ where: { id: f.taskA } })).familyId).toBe(f.familyA);
+  });
+
+  it("routine tables: family A sees nothing of B, by list and by id", async () => {
+    await raw(f.familyA, f.userA, async (tx) => {
+      expect(await tx.routine.findMany()).toHaveLength(0);
+      expect(await tx.routineAssignment.findMany()).toHaveLength(0);
+      expect(await tx.routineOccurrence.findMany()).toHaveLength(0);
+      expect(await tx.routineOccurrenceAssignment.findMany()).toHaveLength(0);
+      expect(await tx.routine.findUnique({ where: { id: f.routineB } })).toBeNull();
+      expect(await tx.routineOccurrence.findUnique({ where: { id: f.occurrenceB } })).toBeNull();
+    });
+    await raw(f.familyB, f.userB, async (tx) => {
+      expect((await tx.routine.findMany()).map((r) => r.id)).toEqual([f.routineB]);
+      expect((await tx.routineOccurrence.findMany()).map((r) => r.id)).toEqual([f.occurrenceB]);
+    });
+    expect(await app.routine.findMany()).toHaveLength(0); // no context at all
+  });
+
+  it("routine tables: foreign rows cannot be changed, inserted or moved", async () => {
+    await raw(f.familyA, f.userA, async (tx) => {
+      expect((await tx.routine.updateMany({ where: { id: f.routineB }, data: { title: "gehackt" } })).count).toBe(0);
+      expect((await tx.routine.deleteMany({ where: { id: f.routineB } })).count).toBe(0);
+      expect((await tx.routineOccurrence.updateMany({ where: { id: f.occurrenceB }, data: { status: "DONE" } })).count).toBe(0);
+      expect((await tx.routineOccurrence.deleteMany({ where: { id: f.occurrenceB } })).count).toBe(0);
+    });
+    await expect(
+      raw(f.familyA, f.userA, (tx) =>
+        tx.routine.create({ data: { familyId: f.familyB, title: "x", startDate: new Date("2026-11-02"), createdById: f.userA } }),
+      ),
+    ).rejects.toThrow();
+    await expect(
+      raw(f.familyA, f.userA, (tx) =>
+        tx.routineOccurrenceAssignment.create({ data: { occurrenceId: f.occurrenceB, profileId: f.profileA, familyId: f.familyB } }),
+      ),
+    ).rejects.toThrow();
+    await expect(
+      raw(f.familyA, f.userA, (tx) =>
+        tx.routineOccurrence.create({ data: { familyId: f.familyB, routineId: f.routineB, date: new Date("2026-11-30") } }),
+      ),
+    ).rejects.toThrow();
+    const r = await admin.routine.findUniqueOrThrow({ where: { id: f.routineB } });
+    expect(r.title).toBe("Geheime Routine B");
+    expect((await admin.routineOccurrence.findUniqueOrThrow({ where: { id: f.occurrenceB } })).status).toBe("OPEN");
   });
 
   it("assignments cannot cross families (foreign profile, foreign task)", async () => {

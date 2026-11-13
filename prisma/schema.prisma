@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DATABASE_ADMIN_URL")
 }
@@ -85,6 +85,7 @@ model Family {
   invitations FamilyInvitation[]
   tasks       Task[]
   birthdays   Birthday[]
+  routines    Routine[]
 
   @@map("family")
 }
@@ -120,7 +121,9 @@ model FamilyProfile {
   updatedAt   DateTime @updatedAt
   family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
-  assignments TaskAssignment[]
+  assignments           TaskAssignment[]
+  routineAssignments    RoutineAssignment[]
+  occurrenceAssignments RoutineOccurrenceAssignment[]
 
   @@unique([familyId, userId])
   @@index([familyId])
@@ -145,21 +148,31 @@ model FamilyInvitation {
 
 enum TaskStatus {
   OPEN
+  IN_PROGRESS
   DONE
 }
 
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
 model Task {
-  id          String     @id @default(cuid())
+  id          String       @id @default(cuid())
   familyId    String
   title       String
   description String?
-  dueDate     DateTime?  @db.Date
-  status      TaskStatus @default(OPEN)
+  dueDate     DateTime?    @db.Date
+  dueTime     String? // local "HH:MM" in the family time zone
+  priority    TaskPriority @default(NORMAL)
+  status      TaskStatus   @default(OPEN)
   doneAt      DateTime?
+  archivedAt  DateTime? // archived tasks stay in the database but leave lists and the dashboard
   createdById String
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  family      Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   assignments TaskAssignment[]
 
@@ -196,4 +209,107 @@ model Birthday {
 
   @@index([familyId, month, day])
   @@map("birthday")
+}
+
+enum RoutineFreq {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum RoutineStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+// FIXED: all assignees of the routine are responsible for every occurrence.
+// ROTATING: one assignee per occurrence, in the order of RoutineAssignment.position.
+// PER_OCCURRENCE: nobody by default, each occurrence is assigned individually.
+enum RoutineAssignMode {
+  FIXED
+  ROTATING
+  PER_OCCURRENCE
+}
+
+enum OccurrenceStatus {
+  OPEN
+  DONE
+  SKIPPED
+}
+
+// Recurring task. Days are local calendar dates (no time zone shift); see src/lib/recurrence.ts.
+model Routine {
+  id             String            @id @default(cuid())
+  familyId       String
+  title          String
+  description    String?
+  freq           RoutineFreq       @default(DAILY)
+  interval       Int               @default(1)
+  weekdays       Int[] // 0 = Monday .. 6 = Sunday
+  monthDay       Int?
+  startDate      DateTime          @db.Date
+  endDate        DateTime?         @db.Date
+  timeOfDay      String? // local "HH:MM"
+  assignMode     RoutineAssignMode @default(FIXED)
+  status         RoutineStatus     @default(ACTIVE)
+  generatedUntil DateTime?         @db.Date // occurrences exist up to this day
+  createdById    String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  family         Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  assignments RoutineAssignment[]
+  occurrences RoutineOccurrence[]
+
+  @@index([familyId, status])
+  @@map("routine")
+}
+
+// Default responsible persons of a routine; position gives the rotation order.
+model RoutineAssignment {
+  routineId String
+  profileId String
+  familyId  String
+  position  Int           @default(0)
+  routine   Routine       @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  profile   FamilyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([routineId, profileId])
+  @@index([familyId])
+  @@map("routine_assignment")
+}
+
+model RoutineOccurrence {
+  id         String           @id @default(cuid())
+  familyId   String
+  routineId  String
+  date       DateTime         @db.Date
+  timeOfDay  String?
+  status     OccurrenceStatus @default(OPEN)
+  doneAt     DateTime?
+  doneById   String?
+  // true once someone assigned this occurrence by hand: routine changes must not touch it
+  customized Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  routine    Routine          @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  assignments RoutineOccurrenceAssignment[]
+
+  @@unique([routineId, date])
+  @@index([familyId, date])
+  @@map("routine_occurrence")
+}
+
+model RoutineOccurrenceAssignment {
+  occurrenceId String
+  profileId    String
+  familyId     String
+  occurrence   RoutineOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  profile      FamilyProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([occurrenceId, profileId])
+  @@index([familyId])
+  @@map("routine_occurrence_assignment")
 }
