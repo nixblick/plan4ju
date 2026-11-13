@@ -56,8 +56,8 @@ export default async function Abfall({ searchParams }: { searchParams: Promise<R
       </Card>
       <Card title="Woher kommen die Termine?">
         <p className="mb-2 text-sm text-stone-600">
-          Für Frankfurt gibt es keine dokumentierte Schnittstelle der FES. Lade die Termine dort als Kalenderdatei herunter oder abonniere sie,
-          wenn dein Entsorger eine Kalender-Adresse anbietet, und trage sie unter „Externe Kalender“ ein. Danach hier auswählen.
+          Eine dokumentierte Schnittstelle der FES haben wir nicht gefunden. Bietet die FES (oder ihre App) die Termine als Kalenderdatei
+          oder Kalender-Adresse an, trage sie unter „Externe Kalender“ ein und wähle den Kalender danach hier aus.
         </p>
         <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
           <a href={WASTE_INFO_URL} target="_blank" rel="noopener noreferrer nofollow" className="text-terracotta-dark underline">Seite der FES öffnen ↗</a>

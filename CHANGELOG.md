@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.3 (13.11.2026)
+
+- Schema note: the waste calendar foreign key stays SQL only (a Prisma relation over the family primary key breaks `family.create()`); generated migrations must not drop it.
+- Abfallkalender: the hint no longer promises an FES calendar file; it says what to do if the FES or its app offers one.
+
 ## 0.4.2 (13.11.2026)
 
 - Release 0.5 acceptance spec `tests-e2e/abnahme-0.5.spec.ts` (part of `test:abnahme`, against the container, no sign-up, 375 px): modules start off and members cannot switch them; Prospekte and Abfallkalender are switched independently and are gone (404) while off; flyer links are maintained by the owner and hidden ones stay hidden for members; pickups from an uploaded ICS file show on the page and in the start page tile; a subscription that cannot be resolved shows a notice while start page, calendar, shopping, tasks and meals keep working; the other family sees nothing.
