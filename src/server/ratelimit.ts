@@ -55,6 +55,14 @@ export const loginFailureKey = (email: string, ip: string) => `login:pair:${JSON
  */
 export const ACCOUNT_FAILURES = { threshold: 20, windowMs: 15 * 60 * 1000, maxDelayMs: 10_000 } as const;
 export const accountFailureKey = (email: string) => `login:acct:${JSON.stringify([email])}`;
+/**
+ * A known device (signed cookie from an earlier successful login, see device-cookie.ts) has its own
+ * counter and window per account. Strangers hammering the account only fill the account counter,
+ * so they do not slow the owner's known device down.
+ */
+export const deviceFailureKey = (email: string, deviceId: string) => `login:dev:${JSON.stringify([email, deviceId])}`;
+/** The counter that brakes this attempt: the device's own for a known device, else the account's. */
+export const brakeKey = (email: string, deviceId?: string | null) => (deviceId ? deviceFailureKey(email, deviceId) : accountFailureKey(email));
 
 function countOf(key: string, now: number): number {
   const h = hits.get(key);
@@ -67,18 +75,22 @@ export function assertLoginAllowed(email: string, ip: string, now = Date.now()):
 }
 
 /** Delay before verifying the password, growing with failures on the account. */
-export function loginDelayMs(email: string, now = Date.now()): number {
-  const over = countOf(accountFailureKey(email), now) - ACCOUNT_FAILURES.threshold;
+export function loginDelayMs(email: string, now = Date.now(), deviceId?: string | null): number {
+  const over = countOf(brakeKey(email, deviceId), now) - ACCOUNT_FAILURES.threshold;
   if (over < 0) return 0;
   return Math.min(1000 * 2 ** over, ACCOUNT_FAILURES.maxDelayMs);
 }
 
-export function recordLoginFailure(email: string, ip: string, now = Date.now()): void {
+export function recordLoginFailure(email: string, ip: string, now = Date.now(), deviceId?: string | null): void {
   recordHit(loginFailureKey(email, ip), LOGIN_FAILURES.windowMs, now);
-  recordHit(accountFailureKey(email), ACCOUNT_FAILURES.windowMs, now);
+  recordHit(brakeKey(email, deviceId), ACCOUNT_FAILURES.windowMs, now);
 }
 
-export function recordLoginSuccess(email: string, ip: string): void {
+/**
+ * Success clears the address pair and the counter that braked this attempt. A known device only
+ * clears its own counter: a stranger's flood on the account must not be reset by the owner logging in.
+ */
+export function recordLoginSuccess(email: string, ip: string, deviceId?: string | null): void {
   clearLimit(loginFailureKey(email, ip));
-  clearLimit(accountFailureKey(email));
+  clearLimit(brakeKey(email, deviceId));
 }

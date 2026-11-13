@@ -1,10 +1,27 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (13.11.2026)
+
+Release 0.2 "Familienorganisation": Aufgaben mit mehreren oder keinen Zuständigen, Routinen (fest, reihum oder je Termin einzeln zugeordnet), Geburtstage, gemeinsamer Kalender mit ICS-Import und Abonnement, Dashboard mit "Als Nächstes", "Heute zu Hause" und Woche. Details in 0.1.3 bis 0.1.7.
+
+- Abnahme gegen den Produktionscontainer mit zwei erfundenen Familien (`npm run test:abnahme`, 7 von 7 grün) und die übrigen E2E-Dateien einzeln gegen denselben Container (26 von 26 grün).
+- Feedback-Knopf aus der Testphase (bisher "Unreleased"):
 
 - Security (#7): ICS parsing has one step budget for the whole file (100 000 steps over all recurring events), stops every series once 5000 instances are stored, reads at most 10 000 VEVENTs, ends after 3 s, and does not expand FREQ=SECONDLY/MINUTELY/HOURLY (first instance only, flagged as truncated). SSRF check allows IPv6 only from global unicast 2000::/3 after the mapped/NAT64/6to4 checks (64:ff9b:1::/48 stays blocked). Time zone formatter cache keyed by the canonical zone, invalid names not cached, bounded to 500 entries. Calendar limit per family enforced with `pg_advisory_xact_lock` so parallel imports cannot exceed it. Tests for each.
 - Feedback in der Testphase: schwebender Knopf „Feedback“ (Sprechblase, mobil über der Tab-Leiste) auf jeder Seite für angemeldete Nutzer, Menüeintrag „Feedback geben“ und eine Kachel auf dem Dashboard. Formular mit Art (Fehler/Idee/Sonstiges), Text (max. 5000 Zeichen), optional Name, optional Aufnahme der aktuellen Seite (html2canvas-pro, nur auf Klick) oder eigenes PNG/JPEG bis 5 MB (Typ per Magic Bytes geprüft). Mitgeschickt: Seitenpfad ohne Query, App-Version, Browser/Gerät grob, Bildschirmbreite.
 - Neue Tabelle `feedback` (Migration `feedback`, nach den Routinen-Migrationen, RLS wie alle Familientabellen, Autor muss der angemeldete Nutzer sein); jede Meldung wird zuerst gespeichert und dann als reiner Text mit Bild im Anhang an `FEEDBACK_MAIL_TO` gemailt (Reply-To = Absender). Ohne Empfänger oder bei Versandfehler bleibt sie gespeichert, das Log enthält keinen Inhalt. Limit 10 Meldungen je Konto und Stunde. Server-Actions nehmen bis 6 MB an.
+
+### 0.1.7
+
+- Release 0.2 acceptance as its own Playwright spec (`tests-e2e/abnahme-0.2.spec.ts`, `npm run test:abnahme`, config `playwright.abnahme.config.ts` without a web server, base URL from `E2E_BASE_URL`): runs against the production container (`docker compose --profile app`) with two invented families. Covers a task with two assignees and one with none, a routine with a fixed assignee, a routine assigned per occurrence (today Anna, tomorrow Ben, the rest nobody), an event and a birthday in the week overview for both members, ICS file import shown as external, the other family seeing none of it, and nine pages at 375 px without horizontal overflow, with screenshots (`ABNAHME_DIR`). The default E2E run skips it, because together the specs would exceed the sign-up limit per address (10 in 15 minutes).
+
+### 0.1.6
+
+Release 0.2, block 3: dashboard and login brake.
+
+- Dashboard after the design reference (`docs/design/vorbild-dashboard.jpg`): card "Als Nächstes" (next timed event or open routine today with person, time, place and "in N Minuten", plus "Danach" with up to three more), "Heute zu Hause" (one row per person on a 6-22 h strip with the line for now; events and routines, all-day events listed above, entries nobody is assigned to in an extra row "Alle"), "Diese Woche" now marks events with the colours of their participants. Wide screens: main column and a side column with the tiles Essen, Schule, Sterne (still "kommt bald"); phones stack everything. Logic is pure and tested (`src/lib/today-agenda.ts`): routines count as 30 minutes, an event without end as one hour, multi-day events fill the day, times are family-zone wall clock.
+- Login brake (issue 5): after a successful login the browser gets a signed, HttpOnly cookie with a random device id bound to the account (`src/server/device-cookie.ts`, HMAC from `BETTER_AUTH_SECRET`, 400 days). A known device is braked by its own failure counter and its own window; strangers (no or invalid cookie) keep sharing the account counter. A flood on the account therefore no longer slows the owner's known device, and the owner's successful login no longer resets the stranger's brake. The hard limit per e-mail and address and the per-address limit are unchanged. The cookie is not a credential. Tests: 50 parallel attempts, own counters, cookie bound to the account, forgeries refused; E2E: login sets the cookie.
+- E2E (`tests-e2e/heute.spec.ts`): event for one member and routine for another show up in the strip and the week for both members, the other family sees nothing, three "kommt bald" tiles remain, 375 px stacked without overflow.
 
 ### 0.1.5
 

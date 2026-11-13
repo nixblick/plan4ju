@@ -11,6 +11,9 @@ const port = Number(process.env.E2E_PORT ?? 3000);
 
 export default defineConfig({
   testDir: "tests-e2e",
+  // The release acceptance runs on its own against a container (playwright.abnahme.config.ts);
+  // together with the other specs it would exceed the sign-up limit per address (10 in 15 min).
+  testIgnore: /abnahme-.*\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   retries: 0,

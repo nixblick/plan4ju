@@ -14,3 +14,5 @@ Was übernommen wird:
 Für Release 0.1 gilt nur der Rahmen: Kopf, „Diese Woche“ mit Aufgaben und Geburtstagen, Personenfarben.
 Kacheln späterer Module (Essen, Schule, Sterne, Wetter, Zeitstrahl mit Terminen) erscheinen als „kommt bald“.
 Oberfläche auf Deutsch, mobil zuerst: auf dem iPhone werden die Kacheln untereinander gestapelt.
+
+Stand 0.1.6: „Als Nächstes“/„Danach“, „Heute zu Hause“ (Zeitstrahl 6–22 Uhr mit Jetzt-Linie, Termine und Routinen) und „Diese Woche“ sind gebaut; Essen, Schule, Sterne bleiben „kommt bald“. Wetter und Tageszeit-Bilder fehlen noch.

@@ -1,6 +1,6 @@
 {
   "name": "plan4ju",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:up": "docker compose up -d --wait db mailpit",
     "admin:create-family": "tsx --env-file=.env scripts/create-family.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:abnahme": "playwright test -c playwright.abnahme.config.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",
