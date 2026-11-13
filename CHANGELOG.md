@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.4 (14.11.2026)
+
+- Kalender-Abo: semicolons in titles, places and descriptions are escaped correctly in the ICS feed (RFC 5545); the test checked the wrong value.
+
 ## 0.5.3 (14.11.2026)
 
 - Benachrichtigungen: bell with unread count (header on phones, sidebar from `md`), list `/benachrichtigungen`, generated lazily on page load for the signed-in user (due/overdue tasks, today's routines, birthdays today and tomorrow, new assignments by others within 7 days), deduplicated, old ones cleaned up. Settings per user and family (`/benachrichtigungen/einstellungen`).

@@ -179,7 +179,7 @@ describe("calendar feed", () => {
 
 describe("ics writer", () => {
   it("escapes and folds", () => {
-    expect(escapeText("a;b,c\\d\ne")).toBe("a\;b\\,c\\\\d\\ne");
+    expect(escapeText("a;b,c\\d\ne")).toBe("a\\;b\\,c\\\\d\\ne");
     const long = `SUMMARY:${"ä".repeat(60)}`;
     const lines = fold(long).split("\r\n");
     expect(lines.length).toBeGreaterThan(1);

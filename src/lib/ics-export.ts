@@ -13,7 +13,7 @@ export interface FeedBirthday {
 
 /** Escapes TEXT values (backslash, semicolon, comma, newlines). */
 export function escapeText(s: string): string {
-  return s.replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n").replace(/[\u0000-\u001f\u007f]/g, "");
+  return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n").replace(/[\u0000-\u001f\u007f]/g, "");
 }
 
 /** Folds a content line to at most 75 octets per line (UTF-8 safe). */
