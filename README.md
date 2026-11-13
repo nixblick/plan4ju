@@ -3,18 +3,99 @@
 Familienplanungs-App (Aufgaben, Routinen, Termine, Mahlzeiten, Einkäufe, Wünsche).
 Der Auftrag steht in [docs/masterprompt.md](docs/masterprompt.md).
 
-## Entwicklung
+## Entwicklung (lokal)
 
 ```
 cp .env.example .env        # every CHANGE_ME replaced (local only, .env is gitignored)
-docker compose up -d        # PostgreSQL 16 and Mailpit
 npm ci
+npm run db:up               # PostgreSQL 16 and Mailpit (docker compose, localhost only)
 npm run db:migrate          # as table owner (DATABASE_ADMIN_URL)
 npm run db:generate
-npm test                    # integration tests against the real database
+npm run dev                 # http://localhost:3000
+npm run lint && npm run typecheck && npm test
 ```
 
 Mailpit (web UI and SMTP) listens on localhost only; ports are set in `.env`.
+Use random, URL-safe values (letters and digits) for the database passwords, e.g. `openssl rand -hex 16`;
+`BETTER_AUTH_SECRET` is `openssl rand -hex 32`.
+
+## Docker (Betrieb)
+
+The image is built from `Dockerfile` (multi-stage, Node 22, runs as the unprivileged user `node`). The compose
+profile `app` adds three things: `migrate` (applies the migrations, then exits), `app` (waits for `migrate`) and the
+database. The app is published on `127.0.0.1:${APP_PORT:-3000}` only; a reverse proxy makes it reachable.
+
+```
+cp .env.example .env
+# edit .env: real passwords, BETTER_AUTH_SECRET, BETTER_AUTH_URL=https://plan.example.org,
+# SMTP_URL=smtps://user:pass@mail.example.org:465 (URL-encode special characters), MAIL_FROM
+docker compose --profile app up -d --build --wait app
+docker compose --profile app run --rm migrate npx tsx scripts/create-family.ts \
+  --name "Familie Muster" --owner owner@example.org --send
+```
+
+The second command creates the first family and mails the owner an invitation link (without `--send` the link is
+printed once). Registration is possible only through invitations.
+
+Update to a new version:
+
+```
+git pull
+docker compose --profile app up -d --build --wait app    # rebuilds, runs migrations, restarts the app
+```
+
+Backup and restore (database dump, custom format):
+
+```
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > plan4ju-$(date +%F).dump
+
+docker compose --profile app stop app
+docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --single-transaction' < plan4ju-2026-01-01.dump
+docker compose --profile app start app
+```
+
+Keep dumps off the server and encrypted; they contain all family data. Test the restore on a spare machine before
+you need it. The compose database owner is a PostgreSQL superuser (image default); for a hardened setup connect an
+external database with a non-superuser owner role and a separate `plan4ju_app` role (`NOBYPASSRLS`, see
+`docker/postgres-init/01-app-role.sh`).
+
+### Reverse proxy with HTTPS
+
+Run any TLS-terminating proxy (Caddy, nginx, Traefik) on the host and forward to `127.0.0.1:3000`. Requirements:
+HTTPS only (redirect port 80), forward `Host`, `X-Forwarded-For` and `X-Forwarded-Proto`, and set
+`BETTER_AUTH_URL` to the public https URL. Minimal Caddy example:
+
+```
+plan.example.org {
+    reverse_proxy 127.0.0.1:3000
+}
+```
+
+Minimal nginx location (certificates e.g. from certbot):
+
+```
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+The in-app rate limits count per process; add request limits at the proxy for the sign-in and password routes.
+Do not forward client-supplied `X-Forwarded-For` unchanged (set it as above).
+
+### Optional analytics
+
+If `ANALYTICS_SCRIPT_URL` is set (full URL of a tracker script), the page includes
+`<script defer src="$ANALYTICS_SCRIPT_URL" data-site="$ANALYTICS_SITE">` and the Content Security Policy allows that
+origin. Without the variable nothing is emitted and no third-party origin is allowed. Read at runtime, no rebuild needed.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push and pull request: ESLint, typecheck, Vitest and Playwright against a
+throwaway PostgreSQL (random passwords per run), Docker build of both targets (and a check that the image does not
+run as root) and gitleaks.
 
 ## Oberfläche und E2E
 
@@ -51,6 +132,10 @@ lists the protected tables. Creating families is an administrative task (owner c
   den Nutzer gebunden und signiert; Mitgliedschaft und Rolle werden bei jedem Request aus der Datenbank gelesen.
 - Rate Limits: Better Auth begrenzt die HTTP-Routen, die Formulare haben ein eigenes Limit. Beide halten ihren Zähler im
   Arbeitsspeicher (eine Instanz); hinter dem Reverse Proxy zusätzlich begrenzen.
+
+## Lizenz und Sicherheit
+
+MIT, siehe [LICENSE](LICENSE). Sicherheitslücken bitte privat melden: [SECURITY.md](SECURITY.md).
 
 ## Geheimnisse
 

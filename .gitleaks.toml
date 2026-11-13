@@ -1,0 +1,9 @@
+title = "plan4ju"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders"
+regexes = ['''CHANGE_ME''']
+paths = ['''package-lock\.json''']

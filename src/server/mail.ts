@@ -22,7 +22,7 @@ export interface Mail {
 
 export async function sendMail(mail: Mail): Promise<void> {
   await transport().sendMail({
-    from: process.env.MAIL_FROM ?? "Plan4JU <noreply@localhost>",
+    from: process.env.MAIL_FROM || "Plan4JU <noreply@localhost>",
     to: mail.to,
     subject: mail.subject,
     text: mail.text,

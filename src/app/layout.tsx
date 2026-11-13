@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { analyticsConfig } from "@/server/analytics";
 import { getSessionUser } from "@/server/session";
 import { logoutAction } from "./actions";
 import { NavLinks } from "./nav";
@@ -23,10 +24,12 @@ function Logo({ size }: { size: number }) {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const user = await getSessionUser();
+  const analytics = analyticsConfig();
   return (
     <html lang="de">
       <body className="min-h-screen antialiased">
         <SwRegister />
+        {analytics ? <script defer src={analytics.src} {...(analytics.site ? { "data-site": analytics.site } : {})} /> : null}
         {user ? (
           <div className="md:flex">
             <aside className="hidden md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col md:gap-1 md:border-r md:border-stone-200 md:bg-white md:p-4">
