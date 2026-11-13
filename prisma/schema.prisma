@@ -101,6 +101,8 @@ model Family {
   wishReservations WishReservation[]
   mapCategories    MapCategory[]
   pois             Poi[]
+  mindfulness      MindfulnessEntry[]
+  mindfulShares    MindfulnessShare[]
 
   @@map("family")
 }
@@ -119,6 +121,9 @@ model FamilyMembership {
   createdAt DateTime   @default(now())
   family    Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  mindfulnessEntries MindfulnessEntry[]
+  mindfulnessShares  MindfulnessShare[]
 
   @@unique([familyId, userId])
   @@index([userId])
@@ -142,6 +147,7 @@ model FamilyProfile {
   eventParticipations   CalendarEventParticipant[]
   mealCooks             MealCook[]
   wishlists             Wishlist[]
+  mindfulnessEntries    MindfulnessEntry[]
 
   @@unique([familyId, userId])
   @@unique([id, familyId]) // target of the composite foreign keys that keep references inside one family
@@ -739,4 +745,67 @@ model Poi {
   @@unique([id, familyId])
   @@index([familyId, archivedAt])
   @@map("poi")
+}
+
+enum MindfulnessTopic {
+  FOOD
+  SLEEP
+  MOOD
+  WORK
+  LEISURE
+  HEALTH
+}
+
+enum MindfulnessVisibility {
+  PRIVATE
+  SELECTED
+  FAMILY
+}
+
+/// A mindfulness rating (1..5) of one person on one local day and topic. The author (createdById) is
+/// the only one who can change it and who decides who sees it; "Nur ich" means the author. Adults write
+/// for their own profile, parents also for child profiles without login. Row level security enforces
+/// visibility with its own policies (not just the family scope), see docs/achtsamkeit.md.
+/// HEALTH entries can never be visible to the whole family (DB check).
+model MindfulnessEntry {
+  id          String                @id @default(cuid())
+  familyId    String
+  profileId   String
+  topic       MindfulnessTopic
+  date        DateTime              @db.Date
+  rating      Int
+  note        String?
+  visibility  MindfulnessVisibility @default(PRIVATE)
+  createdById String
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  family      Family                @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  profile     FamilyProfile         @relation(fields: [profileId, familyId], references: [id, familyId], onDelete: Cascade)
+  /// The author must be a member; leaving the family deletes the author's entries.
+  author      FamilyMembership      @relation(fields: [familyId, createdById], references: [familyId, userId], onDelete: Cascade)
+  shares      MindfulnessShare[]
+
+  @@unique([id, familyId])
+  @@unique([id, familyId, createdById])
+  @@unique([profileId, topic, date, createdById])
+  @@index([familyId, profileId, date])
+  @@map("mindfulness_entry")
+}
+
+/// A selected viewer of a SELECTED entry. ownerId repeats the entry author so that row level security
+/// on this table never has to read mindfulness_entry (that would recurse); the composite foreign key
+/// guarantees it matches. The viewer must be a member; leaving the family drops the share.
+model MindfulnessShare {
+  id       String           @id @default(cuid())
+  familyId String
+  entryId  String
+  ownerId  String
+  userId   String
+  family   Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  entry    MindfulnessEntry @relation(fields: [entryId, familyId, ownerId], references: [id, familyId, createdById], onDelete: Cascade)
+  viewer   FamilyMembership @relation(fields: [familyId, userId], references: [familyId, userId], onDelete: Cascade)
+
+  @@unique([entryId, userId])
+  @@index([familyId, userId])
+  @@map("mindfulness_share")
 }

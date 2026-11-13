@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.6 (13.11.2026)
+
+Release 0.4, block 3: mindfulness, data layer.
+
+- New tables `mindfulness_entry` and `mindfulness_share` (migrations `mindfulness`, `mindfulness_rls`, appended). Ratings 1–5 per profile, local day and topic (Essen, Schlaf, Stimmung, Arbeit, Freizeit, Gesundheit) with optional note and a visibility per entry: only me (author), selected members, whole family. RLS has its own policies per command, not only the family scope: owners and admins see nothing extra; only the author changes or deletes; entries only for the own profile or a child profile without login; health entries can never be visible to the whole family (DB check). Author and viewers are tied to their membership, so leaving the family removes the author's entries and the viewer's shares. Service `mindfulness.ts`; invisible and unknown ids give the same NotFound, no counts of hidden entries. Tests: `mindfulness.test.ts` (service and app role SQL), RLS table list (31 tables).
+
 ## 0.3.5 (13.11.2026)
 
 Release 0.4, block 2: map, interface.
