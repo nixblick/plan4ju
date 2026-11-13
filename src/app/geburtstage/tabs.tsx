@@ -3,6 +3,7 @@ import Link from "next/link";
 const TABS = [
   { key: "geburtstage", href: "/geburtstage", label: "Geburtstage" },
   { key: "wuensche", href: "/wuensche", label: "Wunschzettel" },
+  { key: "karte", href: "/karte", label: "Karte" },
 ] as const;
 
 /** Sub navigation of the "Geburtstage" area (the bottom bar has no room for another tab). */

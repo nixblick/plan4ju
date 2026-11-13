@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5 (13.11.2026)
+
+Release 0.4, block 2: map, interface.
+
+- Map (`/karte`, sub tab "Karte" next to Geburtstage and Wunschzettel; the bottom bar keeps 7 tabs): Leaflet map with OpenStreetMap tiles (server via `MAP_TILE_URL`/`MAP_TILE_ATTRIBUTION`, attribution visible), markers with category symbol and colour, filters by category, creator and name, list below the map on phones and beside it on desktop, archive of past events (`/karte?archiv=1`). New point: tap the map (draggable marker) or enter coordinates, plus address text, description, link, image link, rating, note and an optional period. Detail page with edit, move and delete (creator or admin). Category management for admins (`/karte/kategorien`). No geocoding service. Documented in `docs/karte.md` (tile server, privacy, archive); E2E `karte.spec.ts` at 375 px without sign-up, tiles aborted.
+
 ## 0.3.4 (13.11.2026)
 
 Release 0.4, block 2: map, data layer.
