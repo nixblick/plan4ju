@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Plan4JU – Entwurf C: P mit Teller</title>
+  <rect width="512" height="512" fill="#E9A23B"/>
+  <path d="M192 362 V158 H272 A66 66 0 0 1 272 290 H192" fill="none" stroke="#3B2A20" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="272" cy="224" r="14" fill="#3B2A20"/>
+</svg>
