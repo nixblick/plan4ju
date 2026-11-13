@@ -8,7 +8,7 @@ const TABS = [
 /** Sub navigation of the "Geburtstage" area (the bottom bar has no room for another tab). */
 export function FesteTabs({ active }: { active: (typeof TABS)[number]["key"] }) {
   return (
-    <nav aria-label="Geburtstage und Wünsche" className="flex gap-1 rounded-xl bg-stone-100 p-1 text-sm">
+    <nav aria-label="Unterseiten" className="flex gap-1 rounded-xl bg-stone-100 p-1 text-sm">
       {TABS.map((t) => (
         <Link
           key={t.key}
