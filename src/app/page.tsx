@@ -5,6 +5,7 @@ import { getDashboard, type DashTask } from "@/server/services/dashboard";
 import { requireFamily } from "@/server/session";
 import { DashboardHeader } from "./clock";
 import { FeedbackOpenButton } from "./feedback";
+import { occurrenceStatusAction } from "./planung-actions";
 import { Dots, names } from "./people";
 
 export const dynamic = "force-dynamic";
@@ -68,12 +69,14 @@ export default async function Home() {
         <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
           {d.week.map((day) => {
             const { d: dayNum } = parseIso(day.iso);
-            const items = day.birthdays.length + day.tasks.length;
+            const items = day.birthdays.length + day.routines.length + day.tasks.length;
             let budget = MAX_PER_DAY;
             const shownBirthdays = day.birthdays.slice(0, budget);
             budget -= shownBirthdays.length;
+            const shownRoutines = day.routines.slice(0, Math.max(budget, 0));
+            budget -= shownRoutines.length;
             const shownTasks = day.tasks.slice(0, Math.max(budget, 0));
-            const more = items - shownBirthdays.length - shownTasks.length;
+            const more = items - shownBirthdays.length - shownRoutines.length - shownTasks.length;
             return (
               <li
                 key={day.iso}
@@ -90,6 +93,13 @@ export default async function Home() {
                     <li key={b.id} className="flex items-center gap-1.5 text-sm">
                       <span aria-hidden="true">🎂</span>
                       <span className="min-w-0 break-words">{b.name}{b.turns ? ` (${b.turns})` : ""}</span>
+                    </li>
+                  ))}
+                  {shownRoutines.map((o) => (
+                    <li key={o.id} className={`flex items-center gap-1.5 text-sm ${o.status === "DONE" ? "text-stone-500 line-through" : ""}`} data-testid="week-routine">
+                      <Dots profiles={d.profiles} ids={o.assigneeIds} />
+                      <span aria-hidden="true">↻</span>
+                      <span className="min-w-0 break-words" title={names(d.profiles, o.assigneeIds)}>{o.time ? `${o.time} ` : ""}{o.title}</span>
                     </li>
                   ))}
                   {shownTasks.map((t) => (
@@ -114,6 +124,35 @@ export default async function Home() {
           </ul>
         ) : null}
       </section>
+
+      <Tile title="Routinen heute" href="/routinen" count={d.routinesToday.filter((o) => o.status === "OPEN").length}>
+        {d.routinesToday.length === 0 ? (
+          <p className="text-sm text-stone-600">Heute stehen keine Routinen an.</p>
+        ) : (
+          <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+            {d.routinesToday.map((o) => (
+              <li key={o.id} className="flex items-center gap-2 text-sm" data-testid="today-routine">
+                <form action={occurrenceStatusAction}>
+                  <input type="hidden" name="occurrenceId" value={o.id} />
+                  <input type="hidden" name="back" value="/" />
+                  <input type="hidden" name="status" value={o.status === "DONE" ? "OPEN" : "DONE"} />
+                  <button
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-stone-300 bg-white text-lg"
+                    aria-label={o.status === "DONE" ? `„${o.title}“ wieder öffnen` : `„${o.title}“ heute abhaken`}
+                  >
+                    {o.status === "DONE" ? "✓" : "○"}
+                  </button>
+                </form>
+                <Dots profiles={d.profiles} ids={o.assigneeIds} />
+                <span className={`min-w-0 flex-1 break-words ${o.status === "DONE" ? "text-stone-500 line-through" : ""}`}>
+                  {o.time ? `${o.time} ` : ""}{o.title}
+                  <span className="text-xs text-stone-600"> · {o.assigneeIds.length ? names(d.profiles, o.assigneeIds) : "Niemand zugewiesen"}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Tile>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Tile title="Meine Aufgaben" href="/aufgaben" count={d.mine.length}>

@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { addDays, daysBetween, nextBirthday, todayIn, weekOf } from "../../lib/week";
 import { withFamily } from "../tenant";
+import { ensureOccurrences, occurrencesIn, type OccurrenceView } from "./routines";
 
 export interface DashProfile {
   id: string;
@@ -15,6 +16,7 @@ export interface DashTask {
   done: boolean;
   assigneeIds: string[];
 }
+export type DashOccurrence = OccurrenceView;
 export interface DashBirthday {
   id: string;
   name: string;
@@ -33,7 +35,8 @@ export interface DashboardData {
   today: string;
   profiles: DashProfile[];
   myProfileId: string | null;
-  week: { iso: string; isToday: boolean; tasks: DashTask[]; birthdays: DashBirthdayNext[] }[];
+  week: { iso: string; isToday: boolean; tasks: DashTask[]; birthdays: DashBirthdayNext[]; routines: DashOccurrence[] }[];
+  routinesToday: DashOccurrence[];
   mine: DashTask[];
   dueToday: DashTask[];
   overdue: DashTask[];
@@ -46,6 +49,8 @@ export interface RawDashboard {
   profiles: { id: string; displayName: string; userId: string | null }[]; // creation order
   tasks: DashTask[];
   birthdays: DashBirthday[];
+  /** Routine occurrences of the displayed week (skipped ones may be included, they are hidden here). */
+  occurrences?: DashOccurrence[];
 }
 
 /** Pure: shapes the raw family data into what the dashboard shows. */
@@ -56,6 +61,7 @@ export function buildDashboard(raw: RawDashboard, userId: string, now: Date = ne
   const myProfileId = profiles.find((p) => p.userId === userId)?.id ?? null;
   const open = raw.tasks.filter((t) => !t.done);
   const byDue = (a: DashTask, b: DashTask) => (a.due ?? "9") .localeCompare(b.due ?? "9") || a.title.localeCompare(b.title, "de");
+  const occurrences = (raw.occurrences ?? []).filter((o) => o.status !== "SKIPPED");
   const upcoming = raw.birthdays
     .map((b) => {
       const date = nextBirthday(b.month, b.day, today);
@@ -73,7 +79,9 @@ export function buildDashboard(raw: RawDashboard, userId: string, now: Date = ne
       isToday: iso === today,
       tasks: raw.tasks.filter((t) => t.due === iso).sort((a, b) => Number(a.done) - Number(b.done) || a.title.localeCompare(b.title, "de")),
       birthdays: upcoming.filter((b) => b.date === iso),
+      routines: occurrences.filter((o) => o.date === iso),
     })),
+    routinesToday: occurrences.filter((o) => o.date === today),
     mine: myProfileId ? open.filter((t) => t.assigneeIds.includes(myProfileId)).sort(byDue) : [],
     dueToday: open.filter((t) => t.due === today).sort(byDue),
     overdue: open.filter((t) => t.due !== null && t.due < today).sort(byDue),
@@ -88,7 +96,10 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
     async (ctx) => {
       const family = await ctx.tx.family.findFirstOrThrow({ where: { id: familyId }, select: { name: true, timezone: true } });
       const today = todayIn(family.timezone, now);
+      await ensureOccurrences(ctx, now);
+      const weekDays = weekOf(today);
       const from = new Date(addDays(today, -366)); // older overdue tasks still matter, but bound the query
+      const occurrences = await occurrencesIn(ctx, weekDays[0]!, weekDays[6]!, false);
       const [profiles, tasks, birthdays] = await Promise.all([
         ctx.tx.familyProfile.findMany({
           where: { familyId },
@@ -96,7 +107,7 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
           select: { id: true, displayName: true, userId: true },
         }),
         ctx.tx.task.findMany({
-          where: { familyId, OR: [{ status: "OPEN" }, { dueDate: { gte: from } }] },
+          where: { familyId, archivedAt: null, OR: [{ status: { not: "DONE" } }, { dueDate: { gte: from } }] },
           include: { assignments: { select: { profileId: true } } },
           take: 2000,
         }),
@@ -115,6 +126,7 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
             assigneeIds: t.assignments.map((a) => a.profileId),
           })),
           birthdays: birthdays.map((b) => ({ id: b.id, name: b.name, month: b.month, day: b.day, birthYear: b.birthYear })),
+          occurrences,
         },
         userId,
         now,

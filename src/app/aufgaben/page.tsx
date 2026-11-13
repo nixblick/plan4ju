@@ -1,54 +1,86 @@
+import Link from "next/link";
 import { errorMessages, okMessages, one } from "@/lib/messages";
 import { todayIn } from "@/lib/week";
 import { getDashboard } from "@/server/services/dashboard";
-import { listTasks } from "@/server/services/tasks";
+import { findTasks, TASK_FILTERS, type TaskFilter } from "@/server/services/tasks";
 import { requireFamily } from "@/server/session";
-import { createTaskAction, deleteTaskAction, toggleTaskAction } from "../planung-actions";
+import { createTaskAction, toggleTaskAction } from "../planung-actions";
 import { Dots, names } from "../people";
-import { buttonCls, Card, Field, ghostButtonCls, inputCls, Notice } from "../ui";
+import { buttonCls, Card, ghostButtonCls, inputCls, Notice } from "../ui";
+import { STATUS_LABEL, TaskFields } from "./task-fields";
 
 export const dynamic = "force-dynamic";
 
 const fmt = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TABS: { key: TaskFilter; label: string }[] = [
+  { key: "alle", label: "Alle" },
+  { key: "meine", label: "Meine" },
+  { key: "unzugewiesen", label: "Unzugewiesen" },
+  { key: "erledigt", label: "Erledigt" },
+  { key: "archiv", label: "Archiv" },
+];
 
 export default async function Aufgaben({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { user, familyId } = await requireFamily();
   const sp = await searchParams;
   const fehler = one(sp.fehler);
   const ok = one(sp.ok);
-  const [dash, tasks] = await Promise.all([getDashboard(user.id, familyId), listTasks(user.id, familyId)]);
+  const asked = one(sp.filter);
+  const filter: TaskFilter = (TASK_FILTERS as readonly string[]).includes(asked ?? "") ? (asked as TaskFilter) : "alle";
+  const dash = await getDashboard(user.id, familyId);
+  const person = dash.profiles.some((p) => p.id === one(sp.person)) ? one(sp.person) : undefined;
+  const von = DATE.test(one(sp.von) ?? "") ? one(sp.von) : undefined;
+  const bis = DATE.test(one(sp.bis) ?? "") ? one(sp.bis) : undefined;
+  const tasks = await findTasks(user.id, familyId, { filter, profileId: person, from: von, to: bis });
   const today = todayIn(dash.timezone);
-  const open = tasks.filter((t) => t.status === "OPEN");
-  const done = tasks.filter((t) => t.status === "DONE").slice(-20).reverse();
+  const filtered = Boolean(person || von || bis);
+  const open = tasks.filter((t) => t.status !== "DONE");
+  const done = tasks.filter((t) => t.status === "DONE");
+  const tabHref = (k: TaskFilter) => {
+    const q = new URLSearchParams();
+    if (k !== "alle") q.set("filter", k);
+    if (person) q.set("person", person);
+    if (von) q.set("von", von);
+    if (bis) q.set("bis", bis);
+    const s = q.toString();
+    return s ? `/aufgaben?${s}` : "/aufgaben";
+  };
+
   const row = (t: (typeof tasks)[number]) => {
     const due = t.dueDate ? t.dueDate.toISOString().slice(0, 10) : null;
     const ids = t.assignments.map((a) => a.profileId);
     const isDone = t.status === "DONE";
+    const late = !isDone && !t.archivedAt && due !== null && due < today;
     return (
       <li key={t.id} className="flex flex-wrap items-center gap-3 py-3" data-testid="task-row">
-        <form action={toggleTaskAction}>
-          <input type="hidden" name="taskId" value={t.id} />
-          <input type="hidden" name="done" value={isDone ? "0" : "1"} />
-          <button className={ghostButtonCls} aria-label={isDone ? `„${t.title}“ wieder öffnen` : `„${t.title}“ abhaken`}>
-            {isDone ? "Wieder öffnen" : "Abhaken"}
-          </button>
-        </form>
+        {t.archivedAt ? null : (
+          <form action={toggleTaskAction}>
+            <input type="hidden" name="taskId" value={t.id} />
+            <input type="hidden" name="done" value={isDone ? "0" : "1"} />
+            <button className={ghostButtonCls} aria-label={isDone ? `„${t.title}“ wieder öffnen` : `„${t.title}“ abhaken`}>
+              {isDone ? "Wieder öffnen" : "Abhaken"}
+            </button>
+          </form>
+        )}
         <span className="min-w-0 flex-1">
           <span className={`block break-words font-medium ${isDone ? "text-stone-500 line-through" : ""}`}>{t.title}</span>
-          <span className="flex flex-wrap items-center gap-2 text-sm text-stone-600">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-stone-600">
             <Dots profiles={dash.profiles} ids={ids} />
             {ids.length ? names(dash.profiles, ids) : "Niemand zugewiesen"}
             {due ? (
-              <span className={!isDone && due < today ? "font-medium text-red-700" : ""}>
-                · fällig {fmt(due)}{!isDone && due < today ? " (überfällig)" : ""}
+              <span className={late ? "font-medium text-red-700" : ""}>
+                · fällig {fmt(due)}{t.dueTime ? `, ${t.dueTime} Uhr` : ""}{late ? " (überfällig)" : ""}
               </span>
             ) : null}
+            {t.priority === "HIGH" ? <span className="font-medium text-terracotta-dark">· Priorität hoch</span> : null}
+            {t.priority === "LOW" ? <span>· Priorität niedrig</span> : null}
+            {t.status === "IN_PROGRESS" ? <span>· {STATUS_LABEL.IN_PROGRESS}</span> : null}
           </span>
         </span>
-        <form action={deleteTaskAction}>
-          <input type="hidden" name="taskId" value={t.id} />
-          <button className="min-h-11 px-3 text-sm text-stone-600 underline" aria-label={`„${t.title}“ löschen`}>Löschen</button>
-        </form>
+        <Link href={`/aufgaben/${t.id}`} className="inline-flex min-h-11 items-center px-3 text-sm text-stone-700 underline" aria-label={`„${t.title}“ bearbeiten`}>
+          Bearbeiten
+        </Link>
       </li>
     );
   };
@@ -61,36 +93,77 @@ export default async function Aufgaben({ searchParams }: { searchParams: Promise
 
       <Card title="Neue Aufgabe">
         <form action={createTaskAction}>
-          <Field label="Was ist zu tun?">
-            <input className={inputCls} name="title" maxLength={200} required />
-          </Field>
-          <Field label="Fällig am (optional)">
-            <input className={inputCls} type="date" name="dueDate" />
-          </Field>
-          <fieldset className="mb-4">
-            <legend className="mb-1 text-sm font-medium">Zuständig (keiner, eine oder mehrere Personen)</legend>
-            <div className="flex flex-wrap gap-2">
-              {dash.profiles.map((p) => (
-                <label key={p.id} className="flex min-h-11 items-center gap-2 rounded-xl border border-stone-300 bg-white px-3">
-                  <input type="checkbox" name="assigneeIds" value={p.id} className="h-5 w-5" />
-                  <Dots profiles={dash.profiles} ids={[p.id]} />
-                  {p.name}
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <TaskFields profiles={dash.profiles} />
           <button className={buttonCls}>Aufgabe anlegen</button>
         </form>
       </Card>
 
-      <Card title={`Offen (${open.length})`}>
-        {open.length === 0 ? <p className="text-stone-600">Alles erledigt.</p> : <ul className="divide-y divide-stone-100">{open.map(row)}</ul>}
-      </Card>
-      {done.length ? (
-        <Card title="Zuletzt erledigt">
-          <ul className="divide-y divide-stone-100">{done.map(row)}</ul>
+      <nav aria-label="Aufgaben filtern" className="flex flex-wrap gap-2">
+        {TABS.map((t) => (
+          <Link
+            key={t.key}
+            href={tabHref(t.key)}
+            aria-current={filter === t.key ? "page" : undefined}
+            className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-medium ring-1 ${
+              filter === t.key ? "bg-terracotta text-white ring-terracotta" : "bg-white text-stone-700 ring-stone-300"
+            }`}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+
+      <details open={filtered} className="rounded-2xl bg-white p-4 ring-1 ring-stone-200">
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Nach Person und Zeitraum eingrenzen{filtered ? " (aktiv)" : ""}</summary>
+        <form method="get" action="/aufgaben" className="mt-2 grid gap-3 sm:grid-cols-4">
+          {filter !== "alle" ? <input type="hidden" name="filter" value={filter} /> : null}
+          <div className="text-sm">
+            <label htmlFor="f-person" className="mb-1 block font-medium">Person</label>
+            <select id="f-person" className={inputCls} name="person" defaultValue={person ?? ""}>
+              <option value="">Alle</option>
+              {dash.profiles.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="text-sm">
+            <label htmlFor="f-von" className="mb-1 block font-medium">Fällig ab</label>
+            <input id="f-von" className={inputCls} type="date" name="von" defaultValue={von ?? ""} />
+          </div>
+          <div className="text-sm">
+            <label htmlFor="f-bis" className="mb-1 block font-medium">Fällig bis</label>
+            <input id="f-bis" className={inputCls} type="date" name="bis" defaultValue={bis ?? ""} />
+          </div>
+          <div className="flex items-end gap-2">
+            <button className={ghostButtonCls}>Anwenden</button>
+            {filtered ? <Link href={filter !== "alle" ? `/aufgaben?filter=${filter}` : "/aufgaben"} className="inline-flex min-h-11 items-center text-sm underline">Zurücksetzen</Link> : null}
+          </div>
+        </form>
+      </details>
+
+      {filter === "alle" ? (
+        <>
+          <Card title={`Offen (${open.length})`}>
+            {open.length === 0 ? <p className="text-stone-600">{filtered ? "Keine Aufgaben für diese Auswahl." : "Alles erledigt."}</p> : <ul className="divide-y divide-stone-100">{open.map(row)}</ul>}
+          </Card>
+          {done.length ? (
+            <Card title="Zuletzt erledigt">
+              <ul className="divide-y divide-stone-100">{done.slice(-20).reverse().map(row)}</ul>
+            </Card>
+          ) : null}
+        </>
+      ) : (
+        <Card title={`${TABS.find((t) => t.key === filter)!.label} (${tasks.length})`}>
+          {tasks.length === 0 ? (
+            <p className="text-stone-600">
+              {filter === "meine" ? "Nichts offen für dich." : filter === "unzugewiesen" ? "Jede offene Aufgabe hat jemanden." : filter === "archiv" ? "Noch nichts archiviert." : "Keine Aufgaben für diese Auswahl."}
+            </p>
+          ) : (
+            <ul className="divide-y divide-stone-100">{tasks.map(row)}</ul>
+          )}
         </Card>
-      ) : null}
+      )}
     </div>
   );
 }
+

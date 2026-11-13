@@ -3,7 +3,18 @@
 ## Unreleased
 
 - Feedback in der Testphase: schwebender Knopf „Feedback“ (Sprechblase, mobil über der Tab-Leiste) auf jeder Seite für angemeldete Nutzer, Menüeintrag „Feedback geben“ und eine Kachel auf dem Dashboard. Formular mit Art (Fehler/Idee/Sonstiges), Text (max. 5000 Zeichen), optional Name, optional Aufnahme der aktuellen Seite (html2canvas-pro, nur auf Klick) oder eigenes PNG/JPEG bis 5 MB (Typ per Magic Bytes geprüft). Mitgeschickt: Seitenpfad ohne Query, App-Version, Browser/Gerät grob, Bildschirmbreite.
-- Neue Tabelle `feedback` (Migration `feedback`, RLS wie alle Familientabellen, Autor muss der angemeldete Nutzer sein); jede Meldung wird zuerst gespeichert und dann als reiner Text mit Bild im Anhang an `FEEDBACK_MAIL_TO` gemailt (Reply-To = Absender). Ohne Empfänger oder bei Versandfehler bleibt sie gespeichert, das Log enthält keinen Inhalt. Limit 10 Meldungen je Konto und Stunde. Server-Actions nehmen bis 6 MB an.
+- Neue Tabelle `feedback` (Migration `feedback`, nach den Routinen-Migrationen, RLS wie alle Familientabellen, Autor muss der angemeldete Nutzer sein); jede Meldung wird zuerst gespeichert und dann als reiner Text mit Bild im Anhang an `FEEDBACK_MAIL_TO` gemailt (Reply-To = Absender). Ohne Empfänger oder bei Versandfehler bleibt sie gespeichert, das Log enthält keinen Inhalt. Limit 10 Meldungen je Konto und Stunde. Server-Actions nehmen bis 6 MB an.
+
+### 0.1.3
+
+Release 0.2, block 1: tasks completed, routines.
+
+- Tasks: description, priority (low/normal/high), optional time, status open / in progress / done, archive (leaves lists and dashboard, can be restored), edit page, delete only after an explicit confirmation. Filters: all, mine, unassigned, done, archive, plus person and due-date range. Migration `tasks_routines` (new columns, enum value `IN_PROGRESS`).
+- Routines: tables `routine`, `routine_assignment`, `routine_occurrence`, `routine_occurrence_assignment` (migration `routines_rls`: `familyId`, forced RLS, grants for the app role). Recurrence daily / weekly on chosen weekdays / monthly (short months use their last day), every n-th, start and optional end date, optional time. Assignment fixed (one or several persons), rotating, or per occurrence; any occurrence can be reassigned by hand.
+- Occurrences are created for a bounded window: from today (family time zone) up to 56 days ahead, topped up lazily below 28 days; never into the past. Done / skipped / hand-assigned / past occurrences are never changed by editing, pausing or archiving a routine, only untouched open future ones are rebuilt.
+- Templates "Ins Bett bringen", "Abendessen kochen", "Kita bringen", "Kita holen" prefill the new-routine form.
+- UI: `/routinen` (next 14 days, tick off, skip, reassign, pause, archive), `/routinen/neu`, `/routinen/[id]`; dashboard shows routines in the week and a tile "Routinen heute" with direct tick-off; new nav entry.
+- Tests: recurrence unit tests incl. DST (29.03. and 25.10.2026) and `todayIn` at local midnight, routine and task integration tests, RLS tests for the four new tables, E2E for filter/edit/delete and routines with individual assignment.
 
 ### 0.1.2
 - `create-family`: `--family <id>` stellt eine neue Owner-Einladung für eine bestehende Familie aus; `--send` verweigert Links auf localhost (ohne `--allow-localhost`).
