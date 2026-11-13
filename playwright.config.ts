@@ -23,6 +23,10 @@ export default defineConfig({
     url: `http://localhost:${port}/anmelden`,
     reuseExistingServer: false,
     timeout: 300_000,
-    env: { ...(process.env as Record<string, string>), BETTER_AUTH_URL: `http://localhost:${port}`, PORT: String(port) },
+    env: { ...(process.env as Record<string, string>), BETTER_AUTH_URL: `http://localhost:${port}`,
+      PORT: String(port),
+      // Placeholder recipient: the E2E test reads the feedback mail from Mailpit.
+      FEEDBACK_MAIL_TO: process.env.E2E_FEEDBACK_MAIL_TO ?? "feedback-e2e@example.org",
+    },
   },
 });

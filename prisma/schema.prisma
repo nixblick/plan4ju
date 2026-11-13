@@ -212,6 +212,7 @@ model Feedback {
   userId      String
   kind        FeedbackKind
   message     String
+  authorName  String?
   pagePath    String
   appVersion  String
   device      String

@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
-import { FEEDBACK_KINDS, MAX_IMAGE_BYTES, MAX_MESSAGE } from "@/lib/feedback";
+import { FEEDBACK_KINDS, MAX_IMAGE_BYTES, MAX_MESSAGE, MAX_NAME } from "@/lib/feedback";
 import { feedbackAction, type FeedbackState } from "./feedback-actions";
 import { buttonCls, ghostButtonCls, inputCls } from "./ui";
 
@@ -161,6 +161,11 @@ export function FeedbackWidget() {
             <textarea name="text" required maxLength={MAX_MESSAGE} rows={5} className={inputCls} />
           </label>
 
+          <label className="mb-4 block">
+            <span className="mb-1 block text-sm font-medium">Dein Name (optional)</span>
+            <input name="name" maxLength={MAX_NAME} autoComplete="name" className={inputCls} />
+          </label>
+
           <div className="mb-4 space-y-2">
             <p className="text-sm font-medium">Bild (optional)</p>
             <div className="flex flex-wrap items-center gap-2">
@@ -184,7 +189,7 @@ export function FeedbackWidget() {
           <input type="hidden" name="seite" value={path} />
           <input type="hidden" name="breite" value={width} />
           <p className="mb-4 text-xs text-stone-600">
-            Mitgeschickt werden die Seite, die App-Version, Browser und Gerät grob sowie die Bildschirmbreite.
+            Mitgeschickt werden dein Name (falls angegeben), die Seite, die App-Version, Browser und Gerät grob sowie die Bildschirmbreite.
           </p>
           {state.status === "error" ? <p role="alert" className="mb-3 text-sm text-red-800">{state.message}</p> : null}
           <div className="flex justify-end gap-2">

@@ -50,13 +50,14 @@ test.describe.serial("Feedback", () => {
     await expect(page.getByTestId("feedback-tile")).toBeVisible();
   });
 
-  test("Absenden ohne Mail-Empfänger speichert und sagt Danke", async () => {
+  test("Knopf → Formular → Mail mit Text, Name und Bild in Mailpit", async () => {
     await page.goto("/aufgaben?geheim=1");
     await page.getByTestId("feedback-button").click();
     const dialog = page.getByRole("dialog", { name: "Feedback geben" });
     await expect(dialog).toBeVisible();
     await dialog.getByLabel("Idee").check();
     await dialog.getByLabel("Was möchtest du uns sagen?").fill(`Bitte eine Einkaufsliste ${run}`);
+    await dialog.getByLabel("Dein Name (optional)").fill("Udo Muster");
     await dialog.getByRole("button", { name: "Diese Seite aufnehmen" }).click();
     await expect(dialog.getByText(/Aufnahme angehängt/)).toBeVisible({ timeout: 20_000 });
     await dialog.getByRole("button", { name: "Absenden" }).click();
@@ -66,6 +67,25 @@ test.describe.serial("Feedback", () => {
     const row = await admin.feedback.findFirstOrThrow({ where: { familyId, message: `Bitte eine Einkaufsliste ${run}` } });
     expect(row).toMatchObject({ kind: "IDEA", pagePath: "/aufgaben", screenWidth: 375, imageType: "image/png" });
     expect(row.image!.length).toBeGreaterThan(1000);
+    expect(row.authorName).toBe("Udo Muster");
+    expect(row.mailedAt).not.toBeNull();
+
+    // The mail itself, as the recipient gets it.
+    const api = `http://localhost:${process.env.MAILPIT_UI_PORT}/api/v1`;
+    const q = encodeURIComponent(`subject:"Einkaufsliste ${run}"`);
+    let msg: { Text: string; ReplyTo: { Address: string }[]; Attachments: { ContentType: string }[] } | undefined;
+    await expect.poll(async () => {
+      const hits = (await (await fetch(`${api}/search?query=${q}`)).json()) as { messages?: { ID: string }[] };
+      if (!hits.messages?.length) return false;
+      msg = await (await fetch(`${api}/message/${hits.messages[0]!.ID}`)).json();
+      return true;
+    }, { timeout: 10_000 }).toBe(true);
+    expect(msg!.Text).toContain(`Bitte eine Einkaufsliste ${run}`);
+    expect(msg!.Text).toMatch(/Name: +Udo Muster/);
+    expect(msg!.Text).toMatch(/Seite: +\/aufgaben\r?\n/);
+    expect(msg!.ReplyTo[0]!.Address).toBe(email);
+    expect(msg!.Attachments.map((a) => a.ContentType)).toEqual(["image/png"]);
+    await fetch(`${api}/search?query=${q}`, { method: "DELETE" });
   });
 
   test("Menü-Eintrag öffnet das Formular auf dem Computer", async ({ browser }) => {

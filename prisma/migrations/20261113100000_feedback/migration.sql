@@ -9,6 +9,7 @@ CREATE TABLE "feedback" (
     "userId" TEXT NOT NULL,
     "kind" "FeedbackKind" NOT NULL,
     "message" TEXT NOT NULL,
+    "authorName" TEXT,
     "pagePath" TEXT NOT NULL,
     "appVersion" TEXT NOT NULL,
     "device" TEXT NOT NULL,

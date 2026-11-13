@@ -1,7 +1,7 @@
 import type { FamilyRole } from "@prisma/client";
 import { z } from "zod";
 import {
-  FEEDBACK_LIMIT, MAX_IMAGE_BYTES, MAX_MESSAGE, deviceSummary, feedbackSubject, feedbackText, sanitizePath, sniffImage,
+  FEEDBACK_LIMIT, MAX_IMAGE_BYTES, MAX_MESSAGE, MAX_NAME, deviceSummary, feedbackSubject, feedbackText, sanitizePath, sniffImage,
 } from "../../lib/feedback";
 import { sendMail, type Mail } from "../mail";
 import { rateLimit } from "../ratelimit";
@@ -17,6 +17,7 @@ export class InvalidImageError extends Error {
 export const feedbackInput = z.object({
   kind: z.enum(["BUG", "IDEA", "OTHER"]),
   message: z.string().trim().min(1).max(MAX_MESSAGE),
+  authorName: z.string().trim().max(MAX_NAME).optional().transform((v) => (v ? v : null)),
   pagePath: z.string().max(2000),
   screenWidth: z.coerce.number().int().min(1).max(20000).nullable(),
 });
@@ -67,7 +68,7 @@ export async function submitFeedback(
   const { id, role } = await withFamily(author.userId, author.familyId, async ({ tx, role }) => {
     const row = await tx.feedback.create({
       data: {
-        familyId: author.familyId, userId: author.userId, kind: input.kind, message: input.message, pagePath,
+        familyId: author.familyId, userId: author.userId, kind: input.kind, message: input.message, authorName: input.authorName, pagePath,
         appVersion: version, device, screenWidth: input.screenWidth, createdAt: now,
         imageType, image: imageType && image ? Buffer.from(image) : null,
       },

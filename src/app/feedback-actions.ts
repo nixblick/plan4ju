@@ -26,6 +26,7 @@ export async function feedbackAction(_prev: FeedbackState, form: FormData): Prom
       {
         kind: text(form, "art") as "BUG",
         message: text(form, "text"),
+        authorName: text(form, "name"),
         pagePath: text(form, "seite"),
         screenWidth: width ? Number(width) : null,
       },

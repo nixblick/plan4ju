@@ -3,6 +3,7 @@
 export const FEEDBACK_KINDS = { BUG: "Fehler", IDEA: "Idee", OTHER: "Sonstiges" } as const;
 export type FeedbackKindKey = keyof typeof FEEDBACK_KINDS;
 export const MAX_MESSAGE = 5000;
+export const MAX_NAME = 100;
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const FEEDBACK_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
 
@@ -49,6 +50,7 @@ export function oneLine(s: string, max: number): string {
 export interface FeedbackMailInput {
   kind: FeedbackKindKey;
   message: string;
+  authorName: string | null;
   pagePath: string;
   appVersion: string;
   device: string;
@@ -70,6 +72,7 @@ export function feedbackSubject(f: Pick<FeedbackMailInput, "kind" | "message">):
 export function feedbackText(f: FeedbackMailInput): string {
   return [
     `Art:      ${FEEDBACK_KINDS[f.kind]}`,
+    `Name:     ${f.authorName ? oneLine(f.authorName, 100) : "nicht angegeben"}`,
     `Seite:    ${f.pagePath}`,
     `Version:  ${f.appVersion}`,
     `Gerät:    ${f.device}`,

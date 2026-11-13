@@ -14,7 +14,7 @@ const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 1, 2]);
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 const mailpit = `http://localhost:${process.env.MAILPIT_UI_PORT}/api/v1`;
 const sfx = randomBytes(4).toString("hex");
-const TO = `feedback-${sfx}@example.test`;
+const TO = `feedback-${sfx}@example.org`;
 
 describe("feedback helpers", () => {
   it("recognises PNG and JPEG by magic bytes only", () => {
@@ -48,10 +48,11 @@ describe("feedback helpers", () => {
 
   it("mail text carries the context but no name or e-mail", () => {
     const t = feedbackText({
-      kind: "IDEA", message: "<b>Mehr</b> Farben", pagePath: "/", appVersion: "0.2.0", device: "Chrome auf Linux (Computer)",
+      kind: "IDEA", message: "<b>Mehr</b> Farben", authorName: null, pagePath: "/", appVersion: "0.2.0", device: "Chrome auf Linux (Computer)",
       screenWidth: 375, familyId: "cfamily1234abcd", role: "MEMBER", createdAt: new Date("2026-11-13T10:00:00Z"), hasImage: true,
     });
     expect(t).toContain("Art:      Idee");
+    expect(t).toContain("Name:     nicht angegeben");
     expect(t).toContain("Familie:  1234abcd (Rolle MEMBER)");
     expect(t).toContain("Breite:   375 px");
     expect(t).toContain("<b>Mehr</b> Farben"); // plain text part only, never rendered as HTML
@@ -107,7 +108,7 @@ describe("submitFeedback (database and mail)", () => {
   it("mails plain text with the screenshot attached and the author as reply-to", async () => {
     const r = await submitFeedback(
       author(),
-      { kind: "BUG", message: "Knopf <script>x</script> geht nicht", pagePath: "/aufgaben?x=1", screenWidth: 390 },
+      { kind: "BUG", message: "Knopf <script>x</script> geht nicht", authorName: "  Udo\r\nBcc: x ", pagePath: "/aufgaben?x=1", screenWidth: 390 },
       UA, PNG, { mailTo: TO, appVersion: "9.9.9" },
     );
     expect(r.mailed).toBe(true);
@@ -117,6 +118,7 @@ describe("submitFeedback (database and mail)", () => {
     expect(m!.HTML).toBe("");
     expect(m!.Text).toMatch(/Seite: +\/aufgaben\r?\n/);
     expect(m!.Text).toContain("Version:  9.9.9");
+    expect(m!.Text).toMatch(/Name: +Udo Bcc: x\r?\n/);
     expect(m!.ReplyTo[0]!.Address).toBe(emailA);
     expect(m!.Attachments).toHaveLength(1);
     expect(m!.Attachments[0]).toMatchObject({ ContentType: "image/png", Size: PNG.length });
