@@ -149,4 +149,10 @@ describe("meal plan RLS", () => {
     await expect(raw(f.familyA, f.userA, (tx) => tx.mealCook.create({ data: { familyId: f.familyA, mealId: mB.id, profileId: f.profileA } }))).rejects.toThrow();
     expect(await admin.mealCook.count({ where: { mealId: mB.id } })).toBe(1);
   });
+  it("concurrent plans of one empty slot: one wins, the other is a conflict (no 500)", async () => {
+    const [frueh] = await slotsA();
+    const r = await Promise.allSettled([1, 2, 3].map((n) => createMeal(f.userA, f.familyA, { date: "2026-12-01", slotId: frueh!.id, text: `Race ${n}` }, app)));
+    expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(1);
+    for (const x of r) if (x.status === "rejected") expect(x.reason).toBeInstanceOf(MealConflictError);
+  });
 });

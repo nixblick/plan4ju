@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4 (13.11.2026)
+
+- Meal plan: two concurrent plans of the same empty slot (or the same new slot name) now end as "slot taken" instead of a server error; the unique index decides, covered by a race test.
+
 ## 0.2.3 (13.11.2026)
 
 Release 0.3, block 2: meal plan and recipe ideas.

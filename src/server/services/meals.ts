@@ -15,6 +15,12 @@ export class MealConflictError extends ConflictError {
   }
 }
 
+/** A unique index lost a race (two concurrent plans of one slot, same slot name): conflict, not 500. */
+function uniqueToConflict(e: unknown): never {
+  if (e && typeof e === "object" && (e as { code?: unknown }).code === "P2002") throw new MealConflictError("Unique constraint");
+  throw e;
+}
+
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((s) => !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) && new Date(`${s}T00:00:00Z`).toISOString().startsWith(s), "Invalid date");
 
 export const mealInput = z
@@ -142,7 +148,7 @@ export async function createMeal(userId: string, familyId: string, raw: MealInpu
       return m;
     },
     client,
-  );
+  ).catch(uniqueToConflict);
 }
 
 /** Edits a meal; a new date or slot moves it (refused if the target is taken). */
@@ -164,7 +170,7 @@ export async function updateMeal(userId: string, familyId: string, id: string, r
       if (d.cookIds.length) await ctx.tx.mealCook.createMany({ data: d.cookIds.map((profileId) => ({ mealId: id, profileId, familyId: ctx.familyId })) });
     },
     client,
-  );
+  ).catch(uniqueToConflict);
 }
 
 export function deleteMeal(userId: string, familyId: string, id: string, client?: PrismaClient) {
@@ -227,7 +233,7 @@ export function addMealSlot(userId: string, familyId: string, rawName: string, c
       return ctx.tx.mealSlot.create({ data: { familyId: ctx.familyId, name, position: max + 1 }, select: { id: true } });
     },
     client,
-  );
+  ).catch(uniqueToConflict);
 }
 
 export function renameMealSlot(userId: string, familyId: string, id: string, rawName: string, client?: PrismaClient) {
@@ -242,7 +248,7 @@ export function renameMealSlot(userId: string, familyId: string, id: string, raw
       await ctx.tx.mealSlot.updateMany({ where: { id, familyId: ctx.familyId }, data: { name } });
     },
     client,
-  );
+  ).catch(uniqueToConflict);
 }
 
 /** Moves a slot one place up (-1) or down (+1). */
