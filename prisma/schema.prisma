@@ -136,6 +136,9 @@ model FamilyMembership {
 
   mindfulnessEntries MindfulnessEntry[]
   mindfulnessShares  MindfulnessShare[]
+  notifications      Notification[]
+  notificationPrefs  NotificationPref[]
+  calendarFeeds      CalendarFeed[]
 
   @@unique([familyId, userId])
   @@index([userId])
@@ -228,6 +231,7 @@ model TaskAssignment {
   taskId    String
   profileId String
   familyId  String
+  createdAt DateTime      @default(now())
   task      Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
   profile   FamilyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -820,4 +824,59 @@ model MindfulnessShare {
   @@unique([entryId, userId])
   @@index([familyId, userId])
   @@map("mindfulness_share")
+}
+
+enum NotificationKind {
+  TASK_DUE
+  ROUTINE_DUE
+  BIRTHDAY
+  ASSIGNED
+}
+
+/// In-app notification of one user in one family (RLS: own rows only). docs/benachrichtigungen.md
+model Notification {
+  id         String           @id @default(cuid())
+  familyId   String
+  userId     String
+  kind       NotificationKind
+  dedupeKey  String
+  title      String
+  link       String
+  createdAt  DateTime         @default(now())
+  readAt     DateTime?
+  membership FamilyMembership @relation(fields: [familyId, userId], references: [familyId, userId], onDelete: Cascade, map: "notification_membership_fkey")
+
+  @@unique([familyId, userId, dedupeKey])
+  @@index([familyId, userId, readAt])
+  @@map("notification")
+}
+
+model NotificationPref {
+  familyId     String
+  userId       String
+  tasks        Boolean          @default(true)
+  routines     Boolean          @default(true)
+  birthdays    Boolean          @default(true)
+  assignments  Boolean          @default(true)
+  emailDigest  Boolean          @default(false)
+  digestSentOn DateTime?        @db.Date
+  updatedAt    DateTime         @default(now()) @updatedAt
+  membership   FamilyMembership @relation(fields: [familyId, userId], references: [familyId, userId], onDelete: Cascade, map: "notification_pref_membership_fkey")
+
+  @@id([familyId, userId])
+  @@map("notification_pref")
+}
+
+/// Private ICS feed of one user; only the token hash is stored.
+model CalendarFeed {
+  id         String           @id @default(cuid())
+  familyId   String
+  userId     String
+  tokenHash  String           @unique
+  createdAt  DateTime         @default(now())
+  lastUsedAt DateTime?
+  membership FamilyMembership @relation(fields: [familyId, userId], references: [familyId, userId], onDelete: Cascade, map: "calendar_feed_membership_fkey")
+
+  @@unique([familyId, userId])
+  @@map("calendar_feed")
 }

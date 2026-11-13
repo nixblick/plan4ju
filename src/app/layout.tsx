@@ -6,7 +6,9 @@ import { analyticsConfig } from "@/server/analytics";
 import { activeFamilyId, getSessionUser } from "@/server/session";
 import { DEFAULT_MODULES } from "@/server/active-modules";
 import { getModules } from "@/server/services/modules";
+import { syncAndCount } from "@/server/services/notifications";
 import { logoutAction } from "./actions";
+import { Bell } from "./bell";
 import { FeedbackOpenButton, FeedbackWidget } from "./feedback";
 import { NavLinks } from "./nav";
 import { SwRegister } from "./sw-register";
@@ -36,6 +38,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const hasFamily = Boolean(familyId);
   // Switched-off modules leave the navigation; their pages answer 404 anyway.
   const modules = user && familyId ? await getModules(user.id, familyId) : DEFAULT_MODULES;
+  // Notifications are generated lazily here; a failure must never break the page.
+  const unread = user && familyId ? await syncAndCount(user.id, familyId).catch(() => 0) : 0;
   return (
     <html lang="de">
       <body className="min-h-screen antialiased">
@@ -51,6 +55,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <NavLinks variant="side" modules={modules} />
               </nav>
               <div className="mt-auto flex flex-col gap-2">
+                {hasFamily ? <Bell count={unread} withLabel /> : null}
                 {hasFamily ? <FeedbackOpenButton className="px-3 py-2 text-left text-sm text-stone-600 underline">Feedback geben</FeedbackOpenButton> : null}
                 <Link href="/konto" className="px-3 py-2 text-sm text-stone-600 underline">
                   Konto
@@ -69,7 +74,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-terracotta">
                   <Logo size={28} /> Plan4JU
                 </Link>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {hasFamily ? <Bell count={unread} /> : null}
                   <Link href="/konto" className="inline-flex min-h-11 items-center px-2 text-sm text-stone-600 underline">Konto</Link>
                   <form action={logoutAction}>
                     <button className={ghostButtonCls}>Abmelden</button>

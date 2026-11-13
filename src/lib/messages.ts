@@ -27,6 +27,9 @@ export const errorMessages: Record<string, string> = {
 };
 
 export const okMessages: Record<string, string> = {
+  "benachrichtigungen-gelesen": "Alle Benachrichtigungen als gelesen markiert.",
+  "benachrichtigungen-gespeichert": "Einstellungen gespeichert.",
+  "kalender-link-widerrufen": "Kalender-Link widerrufen. Abos mit dem alten Link bekommen nichts mehr.",
   "modul-an": "Modul eingeschaltet.",
   "modul-aus": "Modul ausgeschaltet.",
   prospekt: "Prospekt-Link gespeichert.",

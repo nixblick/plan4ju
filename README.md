@@ -109,7 +109,7 @@ run as root) and gitleaks.
 
 ## Oberfläche und E2E
 
-Dashboard (`/`), Kalender (`/kalender`), Aufgaben (`/aufgaben`), Routinen (`/routinen`), Geburtstage (`/geburtstage`) mit Wunschzetteln (`/wuensche`, siehe `docs/wunschzettel.md`) und Karte mit Orten und Veranstaltungen (`/karte`, OpenStreetMap, Kachel-Server per `MAP_TILE_URL`, siehe `docs/karte.md`) sowie Achtsamkeit unter Familie (`/achtsamkeit`, Sichtbarkeit je Eintrag, siehe `docs/achtsamkeit.md`); mobil zuerst mit Tab-Leiste, ab `md` Seitenleiste.
+Dashboard (`/`), Kalender (`/kalender`), Aufgaben (`/aufgaben`), Routinen (`/routinen`), Geburtstage (`/geburtstage`) mit Wunschzetteln (`/wuensche`, siehe `docs/wunschzettel.md`) und Karte mit Orten und Veranstaltungen (`/karte`, OpenStreetMap, Kachel-Server per `MAP_TILE_URL`, siehe `docs/karte.md`) sowie Achtsamkeit unter Familie (`/achtsamkeit`, Sichtbarkeit je Eintrag, siehe `docs/achtsamkeit.md`); mobil zuerst mit Tab-Leiste, ab `md` Seitenleiste. Benachrichtigungen mit Glocke (`/benachrichtigungen`), Einstellungen je Nutzer, privatem Kalender-Abo (ICS) und optionaler täglicher E-Mail, siehe `docs/benachrichtigungen.md`.
 PWA: `manifest.webmanifest`, Icons aus `public/`; der Service Worker (`public/sw.js`) cached bewusst nichts.
 Security-Header und CSP stehen in `next.config.mjs` (`script-src` braucht `'unsafe-inline'` wegen der Next-Bootstrap-Skripte).
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.3 (14.11.2026)
+
+- Benachrichtigungen: bell with unread count (header on phones, sidebar from `md`), list `/benachrichtigungen`, generated lazily on page load for the signed-in user (due/overdue tasks, today's routines, birthdays today and tomorrow, new assignments by others within 7 days), deduplicated, old ones cleaned up. Settings per user and family (`/benachrichtigungen/einstellungen`).
+- Kalender-Abo: private ICS feed per user (`/api/kalender/feed/<token>.ics`, events and birthdays, 30 days back to one year ahead), shown once, stored as hash only, renewable and revocable, dead when the member leaves; rate limited.
+- Optional daily e-mail digest (off by default) via `POST /api/jobs/digest` with `NOTIFY_JOB_TOKEN` from the environment (404 without it).
+- Migrations `notifications`, `notifications_rls` (appended): tables `notification`, `notification_pref`, `calendar_feed` with forced RLS (own rows only, also for owners), FK to the membership, `task_assignment.createdAt`; SECURITY DEFINER functions `app_calendar_feed_lookup`, `app_digest_claim`. Web-Push not built (needs a vendor push service), see `docs/benachrichtigungen.md`.
+
 ## 0.5.2 (14.11.2026)
 
 - Module: Essen und Rezepte, Wunschzettel, Karte und Achtsamkeit are switchable per family too (on by default, admins only, DB trigger extended). Migration `core_modules` (appended). Off is enforced in the services (`withModule`), pages answer 404, sub tabs, the meal tile and wish list links disappear; without meal planning the Essen tab leads to the shopping list. Switching off deletes nothing.
