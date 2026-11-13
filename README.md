@@ -63,7 +63,7 @@ external database with a non-superuser owner role and a separate `plan4ju_app` r
 
 Run any TLS-terminating proxy (Caddy, nginx, Traefik) on the host and forward to `127.0.0.1:3000`. Requirements:
 HTTPS only (redirect port 80), forward `Host`, `X-Forwarded-For` and `X-Forwarded-Proto`, and set
-`BETTER_AUTH_URL` to the public https URL. The request body limit of the proxy must be at least 3 MB (calendar file import
+`BETTER_AUTH_URL` to the public https URL. The request body limit of the proxy must be at least 6 MB (feedback screenshots up to 5 MB, calendar file import
 up to 2 MB; many proxies default to 1 MB). The app fetches calendar subscription addresses itself (https only, public
 addresses only), so it needs outbound HTTPS.
 
