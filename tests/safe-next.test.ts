@@ -6,6 +6,7 @@ import {
   recordHit, recordLoginFailure, recordLoginSuccess,
 } from "../src/server/ratelimit";
 import { RateLimitError } from "../src/server/errors";
+import { guardedLogin, loginSucceeded, reserveLoginAttempt } from "../src/server/login-guard";
 
 describe("safeNext (shared by the login page and the login action)", () => {
   it.each([
@@ -118,5 +119,43 @@ describe("login failures per account", () => {
     expect(normalizeLoginEmail("  Anna@Example.TEST ")).toBe("anna@example.test");
     expect(normalizeLoginEmail("no-at-sign")).toBeNull();
     expect(normalizeLoginEmail("a b@example.test")).toBeNull();
+  });
+});
+
+describe("one attempt per window above the account threshold", () => {
+  const overThreshold = (email: string) => {
+    for (let i = 0; i < 20; i++) recordLoginFailure(email, `198.51.100.${i + 1}`);
+  };
+
+  it("10 parallel attempts: at most one reaches the credential check", async () => {
+    const email = `parallel-${Math.random().toString(36).slice(2)}@example.test`;
+    overThreshold(email);
+    let checks = 0;
+    const results = await Promise.allSettled(
+      Array.from({ length: 10 }, (_, i) =>
+        guardedLogin(
+          email,
+          `203.0.113.${i + 1}`,
+          async () => {
+            checks += 1;
+            throw new Error("rejected");
+          },
+          () => true,
+        ),
+      ),
+    );
+    expect(checks).toBe(1);
+    expect(results.filter((r) => r.status === "rejected" && r.reason instanceof RateLimitError)).toHaveLength(9);
+  });
+
+  it("an early attempt is refused, the owner gets through after the window", async () => {
+    const email = `window-${Math.random().toString(36).slice(2)}@example.test`;
+    overThreshold(email);
+    const t0 = Date.now() + 60_000; // own clock, independent of the test above
+    expect(reserveLoginAttempt(email, t0 - 60_000)).toBe(1000);
+    expect(() => reserveLoginAttempt(email, t0 - 59_500)).toThrow(RateLimitError);
+    expect(reserveLoginAttempt(email, t0 - 59_000)).toBe(1000);
+    loginSucceeded(email, "203.0.113.1");
+    expect(reserveLoginAttempt(email, t0 - 58_999)).toBe(0);
   });
 });
