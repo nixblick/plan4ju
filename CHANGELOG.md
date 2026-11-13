@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.4 (13.11.2026)
+
+Release 0.4, block 2: map, data layer.
+
+- New tables `map_category` and `poi` (migrations `map`, `map_rls`, appended): RLS forced, grants, composite foreign key `(categoryId, familyId)`, checks for coordinates, rating 1–5, period and colour. Service `map.ts`: starter categories (Ausflugsziel, Campingplatz, Restaurant, Café, Spielplatz, Veranstaltung, Fest, Flohmarkt) created per family on first use, categories managed by admins with icons from a built-in set only, points shared within the family (creator or admin edits), filters by category, creator and name, temporary points archived (never deleted) after their last day in the family time zone. CSP `img-src` allows the configured tile server (`MAP_TILE_URL`). Dependency `leaflet` 1.9. Tests: `map.test.ts`, RLS table list (29 tables).
+
 ## 0.3.3 (13.11.2026)
 
 - Wish lists: the wishing person can no longer lift the surprise protection by editing the list: switching surprise mode off and moving the list to another profile or name are refused on the server (only the creator, or an admin for a child without login, may); the settings form hides both for the wishing person. Tests for all three routes; the schema notes that the birthday foreign key deliberately uses `SET NULL ("birthdayId")`.

@@ -1,6 +1,6 @@
 {
   "name": "plan4ju",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -23,6 +23,7 @@
     "better-auth": "^1.7.0",
     "html2canvas-pro": "^2.5.0",
     "ical.js": "^2.2.1",
+    "leaflet": "^1.9.4",
     "next": "^16.4.6",
     "nodemailer": "^10.5.0",
     "react": "^19.0.0",
@@ -32,6 +33,7 @@
   "devDependencies": {
     "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "^4.3.5",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^22.0.0",
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.0.0",
