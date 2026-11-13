@@ -53,6 +53,7 @@ jobs:
             echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)"
             echo "BETTER_AUTH_URL=http://localhost:3000"
             echo "SMTP_URL=smtp://localhost:1025"
+            echo "MAILPIT_UI_PORT=8025"
             echo "MAIL_FROM=Plan4JU <noreply@example.test>"
           } >> "$GITHUB_ENV"
       - name: Start PostgreSQL and Mailpit

@@ -8,6 +8,7 @@
 - GitHub Actions CI: ESLint, typecheck, Vitest and Playwright against PostgreSQL, Docker build, gitleaks.
 - README: local, Docker, update, backup/restore, reverse proxy with HTTPS. `SECURITY.md`, `LICENSE` (MIT).
 - Optional analytics snippet via `ANALYTICS_SCRIPT_URL` / `ANALYTICS_SITE` (runtime env, off by default); the CSP moved to `src/proxy.ts` so it can allow that origin at runtime.
+- CI passes the Mailpit port to the tests.
 - Mailpit image pinned; an empty `MAIL_FROM` falls back to the default sender.
 
 - Docs: `docs/konzept.md` – Gesamtkonzept (Stand 13.11.2026), mit den entschiedenen Infrastrukturpunkten.
