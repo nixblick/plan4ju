@@ -1,6 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { APIError } from "better-auth/api";
@@ -9,6 +9,7 @@ import { baseUrl } from "@/server/env";
 import { ConflictError, ForbiddenError, InvalidInvitationError, NotFoundError, RateLimitError } from "@/server/errors";
 import { normalizeLoginEmail, rateLimit } from "@/server/ratelimit";
 import { guardedLogin } from "@/server/login-guard";
+import { DEVICE_COOKIE_MAX_AGE, deviceCookieName, newDeviceCookie, readDeviceCookie } from "@/server/device-cookie";
 import { clientIp as trustedClientIp, withClientIp } from "@/server/client-ip";
 import { registerWithInvitation } from "@/server/onboarding";
 import { sendMailInBackground } from "@/server/mail";
@@ -48,14 +49,17 @@ export async function loginAction(form: FormData) {
   const h = withClientIp(await headers());
   const ip = clientIp(h);
   let failure: string | null = null;
+  let deviceId: string | null = null;
   try {
     rateLimit(`login:ip:${ip}`, 20, 15 * MIN);
     if (!email) throw new APIError("UNAUTHORIZED");
+    deviceId = readDeviceCookie(email, (await cookies()).get(deviceCookieName(email))?.value);
     await guardedLogin(
       email,
       ip,
       () => auth.api.signInEmail({ body: { email, password: text(form, "password") }, headers: h }),
       (e) => e instanceof APIError && e.status !== "FORBIDDEN",
+      deviceId,
     );
   } catch (e) {
     if (e instanceof RateLimitError) failure = "zu-viele";
@@ -64,6 +68,14 @@ export async function loginAction(form: FormData) {
     else throw e;
   }
   if (failure) redirect(`/anmelden?fehler=${failure}${nextQ}`);
+  // Remember this device for the login brake (keeps its id when it is already known).
+  (await cookies()).set(deviceCookieName(email!), newDeviceCookie(email!, deviceId ?? undefined), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: baseUrl().startsWith("https://"),
+    path: "/",
+    maxAge: DEVICE_COOKIE_MAX_AGE,
+  });
   redirect(next ?? "/familie-waehlen");
 }
 

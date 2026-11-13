@@ -7,6 +7,7 @@ import {
 } from "../src/server/ratelimit";
 import { RateLimitError } from "../src/server/errors";
 import { guardedLogin, loginSucceeded, reserveLoginAttempt } from "../src/server/login-guard";
+import { newDeviceCookie, readDeviceCookie, deviceCookieName } from "../src/server/device-cookie";
 
 describe("safeNext (shared by the login page and the login action)", () => {
   it.each([
@@ -157,5 +158,51 @@ describe("one attempt per window above the account threshold", () => {
     expect(reserveLoginAttempt(email, t0 - 59_000)).toBe(1000);
     loginSucceeded(email, "203.0.113.1");
     expect(reserveLoginAttempt(email, t0 - 58_999)).toBe(0);
+  });
+});
+
+describe("known devices are not braked by strangers (issue 5)", () => {
+  const overThreshold = (email: string) => {
+    for (let i = 0; i < 20; i++) recordLoginFailure(email, `198.51.100.${i + 1}`);
+  };
+
+  it("50 parallel attempts on the account do not brake the owner's known device", async () => {
+    const email = `device-${Math.random().toString(36).slice(2)}@example.test`;
+    const cookie = newDeviceCookie(email);
+    const deviceId = readDeviceCookie(email, cookie);
+    expect(deviceId).not.toBeNull();
+    // attacker without a cookie: floods the account
+    await Promise.allSettled(
+      Array.from({ length: 50 }, (_, i) =>
+        guardedLogin(email, `203.0.113.${(i % 200) + 1}`, async () => { throw new Error("no"); }, () => true),
+      ),
+    );
+    expect(loginDelayMs(email)).toBeGreaterThan(0); // strangers are braked
+    overThreshold(email);
+    expect(reserveLoginAttempt(email, Date.now() + 120_000, deviceId)).toBe(0); // owner's device is not
+    let ok = false;
+    await guardedLogin(email, "192.0.2.50", async () => { ok = true; return 1; }, () => true, deviceId);
+    expect(ok).toBe(true);
+    // the owner's success does not reset the stranger's brake
+    expect(loginDelayMs(email)).toBeGreaterThan(0);
+  });
+
+  it("a known device is braked on its own counter", () => {
+    const email = `own-${Math.random().toString(36).slice(2)}@example.test`;
+    const id = "device-a";
+    for (let i = 0; i < 20; i++) recordLoginFailure(email, `198.51.100.${i + 1}`, Date.now(), id);
+    expect(loginDelayMs(email, Date.now(), id)).toBe(1000);
+    expect(loginDelayMs(email)).toBe(0);
+    expect(loginDelayMs(email, Date.now(), "device-b")).toBe(0);
+  });
+
+  it("cookie is bound to the account and rejects forgeries", () => {
+    const cookie = newDeviceCookie("a@example.test");
+    expect(readDeviceCookie("a@example.test", cookie)).not.toBeNull();
+    expect(readDeviceCookie("b@example.test", cookie)).toBeNull();
+    expect(readDeviceCookie("a@example.test", `x${cookie}`)).toBeNull();
+    expect(readDeviceCookie("a@example.test", undefined)).toBeNull();
+    expect(readDeviceCookie("a@example.test", "abc")).toBeNull();
+    expect(deviceCookieName("a@example.test")).not.toBe(deviceCookieName("b@example.test"));
   });
 });
