@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Docs: `docs/konzept.md` – Gesamtkonzept (Stand 13.11.2026), mit den entschiedenen Infrastrukturpunkten.
+
 ### 0.0.6
 
 - Security: membership insert/update/delete now require OWNER or ADMIN of the active family (a plain member could raise their own role). Tests added.
