@@ -98,6 +98,8 @@ export function isBlockedAddress(ip: string): boolean {
   if (allZeroTo(5) && g[5] === 0xffff) return embeddedV4(g[6]!, g[7]!); // ::ffff:a.b.c.d
   if (allZeroTo(6)) return true; // ::a.b.c.d (deprecated IPv4 compatible)
   if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0)) return embeddedV4(g[6]!, g[7]!); // NAT64
+  if (g[0] === 0x2001 && g[1] === 0x0000) return true; // 2001::/32 Teredo (embeds an obfuscated IPv4 address)
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 0x0001) return true; // 64:ff9b:1::/48 local-use NAT64
   if (g[0] === 0x2002) return embeddedV4(g[1]!, g[2]!); // 6to4
   if (g[0] === 0x0100 && g.slice(1, 4).every((x) => x === 0)) return true; // discard prefix
   if ((g[0]! & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local (includes fd00:ec2::254)
