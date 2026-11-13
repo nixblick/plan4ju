@@ -28,6 +28,7 @@ export interface Fixture {
   eventB: string;
   calendarB: string;
   externalEventB: string;
+  recipeB: string;
 }
 
 export async function seed(): Promise<Fixture> {
@@ -84,7 +85,14 @@ export async function seed(): Promise<Fixture> {
   const xb = await admin.externalCalendarEvent.create({
     data: { familyId: fb.id, calendarId: cb.id, uid: "x1@example.test", instanceKey: "2026-11-18", title: "Fremder externer Termin", allDay: true, startDate: new Date("2026-11-18"), endDate: new Date("2026-11-18") },
   });
+  const rcb = await admin.recipe.create({
+    data: {
+      familyId: fb.id, title: "Geheimes Rezept B", steps: ["Kochen"], tags: [], createdById: ub.id,
+      ingredients: { create: [{ position: 0, quantity: 200, unit: "g", name: "Mehl" }] },
+    },
+  });
   return {
+    recipeB: rcb.id,
     eventB: eb.id, calendarB: cb.id, externalEventB: xb.id,
     routineB: rb.id, occurrenceB: ob.id,
     familyA: fa.id, familyB: fb.id, userA: ua.id, userB: ub.id, userBoth: uboth.id, userNone: unone.id,

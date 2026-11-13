@@ -24,6 +24,8 @@ export const okMessages: Record<string, string> = {
   aufgabe: "Aufgabe angelegt.",
   "aufgabe-weg": "Aufgabe gelöscht.",
   geburtstag: "Geburtstag gespeichert.",
+  rezept: "Rezept gespeichert.",
+  "rezept-weg": "Rezept gelöscht.",
   "geburtstag-weg": "Geburtstag gelöscht.",
   "aufgabe-archiviert": "Aufgabe archiviert. Du findest sie unter „Archiv“.",
   routine: "Routine angelegt.",

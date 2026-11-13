@@ -91,6 +91,7 @@ model Family {
   routines    Routine[]
   events      CalendarEvent[]
   calendars   ExternalCalendar[]
+  recipes     Recipe[]
 
   @@map("family")
 }
@@ -445,4 +446,44 @@ model ExternalCalendarEvent {
   @@index([familyId, startsAt])
   @@index([familyId, startDate])
   @@map("external_calendar_event")
+}
+
+// Recipe of a family. Steps and tags as text arrays; ingredients as rows so that single
+// ingredients can later be moved to the shopping list. imageUrl and sourceUrl are links only
+// (https), nothing foreign is mirrored.
+model Recipe {
+  id          String             @id @default(cuid())
+  familyId    String
+  title       String
+  description String?
+  servings    Int?
+  prepMinutes Int?
+  steps       String[]
+  tags        String[]
+  allergens   String?
+  imageUrl    String?
+  sourceUrl   String?
+  createdById String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  family      Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+
+  @@unique([id, familyId])
+  @@index([familyId, title])
+  @@map("recipe")
+}
+
+model RecipeIngredient {
+  id       String  @id @default(cuid())
+  familyId String
+  recipeId String
+  position Int
+  quantity Float?
+  unit     String?
+  name     String
+  recipe   Recipe  @relation(fields: [recipeId, familyId], references: [id, familyId], onDelete: Cascade)
+
+  @@index([recipeId, position])
+  @@map("recipe_ingredient")
 }

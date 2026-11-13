@@ -115,9 +115,14 @@ export function isBlockedAddress(ip: string): boolean {
 
 // ---- URL check --------------------------------------------------------------------------
 
-/** Validates and normalizes a user supplied calendar address. Throws FetchError("protokoll"/"blockiert"). */
+/** Validates and normalizes a user supplied calendar address (webcal:// is read as https://). Throws FetchError("protokoll"/"blockiert"). */
 export function parseCalendarUrl(raw: string): URL {
-  const text = raw.trim().replace(/^webcal:\/\//i, "https://");
+  return parsePublicUrl(raw.trim().replace(/^webcal:\/\//i, "https://"));
+}
+
+/** Validates a user supplied https address on the public internet. Throws FetchError("protokoll"/"blockiert"). */
+export function parsePublicUrl(raw: string): URL {
+  const text = raw.trim();
   if (text.length > 2000) throw new FetchError("protokoll");
   let url: URL;
   try {
@@ -147,6 +152,8 @@ export interface TransportRequest {
   to: Resolved;
   signal: AbortSignal;
   maxBytes: number;
+  accept?: string;
+  userAgent?: string;
 }
 export interface TransportResponse {
   status: number;
@@ -161,7 +168,7 @@ const defaultResolver: Resolver = async (host) => {
 };
 
 /** Connects to the already validated address (custom lookup), keeps the host name for SNI and certificate check. */
-const defaultTransport: Transport = ({ url, to, signal, maxBytes }) =>
+const defaultTransport: Transport = ({ url, to, signal, maxBytes, accept, userAgent }) =>
   new Promise((resolve, reject) => {
     const req = httpsRequest(
       {
@@ -171,7 +178,7 @@ const defaultTransport: Transport = ({ url, to, signal, maxBytes }) =>
         method: "GET",
         agent: false,
         signal,
-        headers: { Accept: "text/calendar, text/plain;q=0.5, */*;q=0.1", "Accept-Encoding": "gzip, deflate", "User-Agent": "Plan4JU-calendar-sync" },
+        headers: { Accept: accept ?? "text/calendar, text/plain;q=0.5, */*;q=0.1", "Accept-Encoding": "gzip, deflate", "User-Agent": userAgent ?? "Plan4JU-calendar-sync" },
         lookup: (_h, opts, cb) => {
           const wantAll = typeof opts === "object" && opts !== null && (opts as { all?: boolean }).all;
           if (wantAll) (cb as unknown as (e: null, a: { address: string; family: number }[]) => void)(null, [{ address: to.address, family: to.family }]);
@@ -227,10 +234,25 @@ export interface FetchOptions {
   transport?: Transport;
 }
 
+interface CoreOptions extends FetchOptions {
+  parse: (raw: string) => URL;
+  accept?: string;
+  userAgent?: string;
+}
+
 export const FETCH_LIMITS = { timeoutMs: 10_000, maxBytes: 5 * 1024 * 1024, maxRedirects: 3 } as const;
 
 /** Fetches the calendar text. Throws FetchError only. */
-export async function fetchCalendarText(raw: string, opts: FetchOptions = {}): Promise<string> {
+export function fetchCalendarText(raw: string, opts: FetchOptions = {}): Promise<string> {
+  return fetchChecked(raw, { ...opts, parse: parseCalendarUrl });
+}
+
+/** Fetches an https page on the public internet (e.g. a recipe), same checks as for calendars. Throws FetchError only. */
+export function fetchPublicText(raw: string, opts: FetchOptions & { accept?: string; userAgent?: string } = {}): Promise<string> {
+  return fetchChecked(raw, { ...opts, parse: parsePublicUrl });
+}
+
+async function fetchChecked(raw: string, opts: CoreOptions): Promise<string> {
   const timeoutMs = opts.timeoutMs ?? FETCH_LIMITS.timeoutMs;
   const maxBytes = opts.maxBytes ?? FETCH_LIMITS.maxBytes;
   const maxRedirects = opts.maxRedirects ?? FETCH_LIMITS.maxRedirects;
@@ -242,7 +264,7 @@ export async function fetchCalendarText(raw: string, opts: FetchOptions = {}): P
   deadline.catch(() => undefined);
   try {
     const work = (async () => {
-      let url = parseCalendarUrl(raw);
+      let url = opts.parse(raw);
       for (let hop = 0; ; hop++) {
         const host = url.hostname.replace(/^\[|\]$/g, "");
         let addresses: Resolved[];
@@ -258,7 +280,7 @@ export async function fetchCalendarText(raw: string, opts: FetchOptions = {}): P
         if (addresses.some((a) => isBlockedAddress(a.address))) throw new FetchError("blockiert");
         let res: TransportResponse;
         try {
-          res = await transport({ url, to: addresses[0]!, signal: ctl.signal, maxBytes });
+          res = await transport({ url, to: addresses[0]!, signal: ctl.signal, maxBytes, accept: opts.accept, userAgent: opts.userAgent });
         } catch (e) {
           throw e instanceof FetchError ? e : new FetchError(ctl.signal.aborted ? "zeit" : "netz");
         }
@@ -266,7 +288,7 @@ export async function fetchCalendarText(raw: string, opts: FetchOptions = {}): P
           if (!res.location || hop >= maxRedirects) throw new FetchError("umleitung");
           let next: URL;
           try {
-            next = parseCalendarUrl(new URL(res.location, url).href);
+            next = opts.parse(new URL(res.location, url).href);
           } catch (e) {
             throw e instanceof FetchError && e.code === "blockiert" ? e : new FetchError("umleitung");
           }

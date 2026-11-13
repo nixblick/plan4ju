@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2 (13.11.2026)
+
+Release 0.3, block 1: recipes.
+
+- Recipes (`/rezepte`, new menu entry "Rezepte"): create, edit, delete with title, servings, time, description, ingredients as rows (quantity, unit, name), steps, tags, allergen notes (shown with a "no guarantee" hint), image link and source link (https only, shown as links; nothing foreign is loaded or mirrored, the CSP stays `img-src 'self'`). List with search by title or tag. Portions are scaled on the recipe page (`?portionen=N`), quantities shown as ½ ¼ ¾ ⅓ ⅔ where they fit. No image upload yet.
+- Import by URL: the server fetches the page through the existing SSRF guard (now generic: `fetchPublicText`/`parsePublicUrl`, https only, port 443, every resolved address public, redirects checked, 10 s, 2 MB) and reads schema.org/Recipe from JSON-LD (`@graph`, type arrays, HowToStep/HowToSection, string steps) or Microdata. The result is only a draft in the form; nothing is saved until the person checks and saves it. The source stays linked. Only family members can trigger a fetch, 10 imports per user in 10 minutes; refused addresses do not count. Ingredient lines are split into quantity/unit/name (fractions, ½, ranges, decimal comma, German units).
+- New tables `recipe` and `recipe_ingredient` (migrations `recipes`, `recipes_rls`, appended): RLS forced, `family_scope` policy, ingredients reference `(recipeId, familyId)` so a row can never point at another family's recipe. Tests: parser with invented sample pages (JSON-LD, Microdata, caps, hostile input), SSRF cases for the import, foreign access by id, RLS for both tables, E2E at 375 px (create, scale, edit, delete, other family gets 404, internal address refused).
+
 ## 0.2.1 (13.11.2026)
 
 Sicherheitsrelease vor der Vorstellung von 0.2: Befunde #7 und #8 behoben, Versionsanzeige.
