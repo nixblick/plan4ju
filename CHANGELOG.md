@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 (14.11.2026)
+
+- E2E `module.spec.ts` (runs in CI, no sign-up, 375 px): modules start off, a member sees no switches, the owner switches Prospekte on and off, the page is 404 while off.
+
 ## 0.5.0 (13.11.2026)
 
 Release 0.5 "Optionale Integrationen": Zusatzmodule je Familie unabhängig an- und abschaltbar (Prospekte, Abfallkalender), Prospekte als Links zu den Händlern, Abfuhrtermine aus einem eigenen ICS-Kalender mit Kachel auf der Startseite. Details in 0.4.1 bis 0.4.3.
