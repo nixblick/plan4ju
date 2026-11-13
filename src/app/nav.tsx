@@ -12,6 +12,7 @@ const icon = (d: string) => (
 
 const ITEMS: { href: string; label: string; icon: ReactNode; match: (p: string) => boolean }[] = [
   { href: "/", label: "Heute", icon: icon("M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"), match: (p) => p === "/" },
+  { href: "/kalender", label: "Kalender", icon: icon("M7 3v3M17 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM8 12h2M12 12h2M16 12h.01M8 16h2M12 16h2"), match: (p) => p.startsWith("/kalender") },
   { href: "/aufgaben", label: "Aufgaben", icon: icon("M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"), match: (p) => p.startsWith("/aufgaben") },
   { href: "/routinen", label: "Routinen", icon: icon("M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3"), match: (p) => p.startsWith("/routinen") },
   { href: "/geburtstage", label: "Geburtstage", icon: icon("M4 20h16v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2zM12 12V8M12 8c-1-1-1-2 0-3 1 1 1 2 0 3M4 16c2 2 4 2 8 0s6-2 8 0"), match: (p) => p.startsWith("/geburtstage") },

@@ -20,7 +20,7 @@ const config = {
   turbopack: { root: import.meta.dirname },
   poweredByHeader: false,
   env: { NEXT_PUBLIC_APP_VERSION: version },
-  // Feedback may carry a screenshot of up to 5 MB (multipart, plus form fields).
+  // Feedback may carry a screenshot of up to 5 MB (multipart, plus form fields); the calendar file import (max 2 MB) fits in too.
   experimental: { serverActions: { bodySizeLimit: "6mb" } },
   serverExternalPackages: ["@node-rs/argon2", "nodemailer"],
   async headers() {

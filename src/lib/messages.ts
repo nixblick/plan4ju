@@ -7,6 +7,10 @@ export const errorMessages: Record<string, string> = {
   "nicht-gefunden": "Eintrag nicht gefunden.",
   einladung: "Diese Einladung ist ungültig, abgelaufen oder wurde schon verwendet.",
   "eingabe-plan": "Bitte prüfe deine Eingaben (Titel oder Name fehlt, Datum oder Uhrzeit ungültig, Enddatum vor dem Start).",
+  adresse: "Diese Adresse darf nicht abgerufen werden. Erlaubt ist nur https (oder webcal) ohne Benutzer und Passwort, nicht auf interne Adressen.",
+  datei: "Das ist keine gültige Kalenderdatei (iCalendar, .ics).",
+  "zu-gross": "Die Kalenderdatei ist zu groß (höchstens 2 MB).",
+  "kalender-limit": "Es sind höchstens 10 externe Kalender je Familie möglich.",
   eingabe: "Bitte prüfe deine Eingaben (Kennwort mindestens 10 Zeichen).",
 };
 
@@ -26,6 +30,17 @@ export const okMessages: Record<string, string> = {
   "routine-pausiert": "Routine pausiert. Offene künftige Termine sind entfernt.",
   "routine-aktiv": "Routine ist wieder aktiv.",
   "routine-archiviert": "Routine archiviert.",
+  termin: "Termin angelegt.",
+  "termin-weg": "Termin gelöscht.",
+  "kalender-datei": "Kalenderdatei importiert. Die Termine stehen jetzt im Kalender; die Datei wird nicht erneut abgerufen.",
+  "kalender-abo": "Kalender hinzugefügt. Den Abrufstatus siehst du in der Liste.",
+  "kalender-abgerufen": "Kalender aktualisiert.",
+  "kalender-zu-frueh": "Der Kalender wurde gerade erst abgerufen. Bitte warte eine Minute.",
+  "kalender-fehler": "Der Abruf hat nicht geklappt. Den Grund siehst du beim Kalender.",
+  "kalender-aktualisiert": "Die Datei wurde neu eingelesen.",
+  "kalender-an": "Kalender eingeblendet.",
+  "kalender-aus": "Kalender ausgeblendet. Die Termine bleiben gespeichert.",
+  "kalender-weg": "Kalender und seine Termine gelöscht.",
   gespeichert: "Gespeichert.",
 };
 

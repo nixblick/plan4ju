@@ -220,7 +220,7 @@ test.describe.serial("Familienwoche", () => {
       storageState: await sessions.anna!.context().storageState(),
     });
     const p = await ctx.newPage();
-    for (const path of ["/", "/aufgaben", "/routinen", "/routinen/neu", "/geburtstage", "/familie/mitglieder"]) {
+    for (const path of ["/", "/aufgaben", "/routinen", "/routinen/neu", "/geburtstage", "/familie/mitglieder", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", "/kalender/termin/neu"]) {
       await p.goto(path);
       await expect(p.locator("main")).toBeVisible();
       const { scroll, client } = await p.evaluate(() => ({
@@ -232,7 +232,7 @@ test.describe.serial("Familienwoche", () => {
     await p.goto("/");
     const tabs = p.getByRole("navigation", { name: "Hauptmenü" }).last();
     await expect(tabs).toBeVisible();
-    await expect(tabs.getByRole("link")).toHaveCount(5);
+    await expect(tabs.getByRole("link")).toHaveCount(6);
     await expect(p.getByTestId("day-today")).toContainText(TASK);
     await p.screenshot({ path: "test-results/dashboard-375.png", fullPage: true });
     await ctx.close();

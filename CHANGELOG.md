@@ -7,7 +7,7 @@
 
 ### 0.1.4
 
-Release 0.2, block 2: calendar (work in progress, built in three commits).
+Release 0.2, block 2: calendar. Details and decisions in `docs/kalender.md`.
 
 - Calendar plumbing: `src/lib/tz.ts` (wall clock to UTC and back with Intl, DST gap and overlap handled), `src/server/safe-fetch.ts` (SSRF-safe retrieval of calendar subscription URLs: https and port 443 only, no user info, every resolved address must be public, connection pinned to the validated address, redirects followed by hand and re-checked, 10 s deadline, 5 MB limit, errors carry a fixed code and never the address), `src/server/calendar-crypto.ts` (AES-256-GCM, key derived from `BETTER_AUTH_SECRET` with HKDF; rotating that secret means subscription URLs must be entered again), `src/server/ics.ts` (iCalendar parsing and bounded expansion, -31 to +366 days, max 5000 instances).
 - New dependency `ical.js` (server only, no further dependencies): real calendar feeds use RRULE with BYDAY/BYSETPOS, EXDATE and RECURRENCE-ID overrides, which are too error-prone to parse by hand.
@@ -17,6 +17,10 @@ Release 0.2, block 2: calendar (work in progress, built in three commits).
 - Subscription addresses are secrets: stored encrypted only, never selected for the UI, never returned, never logged, edit means entering them again. Fetch: claim in one transaction (sets `lastAttemptAt`, so parallel page loads fetch once), download with no transaction open, replace events in a second one. Refresh: manual at most once a minute per calendar, lazy when the data is older than an hour. On failure the old events stay and a fixed error code is stored.
 - Dashboard: `getDashboard` and `buildDashboard` carry internal and external events in the week (`week[].events`, `eventsToday`).
 - Tests: RLS for the four tables (list, by id, change, insert for another family, composite keys, time shape), service tests (events, DST, all-day, import, subscription with injected resolver and transport, secrecy of the address, parallel fetch, failure codes, address refusal, limit), pure calendar item tests including `buildDashboard`.
+- UI: `/kalender` (week and month view with events, birthdays, routines and tasks with a due date; month grid with dots, tap a day for its entries), `/kalender/termin/neu`, `/kalender/termin/[id]` (delete only after a confirmation step), `/kalender/quellen` (ICS file import and re-import, subscription by address, enable / disable, rename, colour, last successful fetch and a readable error, delete with confirmation). External events are marked "Extern" with the calendar name and colour and cannot be edited. Dashboard: events in the week cards and a tile "Termine heute". New nav entry (six tabs).  Calendar descriptions are rendered as plain text.
+- Tests: E2E for create / edit / delete, week and month view, dashboard, file import and hiding, refused subscription addresses (the address never appears in the URL or page), isolation between families, 375 px without overflow with six tabs.
+- Docs: `docs/kalender.md` (what is built, decisions, what is not), `SECURITY.md` notes on subscriptions and key derivation.
+- Not built: Google / Apple OAuth, exceptions for single occurrences of an own series, background polling (subscriptions refresh when the calendar is opened), merging equal events across calendars.
 
 ### 0.1.3
 

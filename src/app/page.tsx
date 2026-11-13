@@ -7,6 +7,7 @@ import { DashboardHeader } from "./clock";
 import { FeedbackOpenButton } from "./feedback";
 import { occurrenceStatusAction } from "./planung-actions";
 import { Dots, names } from "./people";
+import { CalendarBadge, timeLabel } from "./kalender/parts";
 
 export const dynamic = "force-dynamic";
 
@@ -69,14 +70,16 @@ export default async function Home() {
         <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
           {d.week.map((day) => {
             const { d: dayNum } = parseIso(day.iso);
-            const items = day.birthdays.length + day.routines.length + day.tasks.length;
+            const items = day.events.length + day.birthdays.length + day.routines.length + day.tasks.length;
             let budget = MAX_PER_DAY;
-            const shownBirthdays = day.birthdays.slice(0, budget);
+            const shownEvents = day.events.slice(0, budget);
+            budget -= shownEvents.length;
+            const shownBirthdays = day.birthdays.slice(0, Math.max(budget, 0));
             budget -= shownBirthdays.length;
             const shownRoutines = day.routines.slice(0, Math.max(budget, 0));
             budget -= shownRoutines.length;
             const shownTasks = day.tasks.slice(0, Math.max(budget, 0));
-            const more = items - shownBirthdays.length - shownRoutines.length - shownTasks.length;
+            const more = items - shownEvents.length - shownBirthdays.length - shownRoutines.length - shownTasks.length;
             return (
               <li
                 key={day.iso}
@@ -89,6 +92,15 @@ export default async function Home() {
                   <span className={day.isToday ? "text-terracotta-dark" : "text-stone-600"}>{dayNum}</span>
                 </p>
                 <ul className="space-y-1">
+                  {shownEvents.map((e) => (
+                    <li key={`${e.key}@${day.iso}`} className="flex items-start gap-1.5 text-sm" data-testid="week-event">
+                      <span aria-hidden="true">{e.source === "external" ? "◇" : "◆"}</span>
+                      <span className="min-w-0 break-words">
+                        {e.allDay || e.startDate < day.iso ? "" : `${e.startTime} `}{e.title}
+                        {e.source === "external" ? <span className="sr-only"> (externer Termin)</span> : null}
+                      </span>
+                    </li>
+                  ))}
                   {shownBirthdays.map((b) => (
                     <li key={b.id} className="flex items-center gap-1.5 text-sm">
                       <span aria-hidden="true">🎂</span>
@@ -124,6 +136,24 @@ export default async function Home() {
           </ul>
         ) : null}
       </section>
+
+      <Tile title="Termine heute" href="/kalender" count={d.eventsToday.length}>
+        {d.eventsToday.length === 0 ? (
+          <p className="text-sm text-stone-600">Heute stehen keine Termine an.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {d.eventsToday.map((e) => (
+              <li key={e.key} className="flex flex-wrap items-center gap-x-2 text-sm" data-testid="today-event">
+                <span className="shrink-0 font-medium text-stone-700">{timeLabel(e, d.today)}</span>
+                <span className="min-w-0 break-words">{e.title}</span>
+                {e.location ? <span className="text-xs text-stone-600">📍 {e.location}</span> : null}
+                {e.participantIds.length ? <Dots profiles={d.profiles} ids={e.participantIds} /> : null}
+                {e.source === "external" && e.calendarName ? <CalendarBadge name={e.calendarName} colorIndex={e.colorIndex} /> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Tile>
 
       <Tile title="Routinen heute" href="/routinen" count={d.routinesToday.filter((o) => o.status === "OPEN").length}>
         {d.routinesToday.length === 0 ? (
