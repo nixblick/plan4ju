@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { analyticsConfig } from "@/server/analytics";
 import { getSessionUser } from "@/server/session";
 import { logoutAction } from "./actions";
+import { FeedbackOpenButton, FeedbackWidget } from "./feedback";
 import { NavLinks } from "./nav";
 import { SwRegister } from "./sw-register";
 import { ghostButtonCls } from "./ui";
@@ -40,6 +41,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <NavLinks variant="side" />
               </nav>
               <div className="mt-auto flex flex-col gap-2">
+                <FeedbackOpenButton className="px-3 py-2 text-left text-sm text-stone-600 underline">Feedback geben</FeedbackOpenButton>
                 <Link href="/familie-waehlen" className="px-3 py-2 text-sm text-stone-600 underline">
                   Familie wechseln
                 </Link>
@@ -65,6 +67,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             >
               <NavLinks variant="tabs" />
             </nav>
+            <FeedbackWidget />
           </div>
         ) : (
           <>

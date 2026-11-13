@@ -4,6 +4,7 @@ import { parseIso, weekdayIndex } from "@/lib/week";
 import { getDashboard, type DashTask } from "@/server/services/dashboard";
 import { requireFamily } from "@/server/session";
 import { DashboardHeader } from "./clock";
+import { FeedbackOpenButton } from "./feedback";
 import { occurrenceStatusAction } from "./planung-actions";
 import { Dots, names } from "./people";
 
@@ -178,6 +179,13 @@ export default async function Home() {
           )}
         </Tile>
       </div>
+
+      <section aria-label="Feedback" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-orange-50 p-4 ring-1 ring-terracotta/30" data-testid="feedback-tile">
+        <p className="text-sm font-medium text-stone-800">Testphase: Sag uns, was fehlt.</p>
+        <FeedbackOpenButton className="inline-flex min-h-11 items-center rounded-xl bg-terracotta px-4 py-2 text-sm font-medium text-white hover:bg-terracotta-dark">
+          Feedback geben
+        </FeedbackOpenButton>
+      </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {["Heute zu Hause", "Essen heute", "Schule heute", "Sterne"].map((t) => (
