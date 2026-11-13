@@ -1,4 +1,5 @@
 export const errorMessages: Record<string, string> = {
+  "eingabe-prospekt": "Bitte prüfe Name und Adresse: erlaubt sind nur Links mit https://, höchstens 20 Einträge.",
   "eingabe-achtsamkeit": "Bitte prüfe deine Eingaben: Bewertung von 1 bis 5, gültiges Datum, bei „Ausgewählte Personen“ mindestens eine Person. Gesundheit ist nie für die ganze Familie sichtbar.",
   "zu-viele": "Zu viele Versuche. Bitte warte ein paar Minuten.",
   unbestaetigt: "Bitte bestätige zuerst deine E-Mail-Adresse. Wir haben dir einen neuen Link geschickt.",
@@ -26,6 +27,11 @@ export const errorMessages: Record<string, string> = {
 };
 
 export const okMessages: Record<string, string> = {
+  "modul-an": "Modul eingeschaltet.",
+  "modul-aus": "Modul ausgeschaltet.",
+  prospekt: "Prospekt-Link gespeichert.",
+  "prospekt-weg": "Prospekt-Link entfernt.",
+  "abfall-kalender": "Abfallkalender gespeichert.",
   "achtsamkeit-gespeichert": "Eintrag gespeichert.",
   "achtsamkeit-geloescht": "Eintrag gelöscht.",
   eingeladen: "Einladung verschickt. Der Link ist 7 Tage gültig.",

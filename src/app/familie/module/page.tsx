@@ -1,0 +1,57 @@
+import { errorMessages, okMessages, one } from "@/lib/messages";
+import { MODULES, type ModuleKey } from "@/lib/modules";
+import { atLeast } from "@/server/permissions";
+import { getModules } from "@/server/services/modules";
+import { requireFamily } from "@/server/session";
+import { setModuleAction } from "../../module-actions";
+import { buttonCls, Card, ghostButtonCls, Notice } from "../../ui";
+import { FamilieTabs } from "../tabs";
+
+export const dynamic = "force-dynamic";
+
+/** Optional modules (Release 0.5): each one on or off for the whole family, independent of the others. */
+export default async function Module({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const { user, familyId, role } = await requireFamily();
+  const sp = await searchParams;
+  const fehler = one(sp.fehler);
+  const ok = one(sp.ok);
+  const state = await getModules(user.id, familyId);
+  const isAdmin = atLeast(role, "ADMIN");
+  return (
+    <div className="space-y-6">
+      <FamilieTabs active="module" />
+      <h1 className="text-2xl font-bold">Module</h1>
+      {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
+      {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}
+      <p className="text-sm text-stone-600">
+        Zusatzmodule sind ausgeschaltet, bis ein Admin sie einschaltet. Sie hängen von keinem fremden Dienst ab, den der Rest der App braucht:
+        ausgeschaltet oder ohne Verbindung läuft alles andere wie gewohnt.
+      </p>
+      <Card title="Zusatzmodule">
+        <ul className="divide-y divide-stone-100">
+          {(Object.keys(MODULES) as ModuleKey[]).map((k) => (
+            <li key={k} className="flex flex-wrap items-center justify-between gap-3 py-3" data-testid="module-row">
+              <span className="min-w-0 flex-1">
+                <strong>{MODULES[k].label}</strong>
+                <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${state[k] ? "bg-green-100 text-green-800" : "bg-stone-200 text-stone-700"}`}>
+                  {state[k] ? "an" : "aus"}
+                </span>
+                <span className="block text-sm text-stone-600">{MODULES[k].description}</span>
+              </span>
+              {isAdmin ? (
+                <form action={setModuleAction}>
+                  <input type="hidden" name="module" value={k} />
+                  <input type="hidden" name="on" value={state[k] ? "0" : "1"} />
+                  <button className={state[k] ? ghostButtonCls : buttonCls}>
+                    {state[k] ? `${MODULES[k].label} ausschalten` : `${MODULES[k].label} einschalten`}
+                  </button>
+                </form>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+        {isAdmin ? null : <p className="mt-2 text-sm text-stone-600">Module schalten nur Admins der Familie.</p>}
+      </Card>
+    </div>
+  );
+}

@@ -76,11 +76,17 @@ model Verification {
 
 // Tenancy. Every family-scoped table carries familyId (RLS in migration).
 model Family {
-  id        String   @id @default(cuid())
-  name      String
-  timezone  String   @default("Europe/Berlin")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  timezone        String   @default("Europe/Berlin")
+  // Optional modules (docs/module.md), off by default; only admins change them (DB trigger).
+  moduleFlyers    Boolean  @default(false)
+  moduleWaste     Boolean  @default(false)
+  flyerLinks      Json     @default("[]")
+  // composite FK (wasteCalendarId, id) -> external_calendar(id, familyId) ON DELETE SET NULL, in SQL only
+  wasteCalendarId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   memberships      FamilyMembership[]
   profiles         FamilyProfile[]

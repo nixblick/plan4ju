@@ -3,6 +3,7 @@ import Link from "next/link";
 const TABS = [
   { key: "mitglieder", href: "/familie/mitglieder", label: "Mitglieder" },
   { key: "achtsamkeit", href: "/achtsamkeit", label: "Achtsamkeit" },
+  { key: "module", href: "/familie/module", label: "Module" },
 ] as const;
 
 /** Sub navigation of the "Familie" area (the bottom bar keeps 7 tabs). */

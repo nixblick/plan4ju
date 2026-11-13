@@ -3,6 +3,7 @@ import { errorMessages, okMessages, one } from "@/lib/messages";
 import { formatQuantity } from "@/lib/recipes";
 import { SHOPPING_LIMITS as L } from "@/lib/shopping";
 import { getShoppingList, type ShoppingItemView } from "@/server/services/shopping";
+import { getModules } from "@/server/services/modules";
 import { requireFamily } from "@/server/session";
 import { clearDoneAction, deleteItemAction, purgeClearedAction, saveItemAction, toggleItemAction } from "../einkauf-actions";
 import { EssenTabs } from "../essen/tabs";
@@ -106,6 +107,7 @@ export default async function Einkauf({ searchParams }: { searchParams: Promise<
   const ok = one(sp.ok);
   const wanted = one(sp.laden) ?? "";
   const all = await getShoppingList(user.id, familyId);
+  const modules = await getModules(user.id, familyId);
   const shop = all.shops.find((s) => s.id === wanted);
   const filter = shop?.id ?? "";
   const list = shop ? await getShoppingList(user.id, familyId, { shopId: shop.id }) : all;
@@ -136,6 +138,7 @@ export default async function Einkauf({ searchParams }: { searchParams: Promise<
           </Link>
         ))}
         <Link href="/einkauf/geschaefte" className="inline-flex min-h-11 items-center px-2 underline">Geschäfte verwalten</Link>
+        {modules.flyers ? <Link href="/einkauf/prospekte" className="inline-flex min-h-11 items-center px-2 underline">Prospekte</Link> : null}
       </nav>
 
       <details className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">

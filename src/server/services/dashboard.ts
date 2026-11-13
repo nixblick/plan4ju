@@ -1,3 +1,4 @@
+import { modulesOf, wastePickups } from "./modules";
 import type { PrismaClient } from "@prisma/client";
 import { addDays, daysBetween, nextBirthday, todayIn, weekOf } from "../../lib/week";
 import { itemsOnDay, type CalendarItem } from "../../lib/calendar-items";
@@ -151,7 +152,10 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
         userId,
         now,
       );
-      return { ...built, mealsToday };
+      const mods = await modulesOf(ctx);
+      // optional module: the next 7 days of pickups from stored events only (never a fetch here)
+      const nextPickups = mods.waste ? (await wastePickups(ctx, now, 20)).pickups.filter((p) => p.date <= addDays(today, 7)).slice(0, 3) : null;
+      return { ...built, mealsToday, nextPickups };
     },
     client,
   );

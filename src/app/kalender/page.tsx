@@ -6,6 +6,7 @@ import { errorMessages, okMessages, one } from "@/lib/messages";
 import { addDays, parseIso, toIso, weekOf } from "@/lib/week";
 import { syncStaleCalendars } from "@/server/services/calendar";
 import { getCalendarView, getFamilyToday } from "@/server/services/calendar-view";
+import { getModules } from "@/server/services/modules";
 import { requireFamily } from "@/server/session";
 import { buttonCls, Card, ghostButtonCls, Notice } from "../ui";
 import { fmtDay } from "../routinen/occurrences";
@@ -24,6 +25,7 @@ const addMonths = (iso: string, n: number) => {
 
 export default async function Kalender({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { user, familyId } = await requireFamily();
+  const modules = await getModules(user.id, familyId);
   const sp = await searchParams;
   const now = new Date();
   const month = one(sp.ansicht) === "monat";
@@ -141,6 +143,7 @@ export default async function Kalender({ searchParams }: { searchParams: Promise
 
       <p className="text-sm text-stone-700">
         <Link href="/kalender/quellen" className="inline-flex min-h-11 items-center underline">Externe Kalender verwalten (ICS-Datei oder Abo)</Link>
+        {modules.waste ? <Link href="/kalender/abfall" className="ml-4 inline-flex min-h-11 items-center underline">Abfallkalender</Link> : null}
       </p>
     </div>
   );

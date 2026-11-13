@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1 (13.11.2026)
+
+Release 0.5, block 1: optional modules.
+
+- Module switches per family (`/familie/module`, sub tab "Module" in the Familie area): Prospekte and Abfallkalender, off by default, switched independently by owners and admins (also enforced by a DB trigger on `family`). A switched-off module answers NotFound on its pages and actions; tile and links disappear. Migration `optional_modules` (appended): columns on `family`, composite foreign key `(wasteCalendarId, id)` to `external_calendar` with `ON DELETE SET NULL`.
+- Prospekte (`/einkauf/prospekte`): links to the retailers' own flyer pages, starting with Aldi Süd, Lidl, Edeka, Rewe and Netto; admins edit, hide, remove and add (https only, at most 20). Nothing is fetched, embedded or stored from the retailers.
+- Abfallkalender (`/kalender/abfall`, tile "Abfuhr" on the start page for the next 7 days): an admin picks one of the family's external calendars (ICS file or subscription); no documented FES interface exists, so this is the adapter. Shows the stored events only and a notice when the last fetch failed. Link to the FES website.
+- Documented in `docs/module.md` (research, decisions, what is not built: OAuth calendars, ICS export, e-mail and push reminders). Tests: `modules.test.ts` (switches, roles, trigger, foreign family, flyers, waste, dashboard).
+
 ## 0.4.0 (13.11.2026)
 
 Release 0.4 "Freizeit und persönliche Übersicht": Wunschzettel mit Reservierung und Überraschungsschutz, OpenStreetMap-Karte mit Kategorien und Symbolen, Orte und befristete Veranstaltungen mit Archiv, Filter nach Kategorie, Ersteller und Name, Achtsamkeit mit Sichtbarkeit je Eintrag. Details in 0.3.2 bis 0.3.9.

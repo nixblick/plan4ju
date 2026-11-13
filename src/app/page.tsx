@@ -176,6 +176,23 @@ export default async function Home() {
               </ul>
             )}
           </Tile>
+          {d.nextPickups ? (
+            <Tile title="Abfuhr" href="/kalender/abfall">
+              {d.nextPickups.length === 0 ? (
+                <p className="text-sm text-stone-600">In den nächsten 7 Tagen keine Abfuhr.</p>
+              ) : (
+                <ul className="space-y-1.5" data-testid="pickups">
+                  {d.nextPickups.map((p) => (
+                    <li key={p.id} className="flex items-center gap-2 text-sm">
+                      <span aria-hidden="true">🗑</span>
+                      <span className="shrink-0 text-xs text-stone-600">{p.date.slice(8, 10)}.{p.date.slice(5, 7)}.</span>
+                      <span className="min-w-0 break-words">{p.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Tile>
+          ) : null}
           {["Schule heute", "Sterne"].map((t) => (
             <Tile key={t} title={t} soon>
               <p className="text-sm text-stone-600">Dieses Modul folgt in einer späteren Version.</p>
