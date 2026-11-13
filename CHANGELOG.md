@@ -5,6 +5,10 @@
 - Feedback in der Testphase: schwebender Knopf „Feedback“ (Sprechblase, mobil über der Tab-Leiste) auf jeder Seite für angemeldete Nutzer, Menüeintrag „Feedback geben“ und eine Kachel auf dem Dashboard. Formular mit Art (Fehler/Idee/Sonstiges), Text (max. 5000 Zeichen), optional Name, optional Aufnahme der aktuellen Seite (html2canvas-pro, nur auf Klick) oder eigenes PNG/JPEG bis 5 MB (Typ per Magic Bytes geprüft). Mitgeschickt: Seitenpfad ohne Query, App-Version, Browser/Gerät grob, Bildschirmbreite.
 - Neue Tabelle `feedback` (Migration `feedback`, nach den Routinen-Migrationen, RLS wie alle Familientabellen, Autor muss der angemeldete Nutzer sein); jede Meldung wird zuerst gespeichert und dann als reiner Text mit Bild im Anhang an `FEEDBACK_MAIL_TO` gemailt (Reply-To = Absender). Ohne Empfänger oder bei Versandfehler bleibt sie gespeichert, das Log enthält keinen Inhalt. Limit 10 Meldungen je Konto und Stunde. Server-Actions nehmen bis 6 MB an.
 
+### 0.1.7
+
+- Release 0.2 acceptance as its own Playwright spec (`tests-e2e/abnahme-0.2.spec.ts`, `npm run test:abnahme`, config `playwright.abnahme.config.ts` without a web server, base URL from `E2E_BASE_URL`): runs against the production container (`docker compose --profile app`) with two invented families. Covers a task with two assignees and one with none, a routine with a fixed assignee, a routine assigned per occurrence (today Anna, tomorrow Ben, the rest nobody), an event and a birthday in the week overview for both members, ICS file import shown as external, the other family seeing none of it, and nine pages at 375 px without horizontal overflow, with screenshots (`ABNAHME_DIR`). The default E2E run skips it, because together the specs would exceed the sign-up limit per address (10 in 15 minutes).
+
 ### 0.1.6
 
 Release 0.2, block 3: dashboard and login brake.
