@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 (13.11.2026)
+
+Release 0.5 "Optionale Integrationen": Zusatzmodule je Familie unabhängig an- und abschaltbar (Prospekte, Abfallkalender), Prospekte als Links zu den Händlern, Abfuhrtermine aus einem eigenen ICS-Kalender mit Kachel auf der Startseite. Details in 0.4.1 bis 0.4.3.
+
+- Abnahme gegen den Produktionscontainer mit zwei erfundenen Familien: `abnahme-0.5` 7 von 7 grün, `abnahme-0.4` 8 von 8, `abnahme-0.3` 7 von 7 und `abnahme-0.2` 7 von 7 weiter grün; Vitest 467 von 467, Lint und Typecheck sauber, CI grün.
+- Einschränkungen: Für den FES-Abfallkalender ist keine dokumentierte Schnittstelle bekannt, die Termine kommen nur aus einer selbst eingetragenen ICS-Datei oder Abo-Adresse. Prospekte sind nur Links und starten auf der Startseite des Händlers. Weitere Kalender- und Benachrichtigungsintegrationen (OAuth, ICS-Export, E-Mail- und Push-Erinnerungen) sind nicht gebaut, siehe `docs/module.md`.
+
 ## 0.4.3 (13.11.2026)
 
 - Schema note: the waste calendar foreign key stays SQL only (a Prisma relation over the family primary key breaks `family.create()`); generated migrations must not drop it.
