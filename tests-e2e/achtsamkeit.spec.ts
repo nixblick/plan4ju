@@ -78,6 +78,12 @@ test.describe.serial("Achtsamkeit", () => {
     await expect(a.getByText("von dir · Ausgewählte Personen: Ben Muster")).toBeVisible();
     await expect(a.locator("[data-feedback-ignore='true']").getByText(PRIVATE_NOTE)).toBeVisible();
     await noOverflow(a);
+    // Delete needs a second step.
+    const shared = a.locator("li").filter({ hasText: SHARED_NOTE });
+    await shared.getByText("Löschen …").click();
+    await shared.getByRole("button", { name: /endgültig löschen/ }).click();
+    await expect(a.getByText("Eintrag gelöscht.")).toBeVisible();
+    await rate(a, { topic: "Arbeit", rating: 3, note: SHARED_NOTE, visibility: "Ausgewählte Personen", viewer: "Ben Muster" });
     await a.getByRole("link", { name: "Monat" }).click();
     await expect(a.getByText(/Ø 5 \(1 Bewertung\)/)).toBeVisible();
     await noOverflow(a);
@@ -94,7 +100,7 @@ test.describe.serial("Achtsamkeit", () => {
     await expect(b.getByText(SHARED_NOTE)).toBeVisible();
     await expect(b.locator("body")).not.toContainText(PRIVATE_NOTE);
     await expect(b.locator("body")).not.toContainText("Stimmung: 2 von 5");
-    await expect(b.getByRole("button", { name: /löschen/ })).toHaveCount(0);
+    await expect(b.getByText("Löschen …")).toHaveCount(0);
     await b.getByRole("link", { name: "Monat" }).click();
     await expect(b.locator("li").filter({ hasText: "Stimmung" })).toContainText("–");
     await noOverflow(b);

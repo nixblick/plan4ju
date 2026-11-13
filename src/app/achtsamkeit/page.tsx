@@ -98,7 +98,7 @@ export default async function Achtsamkeit({ searchParams }: { searchParams: Prom
               <legend className="mb-1 text-sm font-medium">Bewertung</legend>
               <div className="grid grid-cols-5 gap-1">
                 {[1, 2, 3, 4, 5].map((r) => (
-                  <label key={r} className="flex min-h-14 cursor-pointer flex-col items-center justify-center rounded-xl border border-stone-300 bg-white text-xs has-[:checked]:border-terracotta has-[:checked]:bg-orange-50">
+                  <label key={r} className="flex min-h-14 cursor-pointer flex-col items-center justify-center rounded-xl border border-stone-300 bg-white text-xs has-[:checked]:border-terracotta has-[:checked]:bg-orange-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-terracotta/50">
                     <input type="radio" name="rating" value={r} required className="sr-only" aria-label={ratingLabel(r)} />
                     <span className="text-2xl" aria-hidden="true">{RATINGS[r]!.emoji}</span>
                     <span aria-hidden="true">{r}</span>
@@ -243,11 +243,14 @@ export default async function Achtsamkeit({ searchParams }: { searchParams: Prom
                         {e.note ? <p className="mt-1 whitespace-pre-line break-words text-sm">{e.note}</p> : null}
                       </div>
                       {e.mine ? (
-                        <form action={deleteEntryAction}>
-                          <input type="hidden" name="entryId" value={e.id} />
-                          <input type="hidden" name="person" value={person.id} />
-                          <button className={ghostButtonCls} aria-label={`Eintrag ${TOPIC_LABELS[e.topic]} vom ${dayFmt.format(d(e.date))} löschen`}>Löschen</button>
-                        </form>
+                        <details className="text-sm">
+                          <summary className="flex min-h-11 cursor-pointer items-center text-terracotta-dark underline">Löschen …</summary>
+                          <form action={deleteEntryAction} className="mt-1">
+                            <input type="hidden" name="entryId" value={e.id} />
+                            <input type="hidden" name="person" value={person.id} />
+                            <button className={ghostButtonCls} aria-label={`Eintrag ${TOPIC_LABELS[e.topic]} vom ${dayFmt.format(d(e.date))} endgültig löschen`}>Endgültig löschen</button>
+                          </form>
+                        </details>
                       ) : null}
                     </div>
                   </li>

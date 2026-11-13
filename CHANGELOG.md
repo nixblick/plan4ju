@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.8 (13.11.2026)
+
+- Achtsamkeit: deleting an entry needs a second click ("Löschen …", then "Endgültig löschen"); the emoji rating shows a focus ring for keyboard use.
+
 ## 0.3.7 (13.11.2026)
 
 Release 0.4, block 3: mindfulness, interface.
