@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.6 (13.11.2026)
+
+- Release 0.3 acceptance spec `tests-e2e/abnahme-0.3.spec.ts` against the production container (`npm run test:abnahme`): recipe by hand, internal import address refused, planned for today with a cook, "Essen heute" tile, chosen ingredients to the list with shop and origin, second member sees plan and list, other family sees nothing, 375 px without overflow.
+
 ## 0.2.5 (13.11.2026)
 
 Release 0.3, block 3: shopping list.
