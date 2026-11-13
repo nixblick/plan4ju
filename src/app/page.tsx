@@ -148,7 +148,35 @@ export default async function Home() {
       </section>
         </div>
         <aside className="grid content-start gap-4 sm:grid-cols-3 xl:grid-cols-1" aria-label="Weitere Module">
-          {["Essen heute", "Schule heute", "Sterne"].map((t) => (
+          <Tile title="Essen heute" href="/essen">
+            {(d.mealsToday ?? []).length === 0 ? (
+              <p className="text-sm text-stone-600">Für heute ist noch nichts geplant.</p>
+            ) : (
+              <ul className="space-y-2">
+                {(d.mealsToday ?? []).map((m) => (
+                  <li key={m.id} className="flex items-start gap-2 text-sm" data-testid="today-meal">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-xl" aria-hidden="true">🍽</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs text-stone-600">{m.slotName}</span>
+                      {m.recipeId ? (
+                        <Link href={`/rezepte/${m.recipeId}`} className="block break-words font-medium underline-offset-2 hover:underline">{m.recipeTitle}</Link>
+                      ) : (
+                        <span className="block break-words font-medium">{m.text}</span>
+                      )}
+                      <span className="flex items-center gap-1.5 text-xs text-stone-600">
+                        <Dots profiles={d.profiles} ids={m.cookIds} />
+                        {m.cookIds.length ? `kocht: ${names(d.profiles, m.cookIds)}` : "Noch niemand eingeteilt"}
+                      </span>
+                      {m.imageUrl ? (
+                        <a href={m.imageUrl} target="_blank" rel="noopener noreferrer nofollow" className="text-xs text-terracotta-dark underline">Bild ansehen</a>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Tile>
+          {["Schule heute", "Sterne"].map((t) => (
             <Tile key={t} title={t} soon>
               <p className="text-sm text-stone-600">Dieses Modul folgt in einer späteren Version.</p>
             </Tile>

@@ -3,6 +3,7 @@ import { addDays, daysBetween, nextBirthday, todayIn, weekOf } from "../../lib/w
 import { itemsOnDay, type CalendarItem } from "../../lib/calendar-items";
 import { withFamily } from "../tenant";
 import { itemsBetween } from "./calendar";
+import { mealsOn, type MealView } from "./meals";
 import { ensureOccurrences, occurrencesIn, type OccurrenceView } from "./routines";
 
 export interface DashProfile {
@@ -44,6 +45,8 @@ export interface DashboardData {
   dueToday: DashTask[];
   overdue: DashTask[];
   nextBirthdays: DashBirthdayNext[];
+  /** Planned meals of today in slot order (filled by getDashboard). */
+  mealsToday?: (MealView & { slotName: string })[];
 }
 
 export interface RawDashboard {
@@ -121,7 +124,12 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
         }),
         ctx.tx.birthday.findMany({ where: { familyId }, take: 1000 }),
       ]);
-      return buildDashboard(
+      const [slots, meals] = await Promise.all([
+        ctx.tx.mealSlot.findMany({ where: { familyId }, orderBy: [{ position: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
+        mealsOn(ctx, today),
+      ]);
+      const mealsToday = slots.flatMap((sl) => meals.filter((m) => m.slotId === sl.id).map((m) => ({ ...m, slotName: sl.name })));
+      const built = buildDashboard(
         {
           familyName: family.name,
           timezone: family.timezone,
@@ -140,6 +148,7 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
         userId,
         now,
       );
+      return { ...built, mealsToday };
     },
     client,
   );

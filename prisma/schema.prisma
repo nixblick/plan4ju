@@ -92,6 +92,8 @@ model Family {
   events      CalendarEvent[]
   calendars   ExternalCalendar[]
   recipes     Recipe[]
+  mealSlots   MealSlot[]
+  meals       Meal[]
 
   @@map("family")
 }
@@ -131,6 +133,7 @@ model FamilyProfile {
   routineAssignments    RoutineAssignment[]
   occurrenceAssignments RoutineOccurrenceAssignment[]
   eventParticipations   CalendarEventParticipant[]
+  mealCooks             MealCook[]
 
   @@unique([familyId, userId])
   @@unique([id, familyId]) // target of the composite foreign keys that keep references inside one family
@@ -468,6 +471,7 @@ model Recipe {
   updatedAt   DateTime           @updatedAt
   family      Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
   ingredients RecipeIngredient[]
+  meals       Meal[]
 
   @@unique([id, familyId])
   @@index([familyId, title])
@@ -486,4 +490,53 @@ model RecipeIngredient {
 
   @@index([recipeId, position])
   @@map("recipe_ingredient")
+}
+
+/// A meal of the day ("Frühstück", "Mittag", "Abend" by default), configurable per family.
+model MealSlot {
+  id       String @id @default(cuid())
+  familyId String
+  name     String
+  position Int
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  meals    Meal[]
+
+  @@unique([familyId, name])
+  @@unique([id, familyId])
+  @@map("meal_slot")
+}
+
+/// One planned meal: a recipe or free text on a day and slot.
+model Meal {
+  id          String     @id @default(cuid())
+  familyId    String
+  date        DateTime   @db.Date
+  slotId      String
+  recipeId    String?
+  text        String?
+  createdById String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  family      Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  slot        MealSlot   @relation(fields: [slotId, familyId], references: [id, familyId], onDelete: Cascade)
+  // NoAction (checked at statement end, so the family cascade works): deleteRecipe turns planned meals into free text first (SET NULL would null familyId too).
+  recipe      Recipe?    @relation(fields: [recipeId, familyId], references: [id, familyId], onDelete: NoAction)
+  cooks       MealCook[]
+
+  @@unique([familyId, date, slotId])
+  @@unique([id, familyId])
+  @@index([familyId, date])
+  @@map("meal")
+}
+
+model MealCook {
+  mealId    String
+  profileId String
+  familyId  String
+  meal      Meal          @relation(fields: [mealId, familyId], references: [id, familyId], onDelete: Cascade)
+  profile   FamilyProfile @relation(fields: [profileId, familyId], references: [id, familyId], onDelete: Cascade)
+
+  @@id([mealId, profileId])
+  @@index([familyId])
+  @@map("meal_cook")
 }

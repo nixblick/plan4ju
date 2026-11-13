@@ -11,6 +11,7 @@ export const errorMessages: Record<string, string> = {
   datei: "Das ist keine gültige Kalenderdatei (iCalendar, .ics).",
   "zu-gross": "Die Kalenderdatei ist zu groß (höchstens 2 MB).",
   "kalender-limit": "Es sind höchstens 10 externe Kalender je Familie möglich.",
+  "essen-belegt": "Das geht so nicht: Diese Mahlzeit ist an dem Tag schon geplant, der Name ist vergeben, es gibt schon 8 Mahlzeiten oder es ist die letzte.",
   eingabe: "Bitte prüfe deine Eingaben (Kennwort mindestens 10 Zeichen).",
 };
 
@@ -43,6 +44,11 @@ export const okMessages: Record<string, string> = {
   "kalender-an": "Kalender eingeblendet.",
   "kalender-aus": "Kalender ausgeblendet. Die Termine bleiben gespeichert.",
   "kalender-weg": "Kalender und seine Termine gelöscht.",
+  essen: "Essen geplant.",
+  "essen-weg": "Essen aus dem Plan entfernt.",
+  "woche-kopiert": "Woche kopiert. Schon geplante Mahlzeiten wurden nicht überschrieben.",
+  mahlzeit: "Mahlzeit hinzugefügt.",
+  "mahlzeit-weg": "Mahlzeit mit ihren Einträgen entfernt.",
   gespeichert: "Gespeichert.",
 };
 

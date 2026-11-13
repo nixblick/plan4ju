@@ -123,6 +123,9 @@ export function deleteRecipe(userId: string, familyId: string, id: string, clien
     userId,
     familyId,
     async (ctx) => {
+      // Planned meals keep the dish as free text instead of losing it.
+      const r = await ctx.tx.recipe.findFirst({ where: { id, familyId: ctx.familyId }, select: { title: true } });
+      if (r) await ctx.tx.meal.updateMany({ where: { recipeId: id, familyId: ctx.familyId }, data: { recipeId: null, text: r.title.slice(0, 200) } });
       const res = await ctx.tx.recipe.deleteMany({ where: { id, familyId: ctx.familyId } });
       if (res.count === 0) throw new NotFoundError("Recipe not found");
     },

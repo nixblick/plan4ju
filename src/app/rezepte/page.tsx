@@ -3,6 +3,7 @@ import { errorMessages, okMessages, one } from "@/lib/messages";
 import { listRecipes } from "@/server/services/recipes";
 import { requireFamily } from "@/server/session";
 import { buttonCls, Card, Notice } from "../ui";
+import { EssenTabs } from "../essen/tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function Rezepte({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="space-y-6">
+      <EssenTabs active="rezepte" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Rezepte</h1>
         <Link href="/rezepte/neu" className={buttonCls}>Neues Rezept</Link>

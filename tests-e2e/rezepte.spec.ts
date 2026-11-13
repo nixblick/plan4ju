@@ -88,6 +88,36 @@ test.describe.serial("Rezepte", () => {
     expect(res?.status()).toBe(404);
   });
 
+  test("Essensplan: Rezept heute planen, Koch zuweisen, Kachel, Woche kopieren, Rezeptidee ohne KI (375 px)", async () => {
+    const p = pages.anna!;
+    await p.goto("/essen");
+    await noOverflow(p);
+    const today = p.getByTestId("meal-day-today");
+    const mittag = today.getByTestId("meal-slot").nth(1);
+    await mittag.locator("summary").click();
+    await mittag.getByLabel("Rezept").selectOption({ label: `${TITLE} neu` });
+    await mittag.getByRole("checkbox", { name: "Anna Muster" }).check();
+    await mittag.getByRole("button", { name: "Planen" }).click();
+    await expect(p.getByRole("status")).toContainText("Essen geplant");
+    await expect(p.getByTestId("meal-day-today").getByTestId("meal-title")).toHaveText([`${TITLE} neu`]);
+    await noOverflow(p);
+
+    await p.goto("/");
+    const tile = p.getByRole("region", { name: "Essen heute" });
+    await expect(tile.getByTestId("today-meal")).toContainText(`${TITLE} neu`);
+    await expect(tile).toContainText("kocht: Anna Muster");
+
+    await p.goto("/essen");
+    await p.getByTestId("copy-week").click();
+    await expect(p.getByRole("status")).toContainText("Woche kopiert");
+    await expect(p.getByTestId("meal-title")).toHaveText([`${TITLE} neu`]);
+    await noOverflow(p);
+
+    await p.goto("/essen/idee");
+    await expect(p.locator("main")).toContainText("nicht eingerichtet");
+    await noOverflow(p);
+  });
+
   test("Import lehnt interne Adressen ab, ohne abzurufen", async () => {
     const p = pages.anna!;
     await p.goto("/rezepte/neu");

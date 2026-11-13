@@ -221,7 +221,7 @@ test.describe.serial("Familienwoche", () => {
       storageState: await sessions.anna!.context().storageState(),
     });
     const p = await ctx.newPage();
-    for (const path of ["/", "/aufgaben", "/routinen", "/routinen/neu", "/geburtstage", "/familie/mitglieder", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", "/kalender/termin/neu", "/rezepte", "/rezepte/neu"]) {
+    for (const path of ["/", "/aufgaben", "/routinen", "/routinen/neu", "/geburtstage", "/familie/mitglieder", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", "/kalender/termin/neu", "/rezepte", "/rezepte/neu", "/essen", "/essen/idee"]) {
       await p.goto(path);
       await expect(p.locator("main")).toBeVisible();
       const { scroll, client } = await p.evaluate(() => ({

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.3 (13.11.2026)
+
+Release 0.3, block 2: meal plan and recipe ideas.
+
+- Meal plan (`/essen`, menu entry "Rezepte" becomes "Essen" with sub tabs Wochenplan · Rezepte · Rezeptidee, so the bottom bar keeps 7 tabs): week Monday to Sunday, meals of the day configurable per family (default Frühstück, Mittag, Abend; add, rename, reorder, remove, at most 8, the last one stays). Each slot holds a recipe or a free text and one or more cooks (profiles of the family). Edit moves a meal to another day or slot (refused if taken). "Woche in die nächste kopieren" copies meals and cooks and never overwrites planned slots. Deleting a planned recipe keeps the meal as free text.
+- Dashboard tile "Essen heute" replaces "kommt bald": today's meals in slot order, who cooks, link to the recipe. The recipe image is only linked ("Bild ansehen"): the CSP stays `img-src 'self'`, nothing foreign is loaded or mirrored.
+- Recipe ideas (`/essen/idee`) through an optional provider: interface plus Anthropic adapter (Messages API over plain fetch, model from `AI_MODEL`, default `claude-sonnet-5-5`). Active only when `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY` are set, otherwise the page says "nicht eingerichtet". Only the wish fields (keywords, exclusions, diet, time, servings) are sent, no names, family data or user ids. 20 ideas per family and hour (failed calls count), members only, checked before the provider is called. The answer is validated like a recipe, links are dropped, and it lands as an unsaved draft in the recipe form with an allergen "no guarantee, check cross-contamination" note. Fixed German error messages, never the provider's text.
+- New tables `meal_slot`, `meal`, `meal_cook` (migrations `meal_plan`, `meal_plan_rls`, appended): RLS forced, `family_scope`, composite foreign keys `(id, familyId)` to slot, recipe and profile, check "recipe or text". Tests: service (plan, move, conflicts, foreign recipe/profile/slot/meal, non-member, copy semantics, recipe deletion, slots), RLS for the three tables (21 tables in total), AI with a mocked provider and a stubbed fetch (only wishes sent, headers, default and configured model, disabled cases, per-family limit, errors), E2E at 375 px in the recipe spec (no additional sign-up).
+
 ## 0.2.2 (13.11.2026)
 
 Release 0.3, block 1: recipes.

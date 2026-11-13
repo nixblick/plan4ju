@@ -117,11 +117,12 @@ test.describe.serial("Dashboard: Als Nächstes, Zeitstrahl, Woche", () => {
     }
   });
 
-  test("Kacheln Essen, Schule, Sterne bleiben „kommt bald“", async () => {
+  test("Kacheln Schule und Sterne bleiben „kommt bald“, Essen ist echt", async () => {
     const p = sessions.anna!;
     await p.goto("/");
-    await expect(p.getByTestId("tile-soon")).toHaveCount(3);
-    for (const t of ["Essen heute", "Schule heute", "Sterne"]) await expect(p.getByRole("region", { name: t })).toContainText("kommt bald");
+    await expect(p.getByTestId("tile-soon")).toHaveCount(2);
+    await expect(p.getByRole("region", { name: "Essen heute" })).toContainText("noch nichts geplant");
+    for (const t of ["Schule heute", "Sterne"]) await expect(p.getByRole("region", { name: t })).toContainText("kommt bald");
   });
 
   test("Andere Familie sieht nichts davon", async () => {
