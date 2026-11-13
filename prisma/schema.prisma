@@ -85,6 +85,7 @@ model Family {
   invitations FamilyInvitation[]
   tasks       Task[]
   birthdays   Birthday[]
+  feedback    Feedback[]
 
   @@map("family")
 }
@@ -196,4 +197,31 @@ model Birthday {
 
   @@index([familyId, month, day])
   @@map("birthday")
+}
+
+enum FeedbackKind {
+  BUG
+  IDEA
+  OTHER
+}
+
+// Feedback from the test phase. Stored first, then mailed (mailedAt set on success).
+model Feedback {
+  id          String       @id @default(cuid())
+  familyId    String
+  userId      String
+  kind        FeedbackKind
+  message     String
+  pagePath    String
+  appVersion  String
+  device      String
+  screenWidth Int?
+  imageType   String?
+  image       Bytes?
+  mailedAt    DateTime?
+  createdAt   DateTime     @default(now())
+  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, createdAt])
+  @@map("feedback")
 }

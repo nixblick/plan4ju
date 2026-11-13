@@ -35,8 +35,8 @@ describe("database role", () => {
   it("every family-scoped table has forced row level security", async () => {
     const rows = await admin.$queryRaw<{ relname: string; relrowsecurity: boolean; relforcerowsecurity: boolean }[]>`
       SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
-      WHERE relname IN ('family','family_membership','family_profile','family_invitation','task','task_assignment','birthday')`;
-    expect(rows).toHaveLength(7);
+      WHERE relname IN ('family','family_membership','family_profile','family_invitation','task','task_assignment','birthday','feedback')`;
+    expect(rows).toHaveLength(8);
     for (const r of rows) expect([r.relname, r.relrowsecurity, r.relforcerowsecurity]).toEqual([r.relname, true, true]);
   });
 });

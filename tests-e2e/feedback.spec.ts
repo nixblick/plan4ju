@@ -1,0 +1,79 @@
+import { randomBytes } from "node:crypto";
+import { PrismaClient } from "@prisma/client";
+import { expect, test, type Page } from "@playwright/test";
+import { createFamilyWithOwnerInvitation } from "../src/server/admin";
+
+const run = randomBytes(4).toString("hex");
+const email = `fb-${run}@example.test`;
+const admin = new PrismaClient({ datasourceUrl: process.env.DATABASE_ADMIN_URL });
+let familyId = "";
+let page: Page;
+
+test.describe.serial("Feedback", () => {
+  test.beforeAll(async ({ browser }) => {
+    const f = await createFamilyWithOwnerInvitation(admin, { name: "Familie Muster", ownerEmail: email });
+    familyId = f.familyId;
+    const ctx = await browser.newContext({ viewport: { width: 375, height: 700 }, isMobile: true, hasTouch: true });
+    page = await ctx.newPage();
+    await page.goto(`/einladung/${f.token}`);
+    await page.getByLabel("Dein Name").fill("Anna Muster");
+    await page.getByLabel(/^Kennwort/).fill(randomBytes(12).toString("base64url"));
+    await page.getByRole("button", { name: "Zugang anlegen und beitreten" }).click();
+    await expect(page.getByTestId("week")).toBeVisible();
+  });
+
+  test.afterAll(async () => {
+    await page?.context().close();
+    if (familyId) await admin.family.deleteMany({ where: { id: familyId } });
+    await admin.user.deleteMany({ where: { email } });
+    await admin.$disconnect();
+  });
+
+  test("Knopf ist bei 375 px sichtbar und liegt über der Tab-Leiste", async () => {
+    for (const path of ["/", "/aufgaben"]) {
+      await page.goto(path);
+      const button = page.getByTestId("feedback-button");
+      await expect(button).toBeVisible();
+      const b = (await button.boundingBox())!;
+      const nav = (await page.locator("nav[aria-label='Hauptmenü']:visible").boundingBox())!;
+      expect(b.y + b.height).toBeLessThanOrEqual(nav.y);
+      expect(b.x + b.width).toBeLessThanOrEqual(375);
+      // Nothing covers the button: the topmost element at its centre belongs to it.
+      const onTop = await page.evaluate(({ x, y }) => {
+        const el = document.elementFromPoint(x, y);
+        return !!el?.closest("[data-testid='feedback-button']");
+      }, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
+      expect(onTop).toBe(true);
+    }
+    await expect(page.getByTestId("feedback-tile")).toBeHidden(); // only on the dashboard
+    await page.goto("/");
+    await expect(page.getByTestId("feedback-tile")).toBeVisible();
+  });
+
+  test("Absenden ohne Mail-Empfänger speichert und sagt Danke", async () => {
+    await page.goto("/aufgaben?geheim=1");
+    await page.getByTestId("feedback-button").click();
+    const dialog = page.getByRole("dialog", { name: "Feedback geben" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("Idee").check();
+    await dialog.getByLabel("Was möchtest du uns sagen?").fill(`Bitte eine Einkaufsliste ${run}`);
+    await dialog.getByRole("button", { name: "Diese Seite aufnehmen" }).click();
+    await expect(dialog.getByText(/Aufnahme angehängt/)).toBeVisible({ timeout: 20_000 });
+    await dialog.getByRole("button", { name: "Absenden" }).click();
+    await expect(page.getByText("Danke, ist angekommen!")).toBeVisible();
+    await expect(dialog).toBeHidden();
+
+    const row = await admin.feedback.findFirstOrThrow({ where: { familyId, message: `Bitte eine Einkaufsliste ${run}` } });
+    expect(row).toMatchObject({ kind: "IDEA", pagePath: "/aufgaben", screenWidth: 375, imageType: "image/png" });
+    expect(row.image!.length).toBeGreaterThan(1000);
+  });
+
+  test("Menü-Eintrag öffnet das Formular auf dem Computer", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, storageState: await page.context().storageState() });
+    const p = await ctx.newPage();
+    await p.goto("/geburtstage");
+    await p.getByRole("button", { name: "Feedback geben" }).click();
+    await expect(p.getByRole("dialog", { name: "Feedback geben" })).toBeVisible();
+    await ctx.close();
+  });
+});

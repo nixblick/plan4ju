@@ -141,6 +141,19 @@ lists the protected tables. Creating families is an administrative task (owner c
 - Rate Limits: Better Auth begrenzt die HTTP-Routen, die Formulare haben ein eigenes Limit. Beide halten ihren Zähler im
   Arbeitsspeicher (eine Instanz); hinter dem Reverse Proxy zusätzlich begrenzen.
 
+## Feedback
+
+Angemeldete Nutzer finden auf jeder Seite unten rechts den Knopf „Feedback“ (mobil über der
+Tab-Leiste), dazu „Feedback geben“ im Seitenmenü und eine Kachel auf dem Dashboard. Art, Text,
+optional ein Bild (Aufnahme der Seite per html2canvas-pro auf Klick oder eigenes PNG/JPEG bis 5 MB).
+
+- Jede Meldung landet zuerst in der Tabelle `feedback` (familienbezogen, RLS), samt Bild als `bytea`.
+- Ist `FEEDBACK_MAIL_TO` gesetzt, geht sie über das vorhandene SMTP (`SMTP_URL`, `MAIL_FROM`) als
+  reiner Text an diese Adresse, Bild im Anhang, Antwort-Adresse ist die des Absenders. Mitgeschickt:
+  Seite (ohne Query), Version, Browser/Gerät grob, Bildschirmbreite, Familie als Kurz-ID und Rolle.
+- Ohne Empfänger oder bei Versandfehler bleibt die Meldung gespeichert (`mailedAt` leer); der Nutzer
+  sieht trotzdem „Danke“. Höchstens 10 Meldungen je Konto und Stunde.
+
 ## Lizenz und Sicherheit
 
 MIT, siehe [LICENSE](LICENSE). Sicherheitslücken bitte privat melden: [SECURITY.md](SECURITY.md).

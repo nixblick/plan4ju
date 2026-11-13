@@ -18,6 +18,8 @@ export interface Mail {
   to: string;
   subject: string;
   text: string;
+  replyTo?: string;
+  attachments?: { filename: string; content: Buffer; contentType: string }[];
 }
 
 export async function sendMail(mail: Mail): Promise<void> {
@@ -26,6 +28,8 @@ export async function sendMail(mail: Mail): Promise<void> {
     to: mail.to,
     subject: mail.subject,
     text: mail.text,
+    ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
+    ...(mail.attachments ? { attachments: mail.attachments } : {}),
   });
 }
 
