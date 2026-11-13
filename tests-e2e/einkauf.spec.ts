@@ -13,7 +13,7 @@ const anna = { name: "Anna Muster", email: `anna-e-${run}@example.test`, phrase:
 const ben = { name: "Ben Muster", email: `ben-e-${run}@example.test`, phrase: secret() };
 const TITLE = `Gemüsecurry ${run}`;
 const pages: Record<string, Page> = {};
-let foreignItemId = "";
+let foreignShopId = "";
 let familyA = "";
 
 async function noOverflow(p: Page) {
@@ -29,8 +29,11 @@ async function signIn(browser: Browser, who: { email: string; phrase: string }):
   await p.getByLabel("Kennwort").fill(who.phrase);
   await p.getByRole("button", { name: /Anmelden/ }).click();
   await expect(p.getByRole("heading", { name: "Familie wählen" })).toBeVisible();
+  // no active family yet: no feedback button (it would have nowhere to store)
+  await expect(p.getByRole("button", { name: /Feedback/ })).toHaveCount(0);
   await p.getByRole("button", { name: "Öffnen" }).click();
   await expect(p.getByTestId("week")).toBeVisible();
+  await expect(p.getByRole("button", { name: /Feedback/ }).first()).toBeVisible();
   return p;
 }
 
@@ -39,7 +42,8 @@ test.describe.serial("Einkaufsliste", () => {
     const fa = await admin.family.create({ data: { name: "Familie Muster" } });
     const fb = await admin.family.create({ data: { name: "Familie Beispiel" } });
     familyA = fa.id;
-    foreignItemId = (await admin.shoppingItem.create({ data: { familyId: fb.id, name: `Fremder Einkauf ${run}`, fromRecipes: [], createdById: "niemand" } })).id;
+    foreignShopId = (await admin.shop.create({ data: { familyId: fb.id, name: `Fremder Laden ${run}`, position: 0 } })).id;
+    await admin.shoppingItem.create({ data: { familyId: fb.id, name: `Fremder Einkauf ${run}`, fromRecipes: [], createdById: "niemand" } });
     for (const [key, who, role] of [["anna", anna, "OWNER"], ["ben", ben, "MEMBER"]] as const) {
       const u = await admin.user.create({ data: { id: `${key}-${run}`, name: who.name, email: who.email, emailVerified: true } });
       await admin.account.create({
@@ -152,7 +156,7 @@ test.describe.serial("Einkaufsliste", () => {
     await a.getByRole("button", { name: "Aktualisieren" }).click();
     await expect(a.getByTestId("done-item")).toContainText("Kokosmilch");
     // a foreign shop id in the address shows the own, unfiltered list
-    await a.goto(`/einkauf?laden=${foreignItemId}`);
+    await a.goto(`/einkauf?laden=${foreignShopId}`);
     await expect(a.locator("main")).not.toContainText("Fremder Einkauf");
   });
 
@@ -166,6 +170,20 @@ test.describe.serial("Einkaufsliste", () => {
     await p.getByLabel("Neues Kennwort wiederholen").fill("neues-kennwort-123");
     await p.getByRole("button", { name: "Kennwort ändern" }).click();
     await expect(p.locator("main").getByRole("alert")).toContainText("Das aktuelle Kennwort stimmt nicht");
-    await expect(p.getByRole("button", { name: "Überall abmelden" })).toBeVisible();
+
+    await p.getByLabel("Aktuelles Kennwort").fill(anna.phrase);
+    await p.getByLabel(/^Neues Kennwort \(/).fill("neues-kennwort-123");
+    await p.getByLabel("Neues Kennwort wiederholen").fill("neues-kennwort-123");
+    await p.getByRole("button", { name: "Kennwort ändern" }).click();
+    await expect(p.getByRole("status")).toContainText("Kennwort geändert");
+    await p.goto("/einkauf");
+    await expect(p.getByRole("heading", { name: "Einkaufsliste" })).toBeVisible();
+
+    await p.goto("/konto");
+    await p.getByRole("button", { name: "Überall abmelden" }).click();
+    await expect(p).toHaveURL(/\/anmelden/);
+    await expect(p.getByRole("status")).toContainText("auf allen Geräten abgemeldet");
+    await p.goto("/einkauf");
+    await expect(p).toHaveURL(/\/anmelden/);
   });
 });
