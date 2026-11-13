@@ -12,6 +12,11 @@ export const errorMessages: Record<string, string> = {
   "zu-gross": "Die Kalenderdatei ist zu groß (höchstens 2 MB).",
   "kalender-limit": "Es sind höchstens 10 externe Kalender je Familie möglich.",
   "essen-belegt": "Das geht so nicht: Diese Mahlzeit ist an dem Tag schon geplant, der Name ist vergeben, es gibt schon 8 Mahlzeiten oder es ist die letzte.",
+  "einkauf-konflikt": "Das geht so nicht: Das Geschäft gibt es schon, es sind höchstens 20 Geschäfte möglich, das letzte bleibt oder die Liste ist voll (1000 Einträge).",
+  "nichts-gewaehlt": "Bitte wähle mindestens eine Zutat aus.",
+  "eingabe-einkauf": "Bitte prüfe deine Eingaben (Name fehlt oder Menge ungültig).",
+  "eingabe-konto": "Das neue Kennwort braucht 10 bis 128 Zeichen und muss zweimal gleich eingegeben werden.",
+  "kennwort-falsch": "Das aktuelle Kennwort stimmt nicht.",
   eingabe: "Bitte prüfe deine Eingaben (Kennwort mindestens 10 Zeichen).",
 };
 
@@ -50,6 +55,16 @@ export const okMessages: Record<string, string> = {
   mahlzeit: "Mahlzeit hinzugefügt.",
   "mahlzeit-weg": "Mahlzeit mit ihren Einträgen entfernt.",
   gespeichert: "Gespeichert.",
+  eintrag: "Auf die Einkaufsliste gesetzt.",
+  "eintrag-weg": "Eintrag gelöscht.",
+  abgehakt: "Abgehakt.",
+  zurueck: "Wieder auf der Liste.",
+  weggeraeumt: "Erledigte Einträge weggeräumt. Du kannst sie unten wiederherstellen.",
+  geleert: "Weggeräumte Einträge endgültig gelöscht.",
+  geschaeft: "Geschäft hinzugefügt.",
+  "geschaeft-weg": "Geschäft entfernt. Seine Einträge bleiben auf der Liste.",
+  uebertragen: "Zutaten auf die Einkaufsliste übertragen.",
+  kennwort: "Kennwort geändert. Alle anderen Geräte sind abgemeldet.",
 };
 
 export const roleLabels = { OWNER: "Owner", ADMIN: "Admin", MEMBER: "Mitglied" } as const;

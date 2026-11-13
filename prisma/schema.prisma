@@ -94,6 +94,8 @@ model Family {
   recipes     Recipe[]
   mealSlots   MealSlot[]
   meals       Meal[]
+  shops       Shop[]
+  shoppingItems ShoppingItem[]
 
   @@map("family")
 }
@@ -539,4 +541,55 @@ model MealCook {
   @@id([mealId, profileId])
   @@index([familyId])
   @@map("meal_cook")
+}
+
+/// A shop of the shopping list ("Supermarkt", "Drogerie", ...), ordered per family.
+model Shop {
+  id       String             @id @default(cuid())
+  familyId String
+  name     String
+  position Int
+  family   Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  items    ShoppingItemShop[]
+
+  @@unique([familyId, name])
+  @@unique([id, familyId])
+  @@map("shop")
+}
+
+/// One entry of the shared shopping list. fromRecipes keeps the titles of the recipes it came from
+/// (a snapshot without foreign key, so the origin stays readable after a recipe is deleted).
+model ShoppingItem {
+  id          String             @id @default(cuid())
+  familyId    String
+  name        String
+  quantity    Float?
+  unit        String?
+  note        String?
+  done        Boolean            @default(false)
+  doneAt      DateTime?
+  clearedAt   DateTime?
+  fromRecipes String[]
+  createdById String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  family      Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  shops       ShoppingItemShop[]
+
+  @@unique([id, familyId])
+  @@index([familyId, done, clearedAt])
+  @@map("shopping_item")
+}
+
+model ShoppingItemShop {
+  itemId   String
+  shopId   String
+  familyId String
+  item     ShoppingItem @relation(fields: [itemId, familyId], references: [id, familyId], onDelete: Cascade)
+  shop     Shop         @relation(fields: [shopId, familyId], references: [id, familyId], onDelete: Cascade)
+
+  @@id([itemId, shopId])
+  @@index([familyId])
+  @@index([shopId])
+  @@map("shopping_item_shop")
 }

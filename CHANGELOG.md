@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.5 (13.11.2026)
+
+Release 0.3, block 3: shopping list.
+
+- Shopping list (`/einkauf`, sub tab "Einkauf" in Essen; tabs now Wochenplan · Rezepte · Einkauf · Idee): entries with quantity, unit, name, note, one or more shops; add, edit, delete, tick off, "Erledigte wegräumen" (hidden, restorable under "Weggeräumt" or deleted for good), filter per shop, open entries grouped by shop in shop order. Shops per family (default Supermarkt, Drogerie, Baumarkt, IKEA; add, rename, reorder, remove, at most 20, the last one stays) under `/einkauf/geschaefte`. "Aktualisieren" button plus a quiet refresh every 30 s while the page is visible.
+- Recipe ingredients to the list (`/einkauf/rezept/[id]`, linked from the recipe page and from planned meals): preview with all ingredients ticked, untick to choose, adjust quantity, unit and shop per row, scaled portions are taken over. Names come from the stored recipe. An open entry with the same name and a compatible unit is merged (quantities added, g/kg and ml/l converted) instead of duplicated; the origin "aus Rezept „X“" stays visible and survives deleting the recipe (title snapshot, no foreign key).
+- Account page (`/konto`, linked in the sidebar and the mobile header): change password (current password required, 5 attempts per user in 15 minutes, ends all other sessions, rotates the security stamp) and "Überall abmelden" (ends every session including this one).
+- Feedback button is hidden while no verified active family is chosen (e.g. on the family picker) instead of failing on submit.
+- New tables `shop`, `shopping_item`, `shopping_item_shop` (migrations `shopping_list`, `shopping_list_rls`, appended): RLS forced, `family_scope`, grants incl. DELETE, composite foreign keys `(id, familyId)` for the item-shop link. Tests: merge helpers, service (CRUD, shops, filter, clear/restore, transfer with selection, merge, origin, done entries not merged, recipe deletion), foreign recipe/ingredient/shop/item, non-member, RLS for the three tables (24 tables in total), password change and sign out everywhere; E2E `einkauf.spec.ts` at 375 px (plan recipe, transfer chosen ingredients, merge, second member sees the list, other family does not, account page) without an extra sign-up.
+
 ## 0.2.4 (13.11.2026)
 
 - Meal plan: two concurrent plans of the same empty slot (or the same new slot name) now end as "slot taken" instead of a server error; the unique index decides, covered by a race test.

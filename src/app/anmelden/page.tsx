@@ -16,6 +16,7 @@ export default async function Anmelden({ searchParams }: { searchParams: Promise
       <Card title="Anmelden">
         {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Anmeldung fehlgeschlagen."}</Notice> : null}
         {one(sp.zurueckgesetzt) ? <Notice kind="ok">Dein Zugang wurde erneuert. Du kannst dich jetzt anmelden.</Notice> : null}
+        {one(sp.ok) === "ueberall-abgemeldet" ? <Notice kind="ok">Du bist auf allen Geräten abgemeldet.</Notice> : null}
         <form action={loginAction}>
           {next ? <input type="hidden" name="weiter" value={next} /> : null}
           <Field label="E-Mail-Adresse">

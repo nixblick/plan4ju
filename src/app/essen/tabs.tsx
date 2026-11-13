@@ -3,7 +3,8 @@ import Link from "next/link";
 const TABS = [
   { key: "plan", href: "/essen", label: "Wochenplan" },
   { key: "rezepte", href: "/rezepte", label: "Rezepte" },
-  { key: "idee", href: "/essen/idee", label: "Rezeptidee" },
+  { key: "einkauf", href: "/einkauf", label: "Einkauf" },
+  { key: "idee", href: "/essen/idee", label: "Idee" },
 ] as const;
 
 /** Sub navigation of the "Essen" area (the bottom bar has no room for more tabs). */

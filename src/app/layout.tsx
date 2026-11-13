@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { analyticsConfig } from "@/server/analytics";
-import { getSessionUser } from "@/server/session";
+import { activeFamilyId, getSessionUser } from "@/server/session";
 import { logoutAction } from "./actions";
 import { FeedbackOpenButton, FeedbackWidget } from "./feedback";
 import { NavLinks } from "./nav";
@@ -29,6 +29,8 @@ function Logo({ size }: { size: number }) {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const user = await getSessionUser();
   const analytics = analyticsConfig();
+  // Feedback is stored in the active family (RLS); without one the button is hidden instead of failing.
+  const hasFamily = user ? Boolean(await activeFamilyId(user)) : false;
   return (
     <html lang="de">
       <body className="min-h-screen antialiased">
@@ -44,7 +46,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <NavLinks variant="side" />
               </nav>
               <div className="mt-auto flex flex-col gap-2">
-                <FeedbackOpenButton className="px-3 py-2 text-left text-sm text-stone-600 underline">Feedback geben</FeedbackOpenButton>
+                {hasFamily ? <FeedbackOpenButton className="px-3 py-2 text-left text-sm text-stone-600 underline">Feedback geben</FeedbackOpenButton> : null}
+                <Link href="/konto" className="px-3 py-2 text-sm text-stone-600 underline">
+                  Konto
+                </Link>
                 <Link href="/familie-waehlen" className="px-3 py-2 text-sm text-stone-600 underline">
                   Familie wechseln
                 </Link>
@@ -59,9 +64,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-terracotta">
                   <Logo size={28} /> Plan4JU
                 </Link>
-                <form action={logoutAction}>
-                  <button className={ghostButtonCls}>Abmelden</button>
-                </form>
+                <div className="flex items-center gap-2">
+                  <Link href="/konto" className="inline-flex min-h-11 items-center px-2 text-sm text-stone-600 underline">Konto</Link>
+                  <form action={logoutAction}>
+                    <button className={ghostButtonCls}>Abmelden</button>
+                  </form>
+                </div>
               </header>
               <main className="mx-auto max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-10 md:pt-8">
                 {children}
@@ -74,7 +82,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             >
               <NavLinks variant="tabs" />
             </nav>
-            <FeedbackWidget />
+            {hasFamily ? <FeedbackWidget /> : null}
           </div>
         ) : (
           <>

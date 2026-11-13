@@ -65,3 +65,16 @@ export async function requireFamily(): Promise<ActiveFamily> {
     throw e;
   }
 }
+
+/** The verified active family of a signed-in user, or null (no redirect; e.g. for the layout). */
+export async function activeFamilyId(user: SessionUser): Promise<string | null> {
+  const familyId = readFamilyChoice(user.id, (await cookies()).get(FAMILY_COOKIE)?.value);
+  if (!familyId) return null;
+  try {
+    await withFamily(user.id, familyId, async () => null);
+    return familyId;
+  } catch (e) {
+    if (e instanceof ForbiddenError) return null;
+    throw e;
+  }
+}

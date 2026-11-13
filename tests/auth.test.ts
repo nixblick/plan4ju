@@ -234,6 +234,28 @@ describe("e-mail verification and password reset (Mailpit)", () => {
     expect(admitKnownDevice(u.email, "d-new", stamp2)).toBe("d-new");
   });
 
+  it("password change (Konto) needs the current password, ends other sessions and rotates the stamp", async () => {
+    const u = await verifiedUser("chpw");
+    const login = async (pw: string) => {
+      const r = await auth.api.signInEmail({ body: { email: u.email, password: pw }, headers, returnHeaders: true });
+      return new Headers({ ...Object.fromEntries(headers), cookie: r.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ") });
+    };
+    const phone = await login(PW);
+    const laptop = await login(PW);
+    const stamp0 = await securityStampFor(u.email);
+    const NEW = fresh();
+    await expect(auth.api.changePassword({ body: { currentPassword: "falsch-falsch", newPassword: NEW, revokeOtherSessions: true }, headers: laptop })).rejects.toThrow();
+    await auth.api.changePassword({ body: { currentPassword: PW, newPassword: NEW, revokeOtherSessions: true }, headers: laptop });
+    expect(await securityStampFor(u.email)).not.toBe(stamp0);
+    expect(await auth.api.getSession({ headers: phone })).toBeNull();
+    await expect(auth.api.signInEmail({ body: { email: u.email, password: PW }, headers })).rejects.toThrow();
+    await expect(auth.api.signInEmail({ body: { email: u.email, password: NEW }, headers })).resolves.toBeTruthy();
+    // "Überall abmelden" ends every session
+    const other = await login(NEW);
+    await auth.api.revokeSessions({ headers: other });
+    expect(await admin.session.count({ where: { userId: u.userId } })).toBe(0);
+  });
+
   it("reset for an unknown address sends nothing and does not reveal it", async () => {
     const ghost = mail("ghost");
     emails.push(ghost);

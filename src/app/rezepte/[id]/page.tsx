@@ -79,6 +79,11 @@ export default async function Rezept({ params, searchParams }: { params: Promise
             ))}
           </ul>
         )}
+        {r.ingredients.length ? (
+          <Link href={`/einkauf/rezept/${r.id}${scaled ? `?portionen=${portions}` : ""}`} className="mt-3 inline-flex min-h-11 items-center font-medium text-terracotta-dark underline">
+            Zutaten auf die Einkaufsliste …
+          </Link>
+        ) : null}
       </Card>
 
       {r.steps.length ? (

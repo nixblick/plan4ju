@@ -133,7 +133,7 @@ export default async function Essen({ searchParams }: { searchParams: Promise<Re
                       {meal ? (
                         <p className="mt-1 text-xs text-stone-600">
                           Kocht: {meal.cookIds.length ? names(profiles, meal.cookIds) : "niemand eingeteilt"}
-                          {meal.recipeId ? <> · <Link href={`/rezepte/${meal.recipeId}`} className="underline">Rezept öffnen</Link></> : null}
+                          {meal.recipeId ? <> · <Link href={`/rezepte/${meal.recipeId}`} className="underline">Rezept öffnen</Link> · <Link href={`/einkauf/rezept/${meal.recipeId}`} className="underline">Zutaten einkaufen</Link></> : null}
                         </p>
                       ) : null}
                       <MealForm week={week} date={day} slotId={s.id} meal={meal} slots={w.slots} days={w.days} recipes={recipes} profiles={profiles} />
