@@ -42,3 +42,24 @@ export function clearLimit(key: string): void {
 /** Failed logins per e-mail and client address. Only failures count, a success resets it. */
 export const LOGIN_FAILURES = { max: 5, windowMs: 15 * 60 * 1000 } as const;
 export const loginFailureKey = (email: string, ip: string) => `login:fail:${email}:${ip}`;
+/** Failed logins per account across all addresses (rotating IPs), higher threshold. */
+export const ACCOUNT_FAILURES = { max: 20, windowMs: 15 * 60 * 1000 } as const;
+export const accountFailureKey = (email: string) => `login:fail:${email}`;
+
+/**
+ * Login check before the password is verified: per e-mail+address and per account.
+ * Only failures count (recordLoginFailure); a success clears the e-mail+address counter.
+ */
+export function assertLoginAllowed(email: string, ip: string, now = Date.now()): void {
+  assertBelowLimit(loginFailureKey(email, ip), LOGIN_FAILURES.max, now);
+  assertBelowLimit(accountFailureKey(email), ACCOUNT_FAILURES.max, now);
+}
+
+export function recordLoginFailure(email: string, ip: string, now = Date.now()): void {
+  recordHit(loginFailureKey(email, ip), LOGIN_FAILURES.windowMs, now);
+  recordHit(accountFailureKey(email), ACCOUNT_FAILURES.windowMs, now);
+}
+
+export function recordLoginSuccess(email: string, ip: string): void {
+  clearLimit(loginFailureKey(email, ip));
+}

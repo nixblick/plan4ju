@@ -67,7 +67,8 @@ HTTPS only (redirect port 80), forward `Host`, `X-Forwarded-For` and `X-Forwarde
 
 `TRUSTED_PROXY_HOPS` (default `1`) is the number of proxies in front of the app that append to `X-Forwarded-For`.
 The client address for rate limits is the entry that many places from the right; everything left of it can be set
-by the client and is ignored. Without `X-Forwarded-For` the app uses `X-Real-IP`. One proxy on the same host: `1`;
+by the client and is ignored. `X-Real-IP` is used only with `TRUSTED_REAL_IP=true` (set it only if the proxy
+always overwrites that header). Without a trusted address all such requests share one rate-limit bucket. One proxy on the same host: `1`;
 a CDN or load balancer in front of that proxy: `2`; no proxy at all: `0` (forwarded headers are ignored).
 
 Minimal Caddy example:

@@ -58,6 +58,7 @@ services:
       ANALYTICS_SCRIPT_URL: ${ANALYTICS_SCRIPT_URL:-}
       ANALYTICS_SITE: ${ANALYTICS_SITE:-}
       TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      TRUSTED_REAL_IP: ${TRUSTED_REAL_IP:-false}
     read_only: true
     tmpfs: ["/tmp"]
     cap_drop: [ALL]

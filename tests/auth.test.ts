@@ -238,6 +238,21 @@ describe("rate limits", () => {
     expect(statuses.slice(5)).toContain(429);
   });
 
+  it("HTTP sign-in without a trusted client address still hits a (shared) limit", async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i < 8; i++) {
+      const res = await handleAuthRequest(
+        new Request("http://localhost:3000/api/auth/sign-in/email", {
+          method: "POST",
+          headers: { "content-type": "application/json", origin: "http://localhost:3000", "x-real-ip": `192.0.2.${i + 1}` },
+          body: JSON.stringify({ email: mail("nobody3"), password: fresh() }),
+        }),
+      );
+      statuses.push(res.status);
+    }
+    expect(statuses).toContain(429);
+  });
+
   it("HTTP password reset requests are limited", async () => {
     const statuses: number[] = [];
     for (let i = 0; i < 6; i++) {

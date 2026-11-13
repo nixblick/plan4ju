@@ -7,7 +7,7 @@ import { APIError } from "better-auth/api";
 import { auth } from "@/server/auth";
 import { baseUrl } from "@/server/env";
 import { ConflictError, ForbiddenError, InvalidInvitationError, NotFoundError, RateLimitError } from "@/server/errors";
-import { assertBelowLimit, clearLimit, LOGIN_FAILURES, loginFailureKey, rateLimit, recordHit } from "@/server/ratelimit";
+import { assertLoginAllowed, rateLimit, recordLoginFailure, recordLoginSuccess } from "@/server/ratelimit";
 import { clientIp as trustedClientIp, withClientIp } from "@/server/client-ip";
 import { registerWithInvitation } from "@/server/onboarding";
 import { sendMailInBackground } from "@/server/mail";
@@ -46,15 +46,14 @@ export async function loginAction(form: FormData) {
   const nextQ = next ? `&weiter=${encodeURIComponent(next)}` : "";
   const h = withClientIp(await headers());
   const ip = clientIp(h);
-  const failKey = loginFailureKey(email, ip);
   let failure: string | null = null;
   try {
     rateLimit(`login:ip:${ip}`, 20, 15 * MIN);
-    assertBelowLimit(failKey, LOGIN_FAILURES.max);
+    assertLoginAllowed(email, ip);
     await auth.api.signInEmail({ body: { email, password: text(form, "password") }, headers: h });
-    clearLimit(failKey);
+    recordLoginSuccess(email, ip);
   } catch (e) {
-    if (e instanceof APIError && e.status !== "FORBIDDEN") recordHit(failKey, LOGIN_FAILURES.windowMs);
+    if (e instanceof APIError && e.status !== "FORBIDDEN") recordLoginFailure(email, ip);
     if (e instanceof RateLimitError) failure = "zu-viele";
     else if (e instanceof APIError && e.status === "FORBIDDEN") failure = "unbestaetigt";
     else if (e instanceof APIError) failure = "ungueltig";

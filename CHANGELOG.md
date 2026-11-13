@@ -7,8 +7,8 @@
 Security fixes before the 0.1 release (issues #3 and #4).
 
 - Database: new migration `membership_owner_guard`. `app_family_role()` (SECURITY DEFINER, fixed `search_path`); membership INSERT/UPDATE/DELETE policies allow OWNER rows (old and new) only for owners, admins write only MEMBER rows, matching `permissions.ts`. A trigger keeps the last owner of a family (no removal, no demotion; deleting the whole family still works).
-- Client address for rate limits only from trusted proxy hops: `TRUSTED_PROXY_HOPS` (default 1) picks the X-Forwarded-For entry from the right, otherwise `X-Real-IP`. Better Auth reads the same address (`advanced.ipAddress`) through an internal header that the `/api/auth` route always overwrites.
-- Login limiter per e-mail counts only failed attempts, keyed by e-mail and client address, and is reset after a successful login. `/sign-in/email` keeps its strict HTTP limit.
+- Client address for rate limits only from trusted proxy hops: `TRUSTED_PROXY_HOPS` (default 1) picks the X-Forwarded-For entry from the right, `X-Real-IP` only with `TRUSTED_REAL_IP=true`; without a trusted address one shared bucket applies (also in Better Auth). Better Auth reads the same address (`advanced.ipAddress`) through an internal header that the `/api/auth` route always overwrites.
+- Login limiter per e-mail counts only failed attempts, keyed by e-mail and client address, and is reset after a successful login; a second per-account counter (20 failures / 15 min) stops rotating addresses. `/sign-in/email` keeps its strict HTTP limit.
 - `safeNext` parses with `new URL`, requires the same origin and rejects control characters, whitespace, backslashes and encoded tabs/slashes; used by the login page and the login action.
 - Tests: RLS owner rules and last owner, `safeNext`, client address, login failure limiter, spoofed X-Forwarded-For on the HTTP limit.
 

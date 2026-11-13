@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { safeNext } from "../src/lib/safe-next";
 import { clientIp, trustedProxyHops, withClientIp, CLIENT_IP_HEADER } from "../src/server/client-ip";
-import { assertBelowLimit, clearLimit, recordHit } from "../src/server/ratelimit";
+import { assertBelowLimit, assertLoginAllowed, clearLimit, recordHit, recordLoginFailure, recordLoginSuccess } from "../src/server/ratelimit";
 import { RateLimitError } from "../src/server/errors";
 
 describe("safeNext (shared by the login page and the login action)", () => {
@@ -38,10 +38,12 @@ describe("client address from trusted proxy hops", () => {
     expect(clientIp(h({ "x-forwarded-for": "6.6.6.6, 203.0.113.9, 10.0.0.2" }), 2)).toBe("203.0.113.9");
   });
 
-  it("falls back to x-real-ip, and ignores forwarded headers without a proxy", () => {
-    expect(clientIp(h({ "x-real-ip": "203.0.113.5" }), 1)).toBe("203.0.113.5");
-    expect(clientIp(h({ "x-forwarded-for": "203.0.113.9" }), 2)).toBeNull();
-    expect(clientIp(h({ "x-forwarded-for": "203.0.113.9", "x-real-ip": "203.0.113.5" }), 0)).toBeNull();
+  it("uses x-real-ip only when configured as proxy-set, otherwise no trusted address", () => {
+    expect(clientIp(h({ "x-real-ip": "203.0.113.5" }), 1, true)).toBe("203.0.113.5");
+    expect(clientIp(h({ "x-real-ip": "203.0.113.5" }), 1, false)).toBeNull();
+    expect(clientIp(h({ "x-forwarded-for": "203.0.113.9" }), 2, false)).toBeNull();
+    expect(clientIp(h({ "x-forwarded-for": "203.0.113.9", "x-real-ip": "203.0.113.5" }), 0, true)).toBeNull();
+    expect(withClientIp(h({ "x-real-ip": "203.0.113.5" }), 1, false).get(CLIENT_IP_HEADER)).toBeNull();
   });
 
   it("reads TRUSTED_PROXY_HOPS with default 1", () => {
@@ -69,5 +71,31 @@ describe("login failure limiter", () => {
     expect(() => assertBelowLimit(k, 5, t0 + 60_001)).not.toThrow();
     clearLimit(k);
     expect(() => assertBelowLimit(k, 5, t0)).not.toThrow();
+  });
+});
+
+describe("login failures per account", () => {
+  it("rotating client addresses still hit the per-account limit", () => {
+    const email = `rotate-${Math.random().toString(36).slice(2)}@example.test`;
+    const t0 = Date.now();
+    for (let i = 0; i < 20; i++) {
+      const ip = `198.51.100.${i + 1}`;
+      expect(() => assertLoginAllowed(email, ip, t0)).not.toThrow();
+      recordLoginFailure(email, ip, t0);
+    }
+    expect(() => assertLoginAllowed(email, "198.51.100.200", t0)).toThrow(RateLimitError);
+    expect(() => assertLoginAllowed("other@example.test", "198.51.100.200", t0)).not.toThrow();
+  });
+
+  it("five failures from one address block that address; a success resets it", () => {
+    const email = `one-${Math.random().toString(36).slice(2)}@example.test`;
+    const t0 = Date.now();
+    for (let i = 0; i < 4; i++) recordLoginFailure(email, "203.0.113.7", t0);
+    recordLoginSuccess(email, "203.0.113.7");
+    for (let i = 0; i < 4; i++) recordLoginFailure(email, "203.0.113.7", t0);
+    expect(() => assertLoginAllowed(email, "203.0.113.7", t0)).not.toThrow();
+    recordLoginFailure(email, "203.0.113.7", t0);
+    expect(() => assertLoginAllowed(email, "203.0.113.7", t0)).toThrow(RateLimitError);
+    expect(() => assertLoginAllowed(email, "203.0.113.8", t0)).not.toThrow();
   });
 });
