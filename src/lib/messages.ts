@@ -17,6 +17,8 @@ export const errorMessages: Record<string, string> = {
   "eingabe-einkauf": "Bitte prüfe deine Eingaben (Name fehlt oder Menge ungültig).",
   "eingabe-konto": "Das neue Kennwort braucht 10 bis 128 Zeichen und muss zweimal gleich eingegeben werden.",
   "kennwort-falsch": "Das aktuelle Kennwort stimmt nicht.",
+  "eingabe-wunsch": "Bitte prüfe deine Eingaben (Titel fehlt, Link nur mit https://, Preis wie 12,99, bei einer Liste entweder ein Profil oder ein Name).",
+  "wunsch-konflikt": "Das geht so nicht: Der Wunsch ist schon reserviert oder die Liste ist voll.",
   eingabe: "Bitte prüfe deine Eingaben (Kennwort mindestens 10 Zeichen).",
 };
 
@@ -64,6 +66,14 @@ export const okMessages: Record<string, string> = {
   geschaeft: "Geschäft hinzugefügt.",
   "geschaeft-weg": "Geschäft entfernt. Seine Einträge bleiben auf der Liste.",
   uebertragen: "Zutaten auf die Einkaufsliste übertragen.",
+  wunschzettel: "Wunschzettel gespeichert.",
+  "wunschzettel-weg": "Wunschzettel gelöscht.",
+  wunsch: "Wunsch gespeichert.",
+  "wunsch-weg": "Wunsch gelöscht.",
+  reserviert: "Reserviert. Die beschenkte Person sieht das nicht.",
+  freigegeben: "Reservierung aufgehoben.",
+  verschenkt: "Als verschenkt markiert.",
+  erhalten: "Als erhalten markiert.",
   kennwort: "Kennwort geändert. Alle anderen Geräte sind abgemeldet.",
 };
 

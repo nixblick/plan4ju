@@ -96,6 +96,9 @@ model Family {
   meals       Meal[]
   shops       Shop[]
   shoppingItems ShoppingItem[]
+  wishlists     Wishlist[]
+  wishes        Wish[]
+  wishReservations WishReservation[]
 
   @@map("family")
 }
@@ -136,6 +139,7 @@ model FamilyProfile {
   occurrenceAssignments RoutineOccurrenceAssignment[]
   eventParticipations   CalendarEventParticipant[]
   mealCooks             MealCook[]
+  wishlists             Wishlist[]
 
   @@unique([familyId, userId])
   @@unique([id, familyId]) // target of the composite foreign keys that keep references inside one family
@@ -225,7 +229,9 @@ model Birthday {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  wishlists   Wishlist[]
 
+  @@unique([id, familyId])
   @@index([familyId, month, day])
   @@map("birthday")
 }
@@ -598,4 +604,86 @@ model ShoppingItemShop {
   @@index([familyId])
   @@index([shopId])
   @@map("shopping_item_shop")
+}
+
+enum WishVisibility {
+  FAMILY
+  PRIVATE
+}
+
+enum WishOccasion {
+  ANY
+  BIRTHDAY
+  CHRISTMAS
+  EASTER
+  OTHER
+}
+
+/// A wish list of a family profile or of a person without profile (personName). Visibility and the
+/// surprise mode are enforced in row level security too, see docs/wunschzettel.md.
+model Wishlist {
+  id          String         @id @default(cuid())
+  familyId    String
+  profileId   String?
+  personName  String?
+  title       String
+  description String?
+  visibility  WishVisibility @default(FAMILY)
+  surprise    Boolean        @default(true)
+  birthdayId  String?
+  createdById String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  family      Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  profile     FamilyProfile? @relation(fields: [profileId, familyId], references: [id, familyId], onDelete: Cascade)
+  birthday    Birthday?      @relation(fields: [birthdayId, familyId], references: [id, familyId], onDelete: NoAction)
+  wishes      Wish[]
+
+  @@unique([id, familyId])
+  @@index([familyId])
+  @@map("wishlist")
+}
+
+/// One wish. received = the wishing person marked it as fulfilled (visible to everyone).
+/// Reservations live in their own table so reserving never touches this row.
+model Wish {
+  id          String       @id @default(cuid())
+  familyId    String
+  listId      String
+  title       String
+  description String?
+  url         String?
+  imageUrl    String?
+  priceCents  Int?
+  priority    Int          @default(2)
+  note        String?
+  occasion    WishOccasion @default(ANY)
+  received    Boolean      @default(false)
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  list        Wishlist     @relation(fields: [listId, familyId], references: [id, familyId], onDelete: Cascade)
+  reservation WishReservation?
+
+  @@unique([id, familyId])
+  @@index([listId])
+  @@map("wish")
+}
+
+/// Reservation of a wish by another member; hidden from the wishing person in surprise mode (RLS).
+/// given = the giver marked it as given.
+model WishReservation {
+  id           String   @id @default(cuid())
+  familyId     String
+  wishId       String   @unique
+  reservedById String
+  given        Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  wish         Wish     @relation(fields: [wishId, familyId], references: [id, familyId], onDelete: Cascade)
+
+  @@unique([wishId, familyId])
+  @@index([familyId])
+  @@map("wish_reservation")
 }

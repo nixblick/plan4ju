@@ -5,6 +5,9 @@ import { requireFamily } from "@/server/session";
 import { createBirthdayAction, deleteBirthdayAction, updateBirthdayAction } from "../planung-actions";
 import { buttonCls, Card, Field, ghostButtonCls, inputCls, Notice } from "../ui";
 import { getDashboard } from "@/server/services/dashboard";
+import { wishlistsByBirthday } from "@/server/services/wishes";
+import Link from "next/link";
+import { FesteTabs } from "./tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +47,7 @@ export default async function Geburtstage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const fehler = one(sp.fehler);
   const ok = one(sp.ok);
-  const [dash, list] = await Promise.all([getDashboard(user.id, familyId), listBirthdays(user.id, familyId)]);
+  const [dash, list, wishlists] = await Promise.all([getDashboard(user.id, familyId), listBirthdays(user.id, familyId), wishlistsByBirthday(user.id, familyId)]);
   const today = todayIn(dash.timezone);
   const rows = list
     .map((b) => {
@@ -56,6 +59,7 @@ export default async function Geburtstage({ searchParams }: { searchParams: Prom
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Geburtstage</h1>
+      <FesteTabs active="geburtstage" />
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
       {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}
 
@@ -82,6 +86,11 @@ export default async function Geburtstage({ searchParams }: { searchParams: Prom
                   </span>
                 </div>
                 {b.note ? <p className="text-sm text-stone-600">{b.note}</p> : null}
+                {(wishlists.get(b.id) ?? []).map((w) => (
+                  <Link key={w.id} href={`/wuensche/${w.id}`} className="mr-3 inline-flex min-h-11 items-center text-sm text-terracotta-dark underline">
+                    Wunschzettel: {w.title}
+                  </Link>
+                ))}
                 <details className="mt-2">
                   <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm text-terracotta-dark underline">Bearbeiten</summary>
                   <form action={updateBirthdayAction} className="mt-2">

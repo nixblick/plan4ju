@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.2 (13.11.2026)
+
+Release 0.4, block 1: wish lists.
+
+- Wish lists (`/wuensche`, sub tab "Wunschzettel" next to "Geburtstage"; the bottom bar keeps 7 tabs): one or more lists per family profile or for a person without profile, with description, optional linked birthday and the next occasion (birthday, Christmas, Easter). Wishes with title, description, https-only link, price, priority (Herzenswunsch, Würde mich freuen, Kleinigkeit), occasion, image link (only linked, never embedded) and note; "erhalten" visible to everyone. The birthday page links the lists.
+- Visibility "Die ganze Familie" or "Nur ich" (creator only, enforced by RLS). Other members reserve a wish ("Ich schenke das"), release it or mark it as given. Surprise mode (default): the wishing person gets no reservation information; reservations live in their own table, RLS hides and refuses them for the user linked to the list's profile, own reservation attempts get the same refusal either way. Without surprise mode only "Schon reserviert", never by whom. Documented in `docs/wunschzettel.md`.
+- New tables `wishlist`, `wish`, `wish_reservation` (migrations `wishlists`, `wishlists_rls`, appended): RLS forced, grants, composite foreign keys `(id, familyId)` incl. a new unique `(id, familyId)` on `birthday`; deleting a birthday only clears the link. Tests: helpers (https, price, Easter, next occasion), service (rights, private lists, birthday link, surprise protection incl. untouched wish row, database-level hiding, conflict, release, given, non-surprise mode, received), foreign family and non-member, RLS table list (27 tables); E2E `wuensche.spec.ts` at 375 px without sign-up.
+
 ## 0.3.1 (13.11.2026)
 
 - Customer wish #10: six task priorities (Sofort, Dringend, Zeitnah, Demnächst, Bei Gelegenheit, Irgendwann; default Zeitnah) shown as pastel badges with the name (lila, rot, gelb, grün, blau, türkis) plus a coloured row edge; existing values mapped HIGH→Dringend, NORMAL→Zeitnah, LOW→Bei Gelegenheit (migration `task_priority_dashboard`, appended). New per-task checkbox "Im Kalender auf der Startseite anzeigen" (default off, existing tasks off): only these tasks appear in the dashboard week; the tiles Meine Aufgaben, Heute fällig and Überfällig still list every task. `/aufgaben` sorts open tasks strictly by due date (time, then priority; no date last). `/routinen` has three tabs (`?tab=neu|alle|woche`): Neu with templates, Alle Routinen with edit, Meine 7 Tage to tick off or skip own occurrences.

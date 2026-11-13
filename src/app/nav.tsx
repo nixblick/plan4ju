@@ -16,7 +16,7 @@ const ITEMS: { href: string; label: string; icon: ReactNode; match: (p: string) 
   { href: "/aufgaben", label: "Aufgaben", icon: icon("M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"), match: (p) => p.startsWith("/aufgaben") },
   { href: "/routinen", label: "Routinen", icon: icon("M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3"), match: (p) => p.startsWith("/routinen") },
   { href: "/essen", label: "Essen", icon: icon("M4 3v8a3 3 0 0 0 3 3v7M7 3v8M10 3v8a3 3 0 0 1-3 3M17 21V3c-2 1-3 4-3 8h3"), match: (p) => p.startsWith("/essen") || p.startsWith("/rezepte") || p.startsWith("/einkauf") },
-  { href: "/geburtstage", label: "Geburtstage", icon: icon("M4 20h16v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2zM12 12V8M12 8c-1-1-1-2 0-3 1 1 1 2 0 3M4 16c2 2 4 2 8 0s6-2 8 0"), match: (p) => p.startsWith("/geburtstage") },
+  { href: "/geburtstage", label: "Geburtstage", icon: icon("M4 20h16v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2zM12 12V8M12 8c-1-1-1-2 0-3 1 1 1 2 0 3M4 16c2 2 4 2 8 0s6-2 8 0"), match: (p) => p.startsWith("/geburtstage") || p.startsWith("/wuensche") },
   { href: "/familie/mitglieder", label: "Familie", icon: icon("M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM21 20v-1a4 4 0 0 0-3-3.9M16 4.1a3.5 3.5 0 0 1 0 6.8"), match: (p) => p.startsWith("/familie") },
 ];
 
