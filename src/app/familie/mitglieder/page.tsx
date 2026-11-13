@@ -6,6 +6,7 @@ import { listMembers, listProfiles } from "@/server/services/members";
 import { requireFamily } from "@/server/session";
 import { addChildAction, deleteChildAction, inviteAction, removeMemberAction, revokeAction, roleAction } from "../../actions";
 import { buttonCls, Card, ghostButtonCls, inputCls, Notice } from "../../ui";
+import { FamilieTabs } from "../tabs";
 
 export default async function Mitglieder({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { user, familyId, role } = await requireFamily();
@@ -23,6 +24,7 @@ export default async function Mitglieder({ searchParams }: { searchParams: Promi
 
   return (
     <div className="space-y-6">
+      <FamilieTabs active="mitglieder" />
       <p className="text-sm">
         <Link href="/familie-waehlen" className="text-terracotta-dark underline">Familie wechseln</Link>
       </p>

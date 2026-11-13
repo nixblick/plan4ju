@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.7 (13.11.2026)
+
+Release 0.4, block 3: mindfulness, interface.
+
+- Achtsamkeit (`/achtsamkeit`, sub tab next to Mitglieder in the Familie area; the bottom bar keeps 7 tabs): rate a topic 1–5 with emoji buttons, date, note and visibility (only me, selected members with a picker, whole family; health at most selected). Week grid (topic × day), month averages per topic, history per person, filter by topic. Only own entries can be deleted. The page is left out of feedback screenshots; addresses carry fixed codes only. Documented in `docs/achtsamkeit.md`; E2E `achtsamkeit.spec.ts` (two users, no sign-up, 375 px): the other member sees family and shared entries, never the private one.
+
 ## 0.3.6 (13.11.2026)
 
 Release 0.4, block 3: mindfulness, data layer.

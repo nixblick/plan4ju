@@ -1,4 +1,5 @@
 export const errorMessages: Record<string, string> = {
+  "eingabe-achtsamkeit": "Bitte prüfe deine Eingaben: Bewertung von 1 bis 5, gültiges Datum, bei „Ausgewählte Personen“ mindestens eine Person. Gesundheit ist nie für die ganze Familie sichtbar.",
   "zu-viele": "Zu viele Versuche. Bitte warte ein paar Minuten.",
   unbestaetigt: "Bitte bestätige zuerst deine E-Mail-Adresse. Wir haben dir einen neuen Link geschickt.",
   ungueltig: "E-Mail-Adresse oder Zugangsdaten stimmen nicht, oder der Link ist abgelaufen.",
@@ -25,6 +26,8 @@ export const errorMessages: Record<string, string> = {
 };
 
 export const okMessages: Record<string, string> = {
+  "achtsamkeit-gespeichert": "Eintrag gespeichert.",
+  "achtsamkeit-geloescht": "Eintrag gelöscht.",
   eingeladen: "Einladung verschickt. Der Link ist 7 Tage gültig.",
   widerrufen: "Einladung widerrufen.",
   rolle: "Rolle geändert.",

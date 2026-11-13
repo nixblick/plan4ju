@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { allowedVisibilities, NOTE_MAX, TOPICS, VISIBILITIES, type Topic, type Visibility } from "../../lib/achtsamkeit";
+import { todayIn } from "../../lib/week";
 import { ForbiddenError, NotFoundError } from "../errors";
 import { withFamily, type FamilyContext } from "../tenant";
 
@@ -172,5 +173,13 @@ export function listVisibleProfiles(userId: string, familyId: string, client?: P
       where: { familyId }, distinct: ["profileId"], select: { profileId: true, profile: { select: { displayName: true } } },
     });
     return rows.map((r) => ({ id: r.profileId, name: r.profile.displayName })).sort((a, b) => a.name.localeCompare(b.name, "de"));
+  }, client);
+}
+
+/** Today in the family time zone (default date of a new entry). */
+export function familyToday(userId: string, familyId: string, now: Date = new Date(), client?: PrismaClient) {
+  return withFamily(userId, familyId, async ({ tx }) => {
+    const f = await tx.family.findFirst({ where: { id: familyId }, select: { timezone: true } });
+    return todayIn(f?.timezone ?? "Europe/Berlin", now);
   }, client);
 }
