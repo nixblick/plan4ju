@@ -41,11 +41,11 @@ describe("buildDashboard", () => {
       { id: "p2", displayName: "Kim", userId: null },
     ],
     tasks: [
-      { id: "t1", title: "Einkaufen", due: "2026-11-13", done: false, assigneeIds: ["p1"] },
-      { id: "t2", title: "Altpapier", due: "2026-11-10", done: false, assigneeIds: ["p2"] },
-      { id: "t3", title: "Erledigt", due: "2026-11-13", done: true, assigneeIds: ["p1"] },
-      { id: "t4", title: "Ohne Datum", due: null, done: false, assigneeIds: ["p1", "p2"] },
-      { id: "t5", title: "Nächste Woche", due: "2026-11-16", done: false, assigneeIds: [] },
+      { id: "t1", title: "Einkaufen", due: "2026-11-13", done: false, assigneeIds: ["p1"], showOnDashboard: true },
+      { id: "t2", title: "Altpapier", due: "2026-11-10", done: false, assigneeIds: ["p2"], showOnDashboard: true },
+      { id: "t3", title: "Erledigt", due: "2026-11-13", done: true, assigneeIds: ["p1"], showOnDashboard: true },
+      { id: "t4", title: "Ohne Datum", due: null, done: false, assigneeIds: ["p1", "p2"], showOnDashboard: true },
+      { id: "t5", title: "Nächste Woche", due: "2026-11-16", done: false, assigneeIds: [], showOnDashboard: true },
     ],
     birthdays: [
       { id: "b1", name: "Oma Muster", month: 11, day: 15, birthYear: 1950 },
@@ -65,6 +65,13 @@ describe("buildDashboard", () => {
     expect(fri.tasks.map((t) => t.id)).toEqual(["t1", "t3"]); // open before done
     expect(d.week.find((x) => x.iso === "2026-11-15")!.birthdays[0]).toMatchObject({ name: "Oma Muster", turns: 76 });
     expect(d.week.flatMap((x) => x.tasks).map((t) => t.id)).not.toContain("t5");
+  });
+  it("shows only tasks with showOnDashboard in the week, the tiles keep all", () => {
+    const hidden = buildDashboard({ ...raw, tasks: raw.tasks.map((t) => (t.id === "t1" ? { ...t, showOnDashboard: false } : t)) }, "u1", now);
+    const fri = hidden.week.find((x) => x.iso === "2026-11-13")!;
+    expect(fri.tasks.map((t) => t.id)).toEqual(["t3"]);
+    expect(hidden.dueToday.map((t) => t.id)).toEqual(["t1"]);
+    expect(hidden.mine.map((t) => t.id)).toContain("t1");
   });
   it("fills the tiles", () => {
     expect(d.mine.map((t) => t.id)).toEqual(["t1", "t4"]);

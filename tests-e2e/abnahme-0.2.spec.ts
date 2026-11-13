@@ -101,22 +101,27 @@ test.describe.serial("Abnahme Release 0.2", () => {
 
   test("Routine fest zugeordnet: Ben bei jedem Termin", async () => {
     const p = sessions.anna!;
-    await p.goto("/routinen/neu?vorlage=bett");
+    await p.goto("/routinen?tab=neu&vorlage=bett");
     await p.getByLabel("Titel").fill(FIXED);
     await p.getByLabel("Ben Muster").check();
     await p.getByRole("button", { name: "Routine anlegen" }).click();
     await expect(p.getByText("Routine angelegt.")).toBeVisible();
-    const rows = p.getByTestId("occurrence-row").filter({ hasText: FIXED });
+    // Ben's occurrences show in his "Meine 7 Tage" tab
+    await sessions.ben!.goto("/routinen?tab=woche");
+    const rows = sessions.ben!.getByTestId("occurrence-row").filter({ hasText: FIXED });
     for (const i of [0, 1, 2]) await expect(rows.nth(i)).toContainText(/Ben Muster· /);
   });
 
   test("Routine je Termin einzeln: heute Anna, morgen Ben", async () => {
     const p = sessions.anna!;
-    await p.goto("/routinen/neu?vorlage=abendessen");
+    await p.goto("/routinen?tab=neu&vorlage=abendessen");
     await p.getByLabel("Titel").fill(SINGLE);
     await p.getByLabel(/^Je Termin einzeln/).check();
     await p.getByRole("button", { name: "Routine anlegen" }).click();
     await expect(p.getByText("Routine angelegt.")).toBeVisible();
+    // unassigned occurrences are listed on the routine's own page (from "Alle Routinen")
+    await p.getByRole("link", { name: `${q(SINGLE)} bearbeiten` }).click();
+    await expect(p).toHaveURL(/\/routinen\/[^?]+/);
     const rows = p.getByTestId("occurrence-row").filter({ hasText: SINGLE });
     await expect(rows.first()).toContainText("Niemand zugewiesen");
     const routineUrl = p.url();
@@ -189,7 +194,7 @@ test.describe.serial("Abnahme Release 0.2", () => {
 
   test("Andere Familie sieht nichts", async () => {
     const p = sessions.clara!;
-    for (const path of ["/", "/aufgaben", "/aufgaben?filter=unzugewiesen", "/routinen", "/geburtstage", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", `/kalender?datum=${tomorrow}`]) {
+    for (const path of ["/", "/aufgaben", "/aufgaben?filter=unzugewiesen", "/routinen", "/routinen?tab=alle", "/geburtstage", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", `/kalender?datum=${tomorrow}`]) {
       await p.goto(path);
       const body = p.locator("body");
       for (const s of SECRETS) await expect(body, `${path}: ${s}`).not.toContainText(s);
@@ -201,7 +206,7 @@ test.describe.serial("Abnahme Release 0.2", () => {
   test("375 px ohne Überlauf", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, storageState: await sessions.anna!.context().storageState() });
     const p = await ctx.newPage();
-    for (const path of ["/", "/aufgaben", "/routinen", "/routinen/neu", "/geburtstage", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", "/kalender/termin/neu"]) {
+    for (const path of ["/", "/aufgaben", "/routinen", "/routinen?tab=neu", "/routinen?tab=alle", "/routinen/neu", "/geburtstage", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", "/kalender/termin/neu"]) {
       await p.goto(path);
       await expect(p.locator("main")).toBeVisible();
       const over = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

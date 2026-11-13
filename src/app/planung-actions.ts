@@ -14,6 +14,7 @@ import {
 } from "@/server/services/routines";
 import { createTask, deleteTask, setTaskArchived, setTaskDone, updateTask, type TaskInput } from "@/server/services/tasks";
 import { requireFamily } from "@/server/session";
+import { toPriority } from "@/lib/priority";
 
 const text = (f: FormData, k: string) => String(f.get(k) ?? "");
 const num = (f: FormData, k: string): number | null => {
@@ -39,7 +40,8 @@ async function run(path: string, ok: string, job: (a: Awaited<ReturnType<typeof 
     failure = codeFor(e);
   }
   revalidatePath("/", "layout");
-  redirect(failure ? `${path}?fehler=${failure}` : `${path}?ok=${ok}`);
+  const sep = path.includes("?") ? "&" : "?";
+  redirect(failure ? `${path}${sep}fehler=${failure}` : `${path}${sep}ok=${ok}`);
 }
 
 // ---- Tasks ----------------------------------------------------------------------------
@@ -53,7 +55,8 @@ function taskFromForm(form: FormData): TaskInput {
     description: text(form, "description") || null,
     dueDate: due === "" ? null : due,
     dueTime: due !== "" && time !== "" ? time : null,
-    priority: (text(form, "priority") || "NORMAL") as TaskInput["priority"],
+    priority: toPriority(text(form, "priority")),
+    showOnDashboard: form.get("showOnDashboard") != null,
     ...(status ? { status: status as TaskInput["status"] } : {}),
     assigneeIds: form.getAll("assigneeIds").map(String),
   };
@@ -111,7 +114,7 @@ function routineFromForm(form: FormData): RoutineInput {
 }
 
 export async function createRoutineAction(form: FormData) {
-  await run("/routinen", "routine", async (a) => {
+  await run("/routinen?tab=alle", "routine", async (a) => {
     await createRoutine(a.user.id, a.familyId, routineFromForm(form));
   });
 }
@@ -126,7 +129,7 @@ export async function updateRoutineAction(form: FormData) {
 export async function routineStatusAction(form: FormData) {
   const status = text(form, "status") as "ACTIVE" | "PAUSED" | "ARCHIVED";
   const ok = status === "ARCHIVED" ? "routine-archiviert" : status === "PAUSED" ? "routine-pausiert" : "routine-aktiv";
-  await run("/routinen", ok, (a) => setRoutineStatus(a.user.id, a.familyId, text(form, "routineId"), status));
+  await run("/routinen?tab=alle", ok, (a) => setRoutineStatus(a.user.id, a.familyId, text(form, "routineId"), status));
 }
 
 /** Done / skipped / open for one occurrence; `back` is a local path on this site. */

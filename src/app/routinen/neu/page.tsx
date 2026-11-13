@@ -18,7 +18,7 @@ export default async function NeueRoutine({ searchParams }: { searchParams: Prom
   return (
     <div className="space-y-6">
       <p>
-        <Link href="/routinen" className="inline-flex min-h-11 items-center text-sm underline">← Zurück zu den Routinen</Link>
+        <Link href="/routinen?tab=alle" className="inline-flex min-h-11 items-center text-sm underline">← Zurück zu den Routinen</Link>
       </p>
       <h1 className="text-2xl font-bold">{t ? `Neue Routine: ${t.title}` : "Neue Routine"}</h1>
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}

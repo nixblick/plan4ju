@@ -7,7 +7,8 @@ import { requireFamily } from "@/server/session";
 import { createTaskAction, toggleTaskAction } from "../planung-actions";
 import { Dots, names } from "../people";
 import { buttonCls, Card, ghostButtonCls, inputCls, Notice } from "../ui";
-import { STATUS_LABEL, TaskFields } from "./task-fields";
+import { PRIORITY_EDGE } from "@/lib/priority";
+import { PriorityBadge, STATUS_LABEL, TaskFields } from "./task-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export default async function Aufgaben({ searchParams }: { searchParams: Promise
     const isDone = t.status === "DONE";
     const late = !isDone && !t.archivedAt && due !== null && due < today;
     return (
-      <li key={t.id} className="flex flex-wrap items-center gap-3 py-3" data-testid="task-row">
+      <li key={t.id} className={`flex flex-wrap items-center gap-3 border-l-4 py-3 pl-3 ${PRIORITY_EDGE[t.priority]}`} data-testid="task-row" data-priority={t.priority}>
         {t.archivedAt ? null : (
           <form action={toggleTaskAction}>
             <input type="hidden" name="taskId" value={t.id} />
@@ -73,8 +74,9 @@ export default async function Aufgaben({ searchParams }: { searchParams: Promise
                 · fällig {fmt(due)}{t.dueTime ? `, ${t.dueTime} Uhr` : ""}{late ? " (überfällig)" : ""}
               </span>
             ) : null}
-            {t.priority === "HIGH" ? <span className="font-medium text-terracotta-dark">· Priorität hoch</span> : null}
-            {t.priority === "LOW" ? <span>· Priorität niedrig</span> : null}
+            <span className="sr-only">Priorität:</span>
+            <PriorityBadge p={t.priority} />
+            {t.showOnDashboard ? <span>· auf der Startseite</span> : null}
             {t.status === "IN_PROGRESS" ? <span>· {STATUS_LABEL.IN_PROGRESS}</span> : null}
           </span>
         </span>

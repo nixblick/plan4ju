@@ -18,6 +18,8 @@ export interface DashTask {
   due: string | null;
   done: boolean;
   assigneeIds: string[];
+  /** Only these appear in the week calendar of the dashboard (the tiles list every task). */
+  showOnDashboard: boolean;
 }
 export type DashOccurrence = OccurrenceView;
 export interface DashBirthday {
@@ -85,7 +87,7 @@ export function buildDashboard(raw: RawDashboard, userId: string, now: Date = ne
     week: days.map((iso) => ({
       iso,
       isToday: iso === today,
-      tasks: raw.tasks.filter((t) => t.due === iso).sort((a, b) => Number(a.done) - Number(b.done) || a.title.localeCompare(b.title, "de")),
+      tasks: raw.tasks.filter((t) => t.due === iso && t.showOnDashboard).sort((a, b) => Number(a.done) - Number(b.done) || a.title.localeCompare(b.title, "de")),
       birthdays: upcoming.filter((b) => b.date === iso),
       routines: occurrences.filter((o) => o.date === iso),
       events: itemsOnDay(raw.events ?? [], iso),
@@ -140,6 +142,7 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
             due: t.dueDate ? t.dueDate.toISOString().slice(0, 10) : null,
             done: t.status === "DONE",
             assigneeIds: t.assignments.map((a) => a.profileId),
+            showOnDashboard: t.showOnDashboard,
           })),
           birthdays: birthdays.map((b) => ({ id: b.id, name: b.name, month: b.month, day: b.day, birthYear: b.birthYear })),
           occurrences,
