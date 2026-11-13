@@ -293,6 +293,7 @@ export function fetchErrorText(stored: string | null): string | null {
     case "umleitung": return "Die Adresse leitet unzulässig weiter.";
     case "inhalt": return "Die Antwort ist keine gültige Kalenderdatei.";
     case "datei": return "Die Datei ist keine gültige Kalenderdatei (iCalendar).";
+    case "schluessel": return "Die gespeicherte Adresse kann nicht mehr gelesen werden (zum Beispiel nach einem Wechsel des Server-Schlüssels). Bitte lösche den Kalender und abonniere ihn neu.";
     case "netz": return "Der Kalenderserver ist nicht erreichbar.";
     default: return "Der Abruf hat nicht geklappt.";
   }

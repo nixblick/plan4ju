@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { after } from "next/server";
 import type { ReactNode } from "react";
 import { parseIso, weekdayIndex } from "@/lib/week";
+import { syncStaleCalendars } from "@/server/services/calendar";
 import { getDashboard, type DashTask } from "@/server/services/dashboard";
 import { requireFamily } from "@/server/session";
 import { DashboardHeader } from "./clock";
@@ -59,6 +61,8 @@ export default async function Home() {
   const { user, familyId } = await requireFamily();
   const now = new Date();
   const d = await getDashboard(user.id, familyId, now);
+  // refresh stale calendar subscriptions after the response is sent
+  after(() => syncStaleCalendars(user.id, familyId));
   const when = (n: number) => (n === 0 ? "heute" : n === 1 ? "morgen" : `in ${n} Tagen`);
 
   return (

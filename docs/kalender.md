@@ -12,7 +12,7 @@ Stand 0.1.4. Dieses Dokument sagt, was tatsächlich gebaut ist.
   Skript nötig, bei 375 px ohne Überlauf. Kein FullCalendar: weniger Abhängigkeiten, gleiche Gestaltung wie der Rest.
 - **Dashboard**: Termine in den Tageskarten der Woche und Kachel „Termine heute“.
 - **ICS-Datei-Import** (`/kalender/quellen`): einmaliger Import, später mit einer neuen Datei ersetzbar.
-- **ICS-Abo per Adresse**: nur lesend, serverseitig abgerufen, höchstens stündlich (lazy beim Öffnen des Kalenders) oder
+- **ICS-Abo per Adresse**: nur lesend, serverseitig abgerufen, höchstens stündlich (lazy beim Öffnen von Startseite oder Kalender, nach dem Senden der Seite) oder
   manuell einmal je Minute.
 - Externe Termine sind gekennzeichnet („Extern · Name“, Farbe des Kalenders), lassen sich ein- und ausblenden und sind
   nicht bearbeitbar.
@@ -25,7 +25,7 @@ Stand 0.1.4. Dieses Dokument sagt, was tatsächlich gebaut ist.
   Uhrzeit (Umstellung im Frühjahr) rückt vor, eine doppelte (Herbst) nimmt die erste.
 - **Interne Wiederholungen** werden beim Lesen berechnet, nicht vorab angelegt (es gibt keinen Zustand je Termin).
 - **Externe Termine** werden beim Import/Abruf in ein Fenster von 31 Tagen zurück bis 366 Tage voraus aufgelöst
-  (höchstens 5000 Einträge je Kalender, sonst „gekürzt“). Wiederholungen mit `RRULE`, `EXDATE` und `RECURRENCE-ID` übernimmt
+  (höchstens 5000 Einträge je Kalender, sonst „gekürzt“; eine Regel wird höchstens 100000 Schritte weit durchlaufen, damit auch Serien, die vor Jahren begannen, das Fenster erreichen). Wiederholungen mit `RRULE`, `EXDATE` und `RECURRENCE-ID` übernimmt
   `ical.js`. `TZID` ohne `VTIMEZONE` in der Datei wird als IANA-Zone gelesen; Zeiten ohne Zone gelten in der Familienzeitzone.
 - **Doppelte** vermeiden: innerhalb eines Kalenders gilt (uid, Beginn) als Schlüssel. Derselbe Termin in zwei verschiedenen
   externen Kalendern wird nicht zusammengeführt.
@@ -51,4 +51,5 @@ Stand 0.1.4. Dieses Dokument sagt, was tatsächlich gebaut ist.
 - Ausnahmen einzelner Termine einer eigenen Serie (nur diesen Termin verschieben oder löschen).
 - Zurückschreiben in externe Kalender, Erinnerungen, ICS-Export.
 - Zusammenführen gleicher Termine aus verschiedenen externen Kalendern.
-- Ein regelmäßiger Hintergrundabruf: Abos werden beim Öffnen des Kalenders aufgefrischt, nicht per Zeitplan.
+- Ein regelmäßiger Hintergrundabruf: Abos werden beim Öffnen der Startseite oder des Kalenders aufgefrischt, nicht per Zeitplan.
+- Eine gespeicherte Adresse ändern: nicht möglich, Kalender löschen und neu abonnieren (die Adresse wird nie wieder angezeigt). Nach einem Wechsel von `BETTER_AUTH_SECRET` zeigt der Kalender dazu einen eigenen Hinweis.

@@ -305,13 +305,17 @@ export async function importIcsFile(
 ) {
   const meta = calendarMeta.parse({ name: raw.name, colorIndex: raw.colorIndex });
   if (Buffer.byteLength(raw.text, "utf8") > MAX_FILE_BYTES) throw new FetchError("gross");
+  // parse with no transaction open (a large file takes a while), then write in one
+  const tz = await withFamily(userId, familyId, async (ctx) => {
+    await assertRoomForCalendar(ctx);
+    return familyZone(ctx);
+  }, client);
+  const parsed = parseIcs(raw.text, tz, defaultWindow(now));
   return withFamily(
     userId,
     familyId,
     async (ctx) => {
       await assertRoomForCalendar(ctx);
-      const tz = await familyZone(ctx);
-      const parsed = parseIcs(raw.text, tz, defaultWindow(now));
       const cal = await ctx.tx.externalCalendar.create({
         data: { familyId, createdById: userId, name: meta.name, colorIndex: meta.colorIndex, kind: "FILE", lastAttemptAt: now, lastSuccessAt: now, eventCount: parsed.events.length, truncated: parsed.truncated },
         select: calendarSelect,
@@ -326,19 +330,23 @@ export async function importIcsFile(
 /** Replaces the content of an imported file calendar with a newer file. */
 export async function reimportIcsFile(userId: string, familyId: string, calendarId: string, text: string, client?: PrismaClient, now: Date = new Date()) {
   if (Buffer.byteLength(text, "utf8") > MAX_FILE_BYTES) throw new FetchError("gross");
-  return withFamily(
+  const tz = await withFamily(userId, familyId, async (ctx) => {
+    const cal = await ctx.tx.externalCalendar.findFirst({ where: { id: calendarId, familyId }, select: { id: true, kind: true } });
+    if (!cal) throw new NotFoundError("Calendar not found");
+    if (cal.kind !== "FILE") throw new ConflictError("Not a file calendar");
+    return familyZone(ctx);
+  }, client);
+  const parsed = parseIcs(text, tz, defaultWindow(now));
+  await withFamily(
     userId,
     familyId,
     async (ctx) => {
-      const cal = await ctx.tx.externalCalendar.findFirst({ where: { id: calendarId, familyId }, select: { id: true, kind: true } });
-      if (!cal) throw new NotFoundError("Calendar not found");
-      if (cal.kind !== "FILE") throw new ConflictError("Not a file calendar");
-      const parsed = parseIcs(text, await familyZone(ctx), defaultWindow(now));
       await replaceEvents(ctx.tx, familyId, calendarId, parsed);
-      await ctx.tx.externalCalendar.update({
-        where: { id: calendarId },
+      const r = await ctx.tx.externalCalendar.updateMany({
+        where: { id: calendarId, familyId },
         data: { lastAttemptAt: now, lastSuccessAt: now, lastError: null, eventCount: parsed.events.length, truncated: parsed.truncated },
       });
+      if (r.count === 0) throw new NotFoundError("Calendar not found");
     },
     client,
   );
@@ -384,11 +392,18 @@ export async function syncCalendar(userId: string, familyId: string, calendarId:
 
   let parsed: ParsedEvents | null = null;
   let code = "";
+  let url: string | null = null;
   try {
-    const text = await fetchCalendarText(decryptSecret(claimed.urlEnc, `${familyId}:${calendarId}`), opts.fetch);
-    parsed = parseIcs(text, claimed.tz, defaultWindow(now));
-  } catch (e) {
-    code = storedCode(e);
+    url = decryptSecret(claimed.urlEnc, `${familyId}:${calendarId}`);
+  } catch {
+    code = "schluessel"; // secret rotated or ciphertext not from this row: the address must be entered again
+  }
+  if (url) {
+    try {
+      parsed = parseIcs(await fetchCalendarText(url, opts.fetch), claimed.tz, defaultWindow(now));
+    } catch (e) {
+      code = storedCode(e);
+    }
   }
 
   await withFamily(

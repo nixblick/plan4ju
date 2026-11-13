@@ -78,6 +78,24 @@ describe("parseIcs", () => {
     expect(r.events.length).toBeLessThan(200);
   });
 
+  it("a series that began years ago still reaches the window", () => {
+    const w = { from: new Date("2026-11-01T00:00:00Z"), to: new Date("2026-11-30T00:00:00Z") };
+    const daily = parseIcs(cal(ev("UID:20@example.test", "DTSTART:20100101T080000Z", "RRULE:FREQ=DAILY", "SUMMARY:Seit 2010")), TZ, w);
+    expect(daily.truncated).toBe(false);
+    expect(daily.events.length).toBeGreaterThanOrEqual(29);
+    const weekdays = parseIcs(cal(ev("UID:21@example.test", "DTSTART;TZID=Europe/Berlin:20120102T090000", "RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", "SUMMARY:Werktags")), TZ, w);
+    expect(weekdays.events.length).toBeGreaterThanOrEqual(20);
+    expect(weekdays.events.every((e) => e.startsAt!.getTime() >= w.from.getTime())).toBe(true);
+  });
+
+  it("a runaway rule is cut off and flagged instead of hanging", () => {
+    const w = { from: new Date("2026-11-01T00:00:00Z"), to: new Date("2026-11-30T00:00:00Z") };
+    const t0 = Date.now();
+    const r = parseIcs(cal(ev("UID:22@example.test", "DTSTART:20000101T000000Z", "RRULE:FREQ=MINUTELY", "SUMMARY:Minütlich")), TZ, w);
+    expect(r.truncated).toBe(true);
+    expect(Date.now() - t0).toBeLessThan(15_000);
+  });
+
   it("unfolds lines and keeps text, trims overlong text", () => {
     const r = parseIcs(cal(ev("UID:14@example.test", "DTSTART:20261201T100000Z", "SUMMARY:Ein sehr langer", " Titel", "LOCATION:Rathaus\\, Zimmer 3", "DESCRIPTION:Zeile 1\\nZeile 2")), TZ, win);
     expect(r.events[0]).toMatchObject({ title: "Ein sehr langerTitel", location: "Rathaus, Zimmer 3", description: "Zeile 1\nZeile 2" });

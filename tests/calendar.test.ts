@@ -197,7 +197,7 @@ describe("ICS subscription", () => {
     const src = await admin.externalCalendar.findUniqueOrThrow({ where: { id: calId } });
     const other = await admin.externalCalendar.create({ data: { familyId: f.familyA, name: "Kopie", kind: "SUBSCRIPTION", urlEnc: src.urlEnc, createdById: f.userA } });
     const r = await syncCalendar(f.userA, f.familyA, other.id, { client: app, manual: true, now: NOW, fetch: { resolve: resolvePublic, transport: serving(feed) } });
-    expect(r).toEqual({ status: "error", code: "netz" });
+    expect(r).toEqual({ status: "error", code: "schluessel" });
     await admin.externalCalendar.delete({ where: { id: other.id } });
   });
 
@@ -206,6 +206,24 @@ describe("ICS subscription", () => {
     for (let i = have; i < MAX_CALENDARS; i++) await importIcsFile(f.userA, f.familyA, { name: `K${i}`, text: ics() }, app, NOW);
     await expect(importIcsFile(f.userA, f.familyA, { name: "zu viel", text: ics() }, app, NOW)).rejects.toThrow();
     await expect(addSubscription(f.userA, f.familyA, { name: "zu viel", url: SECRET_URL }, { client: app, now: NOW })).rejects.toThrow();
+  });
+});
+
+describe("large file", () => {
+  it("a file near the size limit (thousands of instances) imports within the transaction limits", async () => {
+    await admin.externalCalendar.deleteMany({ where: { familyId: f.familyA, name: { startsWith: "K" } } });
+    const events = Array.from({ length: 5000 }, (_, i) => {
+      const d = new Date(Date.UTC(2026, 10, 10) + (i % 300) * 86_400_000 + (i % 24) * 3_600_000);
+      const stamp = d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+      return vevent(`big${i}`, stamp, `Termin ${i} mit etwas längerem Titel`, `DESCRIPTION:${"Beschreibung ".repeat(20)}\r\nLOCATION:Ort ${i}\r\n`);
+    });
+    const text = ics(...events);
+    expect(Buffer.byteLength(text)).toBeLessThan(2 * 1024 * 1024);
+    const t0 = Date.now();
+    const cal = await importIcsFile(f.userA, f.familyA, { name: "Gross", text }, app, NOW);
+    expect(cal.eventCount).toBe(5000);
+    expect(Date.now() - t0).toBeLessThan(4500);
+    await deleteCalendar(f.userA, f.familyA, cal.id, app);
   });
 });
 

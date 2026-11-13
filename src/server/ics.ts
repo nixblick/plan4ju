@@ -29,7 +29,8 @@ export interface ParseResult {
   calendarName: string | null;
 }
 
-export const ICS_LIMITS = { maxEvents: 5000, maxIterations: 4000 } as const;
+/** maxEvents: stored instances per file; maxSteps: how far one rule may be walked (a series that began years ago needs many steps before it reaches the window). */
+export const ICS_LIMITS = { maxEvents: 5000, maxSteps: 100_000 } as const;
 
 export class IcsError extends Error {
   constructor() {
@@ -174,13 +175,20 @@ export function parseIcs(text: string, familyTz: string, window: ImportWindow = 
     } catch {
       continue;
     }
-    for (let i = 0; i < ICS_LIMITS.maxIterations; i++) {
+    let steps = 0;
+    for (;;) {
+      if (++steps > ICS_LIMITS.maxSteps) {
+        truncated = true; // the walk ran out before the window ended
+        break;
+      }
       const next = it.next();
       if (!next) break;
       const startMs = next.isDate
         ? Date.parse(`${wallDate(next)}T00:00:00Z`)
         : toInstant(next, tz, familyTz).getTime();
       if (startMs > winTo) break;
+      // cheap skip of instances long before the window (no exceptions or details needed for them)
+      if (startMs < winFrom - 90 * 86_400_000) continue;
       let d;
       try {
         d = ev.getOccurrenceDetails(next);
@@ -190,7 +198,6 @@ export function parseIcs(text: string, familyTz: string, window: ImportWindow = 
       const item = d.item;
       const itemTz = tzidOf(item.component) ?? tz;
       add(item, d.startDate, d.endDate ?? null, itemTz, next.isDate ? wallDate(next) : toInstant(next, tz, familyTz).toISOString());
-      if (i === ICS_LIMITS.maxIterations - 1) truncated = true;
     }
   }
 
