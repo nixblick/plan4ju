@@ -26,6 +26,23 @@ discards the context at commit. Services in `src/server/services/` additionally 
 `familyId`. A new table needs grants and policies in its own migration; `tests/rls.test.ts`
 lists the protected tables. Creating families is an administrative task (owner connection).
 
+## Anmeldung, Einladung, Rollen
+
+- Better Auth mit E-Mail und Passwort (Argon2id), E-Mail-Bestätigung Pflicht, Passwort-Reset per Mail.
+  Mails gehen über `SMTP_URL` / `MAIL_FROM`; lokal fängt Mailpit sie ab (Weboberfläche am Port `MAILPIT_UI_PORT`).
+- **Keine Selbstregistrierung.** Konten entstehen nur über eine Einladung (Token 256 Bit, nur der Hash wird gespeichert,
+  7 Tage gültig, einmal verwendbar, widerrufbar). Ein direkter Aufruf von `/api/auth/sign-up/email` legt nichts an.
+- Neue Familie und ersten Owner legt der Instanz-Administrator an:
+  `npm run admin:create-family -- --name "Familie Muster" --owner owner@example.test [--send]`
+  (nutzt `DATABASE_ADMIN_URL`, gibt den Einladungslink einmal aus). Für Produktion einen Owner ohne Superuser-Recht verwenden;
+  die Migration legt für die Owner-Rolle eigene Policies an, damit FORCE RLS sie nicht aussperrt.
+- Rollen: Owner (alles, Rollen ändern), Admin (Mitglieder einladen und entfernen, Kinderprofile), Mitglied.
+  Kinderprofile haben keinen Login. Jede Aktion wird serverseitig geprüft (`src/server/permissions.ts`), zusätzlich RLS.
+- Mehrere Familien je Konto: nach der Anmeldung wählt man die aktive Familie (Seite „Familie wählen“). Das Cookie ist an
+  den Nutzer gebunden und signiert; Mitgliedschaft und Rolle werden bei jedem Request aus der Datenbank gelesen.
+- Rate Limits: Better Auth begrenzt die HTTP-Routen, die Formulare haben ein eigenes Limit. Beide halten ihren Zähler im
+  Arbeitsspeicher (eine Instanz); hinter dem Reverse Proxy zusätzlich begrenzen.
+
 ## Geheimnisse
 
 Datenbank- und Auth-Zugänge: `.env` lokal, Vorlage `.env.example`, Vault `~/.secrets/plan4ju/`.

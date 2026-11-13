@@ -4,6 +4,15 @@
 
 - Docs: `docs/konzept.md` – Gesamtkonzept (Stand 13.11.2026), mit den entschiedenen Infrastrukturpunkten.
 
+### 0.0.7
+
+- Authentication with Better Auth: e-mail + password (Argon2id), required e-mail verification via SMTP from env (Mailpit locally), password reset, rate limits for login/reset/sign-up (HTTP and server actions).
+- Registration by invitation only: single-use tokens (hash stored, 7 days, revocable); SECURITY DEFINER functions for lookup/accept; sign-up outside the invitation flow creates no account.
+- Instance admin CLI `admin:create-family` (family + owner invitation); owner policies for forced RLS.
+- Roles Owner/Admin/Member with server-side checks, child profiles without login, several families per account with a signed, user-bound active-family cookie.
+- German pages: sign in, accept invitation, choose family, members and invitations, password reset. Tailwind added.
+- Tests for the invitation flow, rights, Mailpit mails and rate limits (65 tests in total).
+
 ### 0.0.6
 
 - Security: membership insert/update/delete now require OWNER or ADMIN of the active family (a plain member could raise their own role). Tests added.
