@@ -185,3 +185,40 @@ describe("withFamily membership check", () => {
     });
   });
 });
+
+describe("membership writes need OWNER or ADMIN", () => {
+  it("a plain member cannot raise their own role or add users", async () => {
+    await raw(f.familyA, f.userBoth, async (tx) => {
+      const r = await tx.familyMembership.updateMany({
+        where: { familyId: f.familyA, userId: f.userBoth },
+        data: { role: "OWNER" },
+      });
+      expect(r.count).toBe(0);
+    });
+    await expect(
+      raw(f.familyA, f.userBoth, (tx) =>
+        tx.familyMembership.create({ data: { familyId: f.familyA, userId: f.userNone } }),
+      ),
+    ).rejects.toThrow();
+    const m = await admin.familyMembership.findUnique({
+      where: { familyId_userId: { familyId: f.familyA, userId: f.userBoth } },
+    });
+    expect(m?.role).toBe("MEMBER");
+  });
+
+  it("an owner can change roles in the active family only", async () => {
+    await raw(f.familyA, f.userA, async (tx) => {
+      const own = await tx.familyMembership.updateMany({
+        where: { familyId: f.familyA, userId: f.userBoth }, data: { role: "ADMIN" },
+      });
+      expect(own.count).toBe(1);
+      const foreign = await tx.familyMembership.updateMany({
+        where: { familyId: f.familyB, userId: f.userBoth }, data: { role: "ADMIN" },
+      });
+      expect(foreign.count).toBe(0);
+    });
+    await admin.familyMembership.update({
+      where: { familyId_userId: { familyId: f.familyA, userId: f.userBoth } }, data: { role: "MEMBER" },
+    });
+  });
+});

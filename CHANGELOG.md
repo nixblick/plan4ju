@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### 0.0.6
+
+- Security: membership insert/update/delete now require OWNER or ADMIN of the active family (a plain member could raise their own role). Tests added.
+
 ### 0.0.5
 
 - Docker Compose for development: PostgreSQL 16 (volume, healthcheck) and Mailpit, localhost only; `.env.example` extended.
