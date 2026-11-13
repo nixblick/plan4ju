@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (13.11.2026)
+
+Release 0.2 "Familienorganisation": Aufgaben mit mehreren oder keinen Zuständigen, Routinen (fest, reihum oder je Termin einzeln zugeordnet), Geburtstage, gemeinsamer Kalender mit ICS-Import und Abonnement, Dashboard mit "Als Nächstes", "Heute zu Hause" und Woche. Details in 0.1.3 bis 0.1.7.
+
+- Abnahme gegen den Produktionscontainer mit zwei erfundenen Familien (`npm run test:abnahme`, 7 von 7 grün) und die übrigen E2E-Dateien einzeln gegen denselben Container (26 von 26 grün).
+- Feedback-Knopf aus der Testphase (bisher "Unreleased"):
 
 - Feedback in der Testphase: schwebender Knopf „Feedback“ (Sprechblase, mobil über der Tab-Leiste) auf jeder Seite für angemeldete Nutzer, Menüeintrag „Feedback geben“ und eine Kachel auf dem Dashboard. Formular mit Art (Fehler/Idee/Sonstiges), Text (max. 5000 Zeichen), optional Name, optional Aufnahme der aktuellen Seite (html2canvas-pro, nur auf Klick) oder eigenes PNG/JPEG bis 5 MB (Typ per Magic Bytes geprüft). Mitgeschickt: Seitenpfad ohne Query, App-Version, Browser/Gerät grob, Bildschirmbreite.
 - Neue Tabelle `feedback` (Migration `feedback`, nach den Routinen-Migrationen, RLS wie alle Familientabellen, Autor muss der angemeldete Nutzer sein); jede Meldung wird zuerst gespeichert und dann als reiner Text mit Bild im Anhang an `FEEDBACK_MAIL_TO` gemailt (Reply-To = Absender). Ohne Empfänger oder bei Versandfehler bleibt sie gespeichert, das Log enthält keinen Inhalt. Limit 10 Meldungen je Konto und Stunde. Server-Actions nehmen bis 6 MB an.
