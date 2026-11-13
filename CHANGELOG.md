@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.3
+
+Release 0.2, block 1: tasks completed, routines.
+
+- Tasks: description, priority (low/normal/high), optional time, status open / in progress / done, archive (leaves lists and dashboard, can be restored), edit page, delete only after an explicit confirmation. Filters: all, mine, unassigned, done, archive, plus person and due-date range. Migration `tasks_routines` (new columns, enum value `IN_PROGRESS`).
+- Routines: tables `routine`, `routine_assignment`, `routine_occurrence`, `routine_occurrence_assignment` (migration `routines_rls`: `familyId`, forced RLS, grants for the app role). Recurrence daily / weekly on chosen weekdays / monthly (short months use their last day), every n-th, start and optional end date, optional time. Assignment fixed (one or several persons), rotating, or per occurrence; any occurrence can be reassigned by hand.
+- Occurrences are created for a bounded window: from today (family time zone) up to 56 days ahead, topped up lazily below 28 days; never into the past. Done / skipped / hand-assigned / past occurrences are never changed by editing, pausing or archiving a routine, only untouched open future ones are rebuilt.
+- Templates "Ins Bett bringen", "Abendessen kochen", "Kita bringen", "Kita holen" prefill the new-routine form.
+- UI: `/routinen` (next 14 days, tick off, skip, reassign, pause, archive), `/routinen/neu`, `/routinen/[id]`; dashboard shows routines in the week and a tile "Routinen heute" with direct tick-off; new nav entry.
+- Tests: recurrence unit tests incl. DST (29.03. and 25.10.2026) and `todayIn` at local midnight, routine and task integration tests, RLS tests for the four new tables, E2E for filter/edit/delete and routines with individual assignment.
+
 ### 0.1.2
 - `create-family`: `--family <id>` stellt eine neue Owner-Einladung für eine bestehende Familie aus; `--send` verweigert Links auf localhost (ohne `--allow-localhost`).
 
