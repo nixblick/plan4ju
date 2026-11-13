@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { admin, app } from "./helpers";
-import { auth, invitationSignUp } from "../src/server/auth";
+import { auth, handleAuthRequest, invitationSignUp } from "../src/server/auth";
 import { createFamilyWithOwnerInvitation } from "../src/server/admin";
 import { ConflictError, InvalidInvitationError, RateLimitError } from "../src/server/errors";
 import { readFamilyChoice, signFamilyChoice } from "../src/server/familyCookie";
@@ -217,19 +217,24 @@ describe("e-mail verification and password reset (Mailpit)", () => {
 });
 
 describe("rate limits", () => {
-  it("HTTP sign-in is limited per client address", async () => {
+  it("HTTP sign-in is limited per trusted client address; a spoofed left X-Forwarded-For does not help", async () => {
     const statuses: number[] = [];
     for (let i = 0; i < 8; i++) {
-      const res = await auth.handler(
+      const res = await handleAuthRequest(
         new Request("http://localhost:3000/api/auth/sign-in/email", {
           method: "POST",
-          headers: { "content-type": "application/json", origin: "http://localhost:3000", "x-forwarded-for": "198.51.100.77" },
+          headers: {
+            "content-type": "application/json",
+            origin: "http://localhost:3000",
+            "x-forwarded-for": `192.0.2.${i + 1}, 198.51.100.77`,
+            "x-plan4ju-client-ip": `192.0.2.${i + 100}`,
+          },
           body: JSON.stringify({ email: mail("nobody"), password: fresh() }),
         }),
       );
       statuses.push(res.status);
     }
-    expect(statuses.slice(0, 5).every((s) => s !== 429)).toBe(true);
+    expect(statuses.slice(0, 5).every((s) => s === 401)).toBe(true); // body reached Better Auth
     expect(statuses.slice(5)).toContain(429);
   });
 

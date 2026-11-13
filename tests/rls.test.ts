@@ -222,3 +222,81 @@ describe("membership writes need OWNER or ADMIN", () => {
     });
   });
 });
+
+describe("owner rows are written by owners only, the last owner stays", () => {
+  const s = Math.random().toString(36).slice(2, 10);
+  let fam: string;
+  const u = { owner: `u-own-${s}`, admin: `u-adm-${s}`, member: `u-mem-${s}`, extra: `u-ext-${s}` };
+  const row = (userId: string) => ({ familyId_userId: { familyId: fam, userId } });
+  const roleOf = async (userId: string) => (await admin.familyMembership.findUnique({ where: row(userId) }))?.role ?? null;
+
+  beforeAll(async () => {
+    for (const [k, id] of Object.entries(u)) {
+      await admin.user.create({ data: { id, name: `Muster ${k}`, email: `${k}-${s}@example.test` } });
+    }
+    fam = (await admin.family.create({ data: { name: `Familie Muster C ${s}` } })).id;
+    await admin.familyMembership.createMany({
+      data: [
+        { familyId: fam, userId: u.owner, role: "OWNER" },
+        { familyId: fam, userId: u.admin, role: "ADMIN" },
+        { familyId: fam, userId: u.member, role: "MEMBER" },
+      ],
+    });
+  });
+  afterAll(async () => {
+    await admin.family.deleteMany({ where: { id: fam } });
+    await admin.user.deleteMany({ where: { id: { in: Object.values(u) } } });
+  });
+
+  it("an admin cannot create an owner (or an admin), only a member", async () => {
+    await expect(raw(fam, u.admin, (tx) => tx.familyMembership.create({ data: { familyId: fam, userId: u.extra, role: "OWNER" } }))).rejects.toThrow();
+    await expect(raw(fam, u.admin, (tx) => tx.familyMembership.create({ data: { familyId: fam, userId: u.extra, role: "ADMIN" } }))).rejects.toThrow();
+    expect(await roleOf(u.extra)).toBeNull();
+    await raw(fam, u.admin, (tx) => tx.familyMembership.create({ data: { familyId: fam, userId: u.extra, role: "MEMBER" } }));
+    expect(await roleOf(u.extra)).toBe("MEMBER");
+    await admin.familyMembership.delete({ where: row(u.extra) });
+  });
+
+  it("an admin cannot promote to owner, demote or delete an owner", async () => {
+    await expect(
+      raw(fam, u.admin, (tx) => tx.familyMembership.updateMany({ where: { familyId: fam, userId: u.member }, data: { role: "OWNER" } })),
+    ).rejects.toThrow();
+    await expect(
+      raw(fam, u.admin, (tx) => tx.familyMembership.updateMany({ where: { familyId: fam, userId: u.admin }, data: { role: "OWNER" } })),
+    ).resolves.toEqual({ count: 0 });
+    await raw(fam, u.admin, async (tx) => {
+      expect((await tx.familyMembership.updateMany({ where: { familyId: fam, userId: u.owner }, data: { role: "MEMBER" } })).count).toBe(0);
+      expect((await tx.familyMembership.deleteMany({ where: { familyId: fam, userId: u.owner } })).count).toBe(0);
+    });
+    expect([await roleOf(u.owner), await roleOf(u.admin), await roleOf(u.member)]).toEqual(["OWNER", "ADMIN", "MEMBER"]);
+  });
+
+  it("an owner may create, promote, demote and delete owners", async () => {
+    await raw(fam, u.owner, (tx) => tx.familyMembership.create({ data: { familyId: fam, userId: u.extra, role: "OWNER" } }));
+    expect(await roleOf(u.extra)).toBe("OWNER");
+    await raw(fam, u.owner, async (tx) => {
+      expect((await tx.familyMembership.updateMany({ where: { familyId: fam, userId: u.member }, data: { role: "OWNER" } })).count).toBe(1);
+      expect((await tx.familyMembership.updateMany({ where: { familyId: fam, userId: u.member }, data: { role: "MEMBER" } })).count).toBe(1);
+      expect((await tx.familyMembership.updateMany({ where: { familyId: fam, userId: u.extra }, data: { role: "ADMIN" } })).count).toBe(1);
+      expect((await tx.familyMembership.deleteMany({ where: { familyId: fam, userId: u.extra } })).count).toBe(1);
+    });
+    expect([await roleOf(u.member), await roleOf(u.extra)]).toEqual(["MEMBER", null]);
+  });
+
+  it("the last owner can be neither demoted nor removed, not even by the table owner", async () => {
+    await expect(
+      raw(fam, u.owner, (tx) => tx.familyMembership.updateMany({ where: { familyId: fam, userId: u.owner }, data: { role: "ADMIN" } })),
+    ).rejects.toThrow(/at least one owner/);
+    await expect(
+      raw(fam, u.owner, (tx) => tx.familyMembership.deleteMany({ where: { familyId: fam, userId: u.owner } })),
+    ).rejects.toThrow(/at least one owner/);
+    await expect(admin.familyMembership.delete({ where: row(u.owner) })).rejects.toThrow(/at least one owner/);
+    expect(await roleOf(u.owner)).toBe("OWNER");
+    // With a second owner the first one may step down.
+    await raw(fam, u.owner, async (tx) => {
+      await tx.familyMembership.updateMany({ where: { familyId: fam, userId: u.admin }, data: { role: "OWNER" } });
+      expect((await tx.familyMembership.updateMany({ where: { familyId: fam, userId: u.owner }, data: { role: "ADMIN" } })).count).toBe(1);
+    });
+    expect([await roleOf(u.owner), await roleOf(u.admin)]).toEqual(["ADMIN", "OWNER"]);
+  });
+});

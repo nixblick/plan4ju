@@ -63,7 +63,14 @@ external database with a non-superuser owner role and a separate `plan4ju_app` r
 
 Run any TLS-terminating proxy (Caddy, nginx, Traefik) on the host and forward to `127.0.0.1:3000`. Requirements:
 HTTPS only (redirect port 80), forward `Host`, `X-Forwarded-For` and `X-Forwarded-Proto`, and set
-`BETTER_AUTH_URL` to the public https URL. Minimal Caddy example:
+`BETTER_AUTH_URL` to the public https URL.
+
+`TRUSTED_PROXY_HOPS` (default `1`) is the number of proxies in front of the app that append to `X-Forwarded-For`.
+The client address for rate limits is the entry that many places from the right; everything left of it can be set
+by the client and is ignored. Without `X-Forwarded-For` the app uses `X-Real-IP`. One proxy on the same host: `1`;
+a CDN or load balancer in front of that proxy: `2`; no proxy at all: `0` (forwarded headers are ignored).
+
+Minimal Caddy example:
 
 ```
 plan.example.org {

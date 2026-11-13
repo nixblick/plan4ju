@@ -4,6 +4,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
+import { CLIENT_IP_HEADER, withClientIp } from "./client-ip";
 import { prisma } from "./db";
 import { authSecret, baseUrl } from "./env";
 import { sendMailInBackground } from "./mail";
@@ -73,6 +74,9 @@ export const auth = betterAuth({
       "/send-verification-email": { window: 60, max: 3 },
     },
   },
+  // The client address is resolved once from the proxy headers (client-ip.ts, TRUSTED_PROXY_HOPS)
+  // and handed over in our own header, which handleAuthRequest overwrites on every request.
+  advanced: { ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] } },
   databaseHooks: {
     user: {
       create: {
@@ -89,3 +93,8 @@ export const auth = betterAuth({
   },
   plugins: [nextCookies()],
 });
+
+/** Entry point for the /api/auth route: sets the trusted client address before Better Auth sees the request. */
+export function handleAuthRequest(req: Request): Promise<Response> {
+  return auth.handler(new Request(req, { headers: withClientIp(req.headers) }));
+}

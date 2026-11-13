@@ -57,6 +57,7 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       ANALYTICS_SCRIPT_URL: ${ANALYTICS_SCRIPT_URL:-}
       ANALYTICS_SITE: ${ANALYTICS_SITE:-}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
     read_only: true
     tmpfs: ["/tmp"]
     cap_drop: [ALL]

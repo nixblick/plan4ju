@@ -7,7 +7,8 @@ import { APIError } from "better-auth/api";
 import { auth } from "@/server/auth";
 import { baseUrl } from "@/server/env";
 import { ConflictError, ForbiddenError, InvalidInvitationError, NotFoundError, RateLimitError } from "@/server/errors";
-import { rateLimit } from "@/server/ratelimit";
+import { assertBelowLimit, clearLimit, LOGIN_FAILURES, loginFailureKey, rateLimit, recordHit } from "@/server/ratelimit";
+import { clientIp as trustedClientIp, withClientIp } from "@/server/client-ip";
 import { registerWithInvitation } from "@/server/onboarding";
 import { sendMailInBackground } from "@/server/mail";
 import { acceptInvitation, createInvitation, revokeInvitation } from "@/server/services/invitations";
@@ -19,7 +20,7 @@ const text = (f: FormData, k: string) => String(f.get(k) ?? "");
 const MIN = 60 * 1000;
 
 function clientIp(h: Headers): string {
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  return trustedClientIp(h) ?? "unknown";
 }
 
 /** Redirects back with a short error code; the page maps it to a German message. */
@@ -43,13 +44,17 @@ export async function loginAction(form: FormData) {
   const email = text(form, "email").trim().toLowerCase();
   const next = safeNext(text(form, "weiter"));
   const nextQ = next ? `&weiter=${encodeURIComponent(next)}` : "";
-  const h = await headers();
+  const h = withClientIp(await headers());
+  const ip = clientIp(h);
+  const failKey = loginFailureKey(email, ip);
   let failure: string | null = null;
   try {
-    rateLimit(`login:ip:${clientIp(h)}`, 20, 15 * MIN);
-    rateLimit(`login:mail:${email}`, 5, 15 * MIN);
+    rateLimit(`login:ip:${ip}`, 20, 15 * MIN);
+    assertBelowLimit(failKey, LOGIN_FAILURES.max);
     await auth.api.signInEmail({ body: { email, password: text(form, "password") }, headers: h });
+    clearLimit(failKey);
   } catch (e) {
+    if (e instanceof APIError && e.status !== "FORBIDDEN") recordHit(failKey, LOGIN_FAILURES.windowMs);
     if (e instanceof RateLimitError) failure = "zu-viele";
     else if (e instanceof APIError && e.status === "FORBIDDEN") failure = "unbestaetigt";
     else if (e instanceof APIError) failure = "ungueltig";
@@ -67,7 +72,7 @@ export async function logoutAction() {
 
 export async function requestResetAction(form: FormData) {
   const email = text(form, "email").trim().toLowerCase();
-  const h = await headers();
+  const h = withClientIp(await headers());
   try {
     rateLimit(`reset:ip:${clientIp(h)}`, 10, 15 * MIN);
     rateLimit(`reset:mail:${email}`, 3, 15 * MIN);
@@ -81,7 +86,7 @@ export async function requestResetAction(form: FormData) {
 
 export async function resetPasswordAction(form: FormData) {
   const token = text(form, "token");
-  const h = await headers();
+  const h = withClientIp(await headers());
   let failure: string | null = null;
   try {
     rateLimit(`resetdo:ip:${clientIp(h)}`, 10, 15 * MIN);
@@ -100,7 +105,7 @@ export async function resetPasswordAction(form: FormData) {
 export async function registerAction(form: FormData) {
   const token = text(form, "token");
   const path = `/einladung/${encodeURIComponent(token)}`;
-  const h = await headers();
+  const h = withClientIp(await headers());
   let joined: { familyId: string; userId: string } | null = null;
   let failure: string | null = null;
   try {
