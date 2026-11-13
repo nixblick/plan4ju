@@ -64,6 +64,15 @@ describe("generation", () => {
     expect(titles).not.toContain("Neu für dich: Eigene Notiz");
   });
 
+  it("an assignment older than 7 days is not new", async () => {
+    const old = await admin.task.create({
+      data: { familyId: f.familyA, title: "Alte Zuweisung", createdById: f.userA, assignments: { create: { profileId: profileBoth, familyId: f.familyA, createdAt: new Date("2026-11-08T08:00:00Z") } } },
+    });
+    await syncAndCount(f.userBoth, f.familyA, NOW, app);
+    expect((await listNotifications(f.userBoth, f.familyA, app)).map((x) => x.title)).not.toContain("Neu für dich: Alte Zuweisung");
+    await admin.task.delete({ where: { id: old.id } });
+  });
+
   it("respects the per-user settings", async () => {
     expect(await getPrefs(f.userA, f.familyA, app)).toEqual(DEFAULT_PREFS);
     await savePrefs(f.userA, f.familyA, { ...DEFAULT_PREFS, birthdays: false }, app);

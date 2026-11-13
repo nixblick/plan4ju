@@ -5,7 +5,7 @@
 - Benachrichtigungen: bell with unread count (header on phones, sidebar from `md`), list `/benachrichtigungen`, generated lazily on page load for the signed-in user (due/overdue tasks, today's routines, birthdays today and tomorrow, new assignments by others within 7 days), deduplicated, old ones cleaned up. Settings per user and family (`/benachrichtigungen/einstellungen`).
 - Kalender-Abo: private ICS feed per user (`/api/kalender/feed/<token>.ics`, events and birthdays, 30 days back to one year ahead), shown once, stored as hash only, renewable and revocable, dead when the member leaves; rate limited.
 - Optional daily e-mail digest (off by default) via `POST /api/jobs/digest` with `NOTIFY_JOB_TOKEN` from the environment (404 without it).
-- Migrations `notifications`, `notifications_rls` (appended): tables `notification`, `notification_pref`, `calendar_feed` with forced RLS (own rows only, also for owners), FK to the membership, `task_assignment.createdAt`; SECURITY DEFINER functions `app_calendar_feed_lookup`, `app_digest_claim`. Web-Push not built (needs a vendor push service), see `docs/benachrichtigungen.md`.
+- Migrations `notifications`, `notifications_rls` (appended): tables `notification`, `notification_pref`, `calendar_feed` with forced RLS (own rows only, also for owners), FK to the membership, `task_assignment.createdAt` (backfilled from the task, migration `assignment_backfill`, so existing assignments do not show up as new); SECURITY DEFINER functions `app_calendar_feed_lookup`, `app_digest_claim`. Web-Push not built (needs a vendor push service), see `docs/benachrichtigungen.md`.
 
 ## 0.5.2 (14.11.2026)
 
