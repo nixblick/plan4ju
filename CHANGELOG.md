@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 (13.11.2026)
+
+Release 0.4 "Freizeit und persönliche Übersicht": Wunschzettel mit Reservierung und Überraschungsschutz, OpenStreetMap-Karte mit Kategorien und Symbolen, Orte und befristete Veranstaltungen mit Archiv, Filter nach Kategorie, Ersteller und Name, Achtsamkeit mit Sichtbarkeit je Eintrag. Details in 0.3.2 bis 0.3.9.
+
+- Abnahme gegen den Produktionscontainer mit zwei erfundenen Familien: `abnahme-0.4` 8 von 8 grün, `abnahme-0.3` 7 von 7 und `abnahme-0.2` 7 von 7 weiter grün; Vitest 456 von 456, Lint und Typecheck sauber, CI grün. Kartenkacheln kommen vom eingestellten Kachelserver (Vorgabe OpenStreetMap), in der Abnahme abgefangen.
+
 ## 0.3.9 (13.11.2026)
 
 - Release 0.4 acceptance spec `tests-e2e/abnahme-0.4.spec.ts` (part of `test:abnahme`, against the container, no sign-up, 375 px): two members share a place and a dated event and filter by category and creator; a wish reserved by Ben stays invisible to Anna; Anna's private mindfulness entry is invisible to Ben, Clara and the other family, the family entry is visible to both members, the entry shared with Ben only to Ben.
