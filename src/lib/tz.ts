@@ -1,24 +1,44 @@
 // Time zone helpers built on Intl only (no dependency). An "instant" is a Date (UTC); a local time is
 // a calendar day "YYYY-MM-DD" plus "HH:MM" in an IANA zone.
 
-const fmtCache = new Map<string, Intl.DateTimeFormat>();
+// Two bounded caches. Zone names come from user input (family setting, TZID in imported files), so
+// neither may grow without limit: `byZone` is keyed by the canonical name Intl reports
+// (resolvedOptions().timeZone), `byName` maps a spelling to it. Invalid names throw and are never cached.
+export const TZ_CACHE_MAX = 500;
+const byZone = new Map<string, Intl.DateTimeFormat>();
+const byName = new Map<string, Intl.DateTimeFormat>();
+
+function remember<V>(m: Map<string, V>, k: string, v: V) {
+  if (m.size >= TZ_CACHE_MAX) m.delete(m.keys().next().value!); // drop the oldest entry
+  m.set(k, v);
+}
 
 function formatter(tz: string): Intl.DateTimeFormat {
-  let f = fmtCache.get(tz);
+  const hit = byName.get(tz);
+  if (hit) return hit;
+  const created = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz, // throws RangeError for an unknown zone: nothing is cached then
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const zone = created.resolvedOptions().timeZone;
+  let f = byZone.get(zone);
   if (!f) {
-    f = new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz,
-      hourCycle: "h23",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-    fmtCache.set(tz, f);
+    f = created;
+    remember(byZone, zone, f);
   }
+  remember(byName, tz, f);
   return f;
+}
+
+/** Sizes of the formatter caches (for tests). */
+export function tzCacheSize(): { zones: number; names: number } {
+  return { zones: byZone.size, names: byName.size };
 }
 
 export function isValidTimeZone(tz: string): boolean {

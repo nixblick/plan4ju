@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Security (#7): ICS parsing has one step budget for the whole file (100 000 steps over all recurring events), stops every series once 5000 instances are stored, reads at most 10 000 VEVENTs, ends after 3 s, and does not expand FREQ=SECONDLY/MINUTELY/HOURLY (first instance only, flagged as truncated). SSRF check allows IPv6 only from global unicast 2000::/3 after the mapped/NAT64/6to4 checks (64:ff9b:1::/48 stays blocked). Time zone formatter cache keyed by the canonical zone, invalid names not cached, bounded to 500 entries. Calendar limit per family enforced with `pg_advisory_xact_lock` so parallel imports cannot exceed it. Tests for each.
+
 ## 0.2.0 (13.11.2026)
 
 Release 0.2 "Familienorganisation": Aufgaben mit mehreren oder keinen Zuständigen, Routinen (fest, reihum oder je Termin einzeln zugeordnet), Geburtstage, gemeinsamer Kalender mit ICS-Import und Abonnement, Dashboard mit "Als Nächstes", "Heute zu Hause" und Woche. Details in 0.1.3 bis 0.1.7.

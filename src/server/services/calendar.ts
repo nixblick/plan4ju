@@ -292,6 +292,9 @@ async function replaceEvents(tx: Tx, familyId: string, calendarId: string, parse
 }
 
 async function assertRoomForCalendar(ctx: FamilyContext) {
+  // Serialize count + create per family: without the lock two parallel requests both see room and
+  // together exceed MAX_CALENDARS. The lock ends with the transaction that creates the calendar.
+  await ctx.tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('external_calendar'), hashtext(${ctx.familyId}))::text`;
   if ((await ctx.tx.externalCalendar.count({ where: { familyId: ctx.familyId } })) >= MAX_CALENDARS) throw new ConflictError("Too many calendars");
 }
 

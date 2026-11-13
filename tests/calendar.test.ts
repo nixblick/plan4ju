@@ -207,6 +207,19 @@ describe("ICS subscription", () => {
     await expect(importIcsFile(f.userA, f.familyA, { name: "zu viel", text: ics() }, app, NOW)).rejects.toThrow();
     await expect(addSubscription(f.userA, f.familyA, { name: "zu viel", url: SECRET_URL }, { client: app, now: NOW })).rejects.toThrow();
   });
+
+  it("parallel imports never exceed the limit (count and create are serialized per family)", async () => {
+    const have = await admin.externalCalendar.count({ where: { familyId: f.familyB } });
+    const tries = 2 * MAX_CALENDARS;
+    const results = await Promise.allSettled(
+      Array.from({ length: tries }, (_, i) => importIcsFile(f.userB, f.familyB, { name: `P${i}`, text: ics() }, app, NOW)),
+    );
+    const ok = results.filter((r) => r.status === "fulfilled").length;
+    expect(await admin.externalCalendar.count({ where: { familyId: f.familyB } })).toBe(MAX_CALENDARS);
+    expect(ok).toBe(MAX_CALENDARS - have);
+    expect(results.filter((r) => r.status === "rejected").length).toBe(tries - ok);
+    await admin.externalCalendar.deleteMany({ where: { familyId: f.familyB, name: { startsWith: "P" } } });
+  });
 });
 
 describe("large file", () => {

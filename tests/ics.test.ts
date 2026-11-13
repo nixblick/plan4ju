@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { IcsError, parseIcs } from "../src/server/ics";
+import { ICS_LIMITS, IcsError, parseIcs } from "../src/server/ics";
 
 const TZ = "Europe/Berlin";
 const win = { from: new Date("2026-11-01T00:00:00Z"), to: new Date("2027-03-31T00:00:00Z") };
@@ -109,5 +109,61 @@ describe("parseIcs", () => {
   it("calendar name from X-WR-CALNAME", () => {
     const text = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//example.test//T//DE", "X-WR-CALNAME:Schulferien", "END:VCALENDAR"].join("\r\n");
     expect(parseIcs(text, TZ, win).calendarName).toBe("Schulferien");
+  });
+
+  describe("limits across the whole file", () => {
+    const w = { from: new Date("2026-11-01T00:00:00Z"), to: new Date("2027-11-01T00:00:00Z") };
+    const longRunning = (i: number) => ev(`UID:m${i}@example.test`, "DTSTART:19700101T080000Z", "RRULE:FREQ=DAILY", `SUMMARY:Serie ${i}`);
+
+    it("many masters share one step budget (no per-master allowance)", () => {
+      // 200 daily series since 1970: ~20 700 steps each, ~4.1 million in total without a shared budget
+      const text = cal(...Array.from({ length: 200 }, (_, i) => longRunning(i)));
+      const t0 = Date.now();
+      const r = parseIcs(text, TZ, w, { maxSteps: 50_000 });
+      const ms = Date.now() - t0;
+      expect(r.truncated).toBe(true);
+      expect(ms).toBeLessThan(5000);
+    });
+
+    it("the default budget also keeps a hostile file short", () => {
+      const text = cal(...Array.from({ length: 500 }, (_, i) => longRunning(i)));
+      const t0 = Date.now();
+      const r = parseIcs(text, TZ, w);
+      expect(r.truncated).toBe(true);
+      expect(Date.now() - t0).toBeLessThan(ICS_LIMITS.maxMs + 2000);
+    });
+
+    it("stops all masters once maxEvents is reached", () => {
+      const daily = (i: number) => ev(`UID:d${i}@example.test`, "DTSTART:20261101T080000Z", "RRULE:FREQ=DAILY", `SUMMARY:T ${i}`);
+      const r = parseIcs(cal(...Array.from({ length: 50 }, (_, i) => daily(i))), TZ, w, { maxEvents: 300 });
+      expect(r.truncated).toBe(true);
+      expect(r.events).toHaveLength(300);
+    });
+
+    it("SECONDLY, MINUTELY and HOURLY rules are not expanded", () => {
+      for (const freq of ["SECONDLY", "MINUTELY", "HOURLY"]) {
+        const many = Array.from({ length: 100 }, (_, i) => ev(`UID:${freq}${i}@example.test`, "DTSTART:20261102T080000Z", `RRULE:FREQ=${freq}`, "SUMMARY:Takt"));
+        const t0 = Date.now();
+        const r = parseIcs(cal(...many), TZ, w);
+        expect(Date.now() - t0).toBeLessThan(3000);
+        expect(r.truncated).toBe(true);
+        expect(r.events).toHaveLength(100); // only the first instance of each
+      }
+    });
+
+    it("reads at most maxVevents components", () => {
+      const singles = Array.from({ length: 50 }, (_, i) => ev(`UID:s${i}@example.test`, "DTSTART:20261201T100000Z", "SUMMARY:x"));
+      const r = parseIcs(cal(...singles), TZ, w, { maxVevents: 20 });
+      expect(r.events).toHaveLength(20);
+      expect(r.truncated).toBe(true);
+    });
+
+    it("the deadline ends the expansion", () => {
+      const text = cal(...Array.from({ length: 200 }, (_, i) => longRunning(i)));
+      const t0 = Date.now();
+      const r = parseIcs(text, TZ, w, { maxSteps: 10_000_000, maxMs: 200 });
+      expect(r.truncated).toBe(true);
+      expect(Date.now() - t0).toBeLessThan(2000);
+    });
   });
 });

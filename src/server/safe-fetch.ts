@@ -107,6 +107,9 @@ export function isBlockedAddress(ip: string): boolean {
   if ((g[0]! & 0xffc0) === 0xfec0) return true; // fec0::/10 site local (deprecated)
   if ((g[0]! & 0xff00) === 0xff00) return true; // multicast
   if (g[0] === 0x2001 && g[1] === 0x0db8) return true; // documentation
+  // After the special cases above (mapped / NAT64 / 6to4 with a checked IPv4) only global unicast
+  // 2000::/3 is allowed; every other IPv6 range is reserved, local or not routed and stays blocked.
+  if ((g[0]! & 0xe000) !== 0x2000) return true;
   return false;
 }
 
