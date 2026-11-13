@@ -7,7 +7,7 @@ import { APIError } from "better-auth/api";
 import { auth } from "@/server/auth";
 import { baseUrl } from "@/server/env";
 import { ConflictError, ForbiddenError, InvalidInvitationError, NotFoundError, RateLimitError } from "@/server/errors";
-import { assertLoginAllowed, rateLimit, recordLoginFailure, recordLoginSuccess } from "@/server/ratelimit";
+import { assertLoginAllowed, loginDelayMs, normalizeLoginEmail, rateLimit, recordLoginFailure, recordLoginSuccess } from "@/server/ratelimit";
 import { clientIp as trustedClientIp, withClientIp } from "@/server/client-ip";
 import { registerWithInvitation } from "@/server/onboarding";
 import { sendMailInBackground } from "@/server/mail";
@@ -41,7 +41,7 @@ function codeFor(e: unknown): string {
 // ---- Login, logout, reset ------------------------------------------------------------
 
 export async function loginAction(form: FormData) {
-  const email = text(form, "email").trim().toLowerCase();
+  const email = normalizeLoginEmail(text(form, "email"));
   const next = safeNext(text(form, "weiter"));
   const nextQ = next ? `&weiter=${encodeURIComponent(next)}` : "";
   const h = withClientIp(await headers());
@@ -49,11 +49,14 @@ export async function loginAction(form: FormData) {
   let failure: string | null = null;
   try {
     rateLimit(`login:ip:${ip}`, 20, 15 * MIN);
+    if (!email) throw new APIError("UNAUTHORIZED");
     assertLoginAllowed(email, ip);
+    const delay = loginDelayMs(email);
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
     await auth.api.signInEmail({ body: { email, password: text(form, "password") }, headers: h });
     recordLoginSuccess(email, ip);
   } catch (e) {
-    if (e instanceof APIError && e.status !== "FORBIDDEN") recordLoginFailure(email, ip);
+    if (email && e instanceof APIError && e.status !== "FORBIDDEN") recordLoginFailure(email, ip);
     if (e instanceof RateLimitError) failure = "zu-viele";
     else if (e instanceof APIError && e.status === "FORBIDDEN") failure = "unbestaetigt";
     else if (e instanceof APIError) failure = "ungueltig";

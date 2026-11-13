@@ -19,6 +19,7 @@ Only the latest release on `main` receives fixes.
   the app connects with a role that cannot bypass it.
 - Registration only by invitation. Passwords are hashed with Argon2id. E-mail verification is required.
 - Rate limits on sign-in, password reset and invitations (in-memory counters: per instance).
+- Login: failures per e-mail and client address block hard (5 / 15 min); failures per account only slow every further attempt down (1 s doubling to 10 s), which brakes brute force from rotating addresses without letting a stranger lock the owner out.
 - Security headers and a Content Security Policy are set on every response.
 - No secrets in the repository; configuration comes from environment variables. CI runs gitleaks.
 

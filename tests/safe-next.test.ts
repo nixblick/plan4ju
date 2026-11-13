@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { safeNext } from "../src/lib/safe-next";
 import { clientIp, trustedProxyHops, withClientIp, CLIENT_IP_HEADER } from "../src/server/client-ip";
-import { assertBelowLimit, assertLoginAllowed, clearLimit, recordHit, recordLoginFailure, recordLoginSuccess } from "../src/server/ratelimit";
+import {
+  accountFailureKey, assertBelowLimit, assertLoginAllowed, clearLimit, loginDelayMs, loginFailureKey, normalizeLoginEmail,
+  recordHit, recordLoginFailure, recordLoginSuccess,
+} from "../src/server/ratelimit";
 import { RateLimitError } from "../src/server/errors";
 
 describe("safeNext (shared by the login page and the login action)", () => {
@@ -75,19 +78,24 @@ describe("login failure limiter", () => {
 });
 
 describe("login failures per account", () => {
-  it("rotating client addresses still hit the per-account limit", () => {
+  it("rotating addresses are slowed down (1, 2, 4 ... max 10 s), never hard blocked", () => {
     const email = `rotate-${Math.random().toString(36).slice(2)}@example.test`;
     const t0 = Date.now();
-    for (let i = 0; i < 20; i++) {
-      const ip = `198.51.100.${i + 1}`;
-      expect(() => assertLoginAllowed(email, ip, t0)).not.toThrow();
-      recordLoginFailure(email, ip, t0);
+    for (let i = 0; i < 19; i++) recordLoginFailure(email, `198.51.100.${i + 1}`, t0);
+    expect(loginDelayMs(email, t0)).toBe(0);
+    const delays: number[] = [];
+    for (let i = 19; i < 26; i++) {
+      recordLoginFailure(email, `198.51.100.${i + 1}`, t0);
+      delays.push(loginDelayMs(email, t0));
     }
-    expect(() => assertLoginAllowed(email, "198.51.100.200", t0)).toThrow(RateLimitError);
-    expect(() => assertLoginAllowed("other@example.test", "198.51.100.200", t0)).not.toThrow();
+    expect(delays).toEqual([1000, 2000, 4000, 8000, 10000, 10000, 10000]);
+    expect(() => assertLoginAllowed(email, "198.51.100.200", t0)).not.toThrow();
+    expect(loginDelayMs("other@example.test", t0)).toBe(0);
+    recordLoginSuccess(email, "198.51.100.200");
+    expect(loginDelayMs(email, t0)).toBe(0);
   });
 
-  it("five failures from one address block that address; a success resets it", () => {
+  it("five failures from one address block that address; a success resets both counters", () => {
     const email = `one-${Math.random().toString(36).slice(2)}@example.test`;
     const t0 = Date.now();
     for (let i = 0; i < 4; i++) recordLoginFailure(email, "203.0.113.7", t0);
@@ -97,5 +105,18 @@ describe("login failures per account", () => {
     recordLoginFailure(email, "203.0.113.7", t0);
     expect(() => assertLoginAllowed(email, "203.0.113.7", t0)).toThrow(RateLimitError);
     expect(() => assertLoginAllowed(email, "203.0.113.8", t0)).not.toThrow();
+  });
+
+  it("keys live in separate namespaces and cannot collide", () => {
+    expect(accountFailureKey("a@example.test")).not.toBe(loginFailureKey("a@example.test", ""));
+    expect(loginFailureKey("a@x.test:1", "2")).not.toBe(loginFailureKey("a@x.test", "1:2"));
+    expect(accountFailureKey("a@example.test").startsWith("login:acct:")).toBe(true);
+    expect(loginFailureKey("a@example.test", "1").startsWith("login:pair:")).toBe(true);
+  });
+
+  it("normalizes and validates the e-mail", () => {
+    expect(normalizeLoginEmail("  Anna@Example.TEST ")).toBe("anna@example.test");
+    expect(normalizeLoginEmail("no-at-sign")).toBeNull();
+    expect(normalizeLoginEmail("a b@example.test")).toBeNull();
   });
 });

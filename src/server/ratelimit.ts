@@ -39,20 +39,38 @@ export function clearLimit(key: string): void {
   hits.delete(key);
 }
 
-/** Failed logins per e-mail and client address. Only failures count, a success resets it. */
-export const LOGIN_FAILURES = { max: 5, windowMs: 15 * 60 * 1000 } as const;
-export const loginFailureKey = (email: string, ip: string) => `login:fail:${email}:${ip}`;
-/** Failed logins per account across all addresses (rotating IPs), higher threshold. */
-export const ACCOUNT_FAILURES = { max: 20, windowMs: 15 * 60 * 1000 } as const;
-export const accountFailureKey = (email: string) => `login:fail:${email}`;
+/** Lower-cased, trimmed e-mail; null if it is not a plausible address. */
+export function normalizeLoginEmail(raw: string): string | null {
+  const e = raw.trim().toLowerCase();
+  return e.length <= 200 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? e : null;
+}
 
+/** Failed logins per e-mail and client address: hard block. Only failures count. */
+export const LOGIN_FAILURES = { max: 5, windowMs: 15 * 60 * 1000 } as const;
+export const loginFailureKey = (email: string, ip: string) => `login:pair:${JSON.stringify([email, ip])}`;
 /**
- * Login check before the password is verified: per e-mail+address and per account.
- * Only failures count (recordLoginFailure); a success clears the e-mail+address counter.
+ * Failed logins per account across all addresses (rotating IPs). Above the threshold every
+ * attempt is slowed down (1, 2, 4, 8, 10 s ...) instead of refused, so a stranger cannot lock
+ * the owner out, but brute force over many addresses gets slow.
  */
+export const ACCOUNT_FAILURES = { threshold: 20, windowMs: 15 * 60 * 1000, maxDelayMs: 10_000 } as const;
+export const accountFailureKey = (email: string) => `login:acct:${JSON.stringify([email])}`;
+
+function countOf(key: string, now: number): number {
+  const h = hits.get(key);
+  return h && h.resetAt > now ? h.count : 0;
+}
+
+/** Hard check before the password is verified (e-mail + address only). */
 export function assertLoginAllowed(email: string, ip: string, now = Date.now()): void {
   assertBelowLimit(loginFailureKey(email, ip), LOGIN_FAILURES.max, now);
-  assertBelowLimit(accountFailureKey(email), ACCOUNT_FAILURES.max, now);
+}
+
+/** Delay before verifying the password, growing with failures on the account. */
+export function loginDelayMs(email: string, now = Date.now()): number {
+  const over = countOf(accountFailureKey(email), now) - ACCOUNT_FAILURES.threshold;
+  if (over < 0) return 0;
+  return Math.min(1000 * 2 ** over, ACCOUNT_FAILURES.maxDelayMs);
 }
 
 export function recordLoginFailure(email: string, ip: string, now = Date.now()): void {
@@ -62,4 +80,5 @@ export function recordLoginFailure(email: string, ip: string, now = Date.now()):
 
 export function recordLoginSuccess(email: string, ip: string): void {
   clearLimit(loginFailureKey(email, ip));
+  clearLimit(accountFailureKey(email));
 }
