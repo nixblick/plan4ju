@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.0 (14.11.2026)
+
+- Release 0.6: data export and account/family deletion (0.5.16), move or cancel single instances of a series (0.5.17/0.5.18), pictures for recipes and wishes (0.5.19), background refresh of calendar subscriptions (0.5.20), retry of undelivered feedback mails (0.5.21/0.5.22).
+- New acceptance spec `tests-e2e/abnahme-0.6.spec.ts` (part of `npm run test:abnahme`): export carries only own data, a member deletes the own account, one series instance is moved, an uploaded picture is visible only to the own family. 375 px.
+
 ## 0.5.22 (14.11.2026)
 
 - Feedback retry: the job no longer picks up feedback whose first delivery is still running (no duplicate mail).
