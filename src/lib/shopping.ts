@@ -1,6 +1,6 @@
 // Pure helpers for the shopping list: matching and merging entries. No I/O.
 
-export const SHOPPING_LIMITS = { name: 200, unit: 30, note: 500, shops: 20, shopName: 40, items: 1000, sources: 20 } as const;
+export const SHOPPING_LIMITS = { name: 200, unit: 30, note: 500, shops: 20, shopName: 40, items: 1000, sources: 20, quantity: 100_000 } as const;
 
 /** Default shops of a family, created on first use (§13 "Geschäftskategorien"). */
 export const DEFAULT_SHOPS = ["Supermarkt", "Drogerie", "Baumarkt", "IKEA"] as const;
@@ -38,8 +38,14 @@ const round = (q: number) => Math.round(q * 1000) / 1000;
  * Adds `add` to `into` if both describe the same thing in compatible units and returns the new
  * amount in the unit of `into`; null when they cannot be merged (e.g. "1 Bund" and "100 g").
  * A missing quantity on one side keeps the other one ("Salz" + "1 TL Salz" = "1 TL Salz").
+ * A sum above SHOPPING_LIMITS.quantity is not merged (null, so it becomes a new line).
  */
 export function mergeAmounts(into: Amount, add: Amount): Amount | null {
+  const r = mergeRaw(into, add);
+  return r && r.quantity != null && r.quantity > SHOPPING_LIMITS.quantity ? null : r;
+}
+
+function mergeRaw(into: Amount, add: Amount): Amount | null {
   const a = unitKey(into.unit);
   const b = unitKey(add.unit);
   if (into.quantity == null && !a) return { quantity: add.quantity, unit: add.unit };

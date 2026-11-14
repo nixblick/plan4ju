@@ -35,6 +35,10 @@ describe("merge helpers", () => {
   it("adds compatible amounts and refuses the others", () => {
     expect(mergeAmounts({ quantity: 200, unit: "g" }, { quantity: 300, unit: "Gramm" })).toEqual({ quantity: 500, unit: "g" });
     expect(mergeAmounts({ quantity: 1, unit: "kg" }, { quantity: 250, unit: "g" })).toEqual({ quantity: 1.25, unit: "kg" });
+    // Sums above the save limit are not merged (new line instead of an unsavable entry).
+    expect(mergeAmounts({ quantity: 60_000, unit: "g" }, { quantity: 50_000, unit: "g" })).toBeNull();
+    expect(mergeAmounts({ quantity: 90_000, unit: "ml" }, { quantity: 11, unit: "l" })).toBeNull();
+    expect(mergeAmounts({ quantity: 50_000, unit: "g" }, { quantity: 50_000, unit: "g" })).toEqual({ quantity: 100_000, unit: "g" });
     expect(mergeAmounts({ quantity: 500, unit: "ml" }, { quantity: 1, unit: "l" })).toEqual({ quantity: 1500, unit: "ml" });
     expect(mergeAmounts({ quantity: 2, unit: null }, { quantity: 3, unit: null })).toEqual({ quantity: 5, unit: null });
     expect(mergeAmounts({ quantity: null, unit: null }, { quantity: 1, unit: "TL" })).toEqual({ quantity: 1, unit: "TL" });

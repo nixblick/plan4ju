@@ -19,7 +19,7 @@ function uniqueToConflict(e: unknown): never {
 }
 
 const optText = (max: number) => z.string().trim().max(max).nullish().transform((v) => (v ? v : null));
-const quantity = z.number().finite().positive().max(100_000).nullish().transform((v) => v ?? null);
+const quantity = z.number().finite().positive().max(L.quantity).nullish().transform((v) => v ?? null);
 const shopIds = z.array(z.string().max(100)).max(L.shops).default([]).transform((a) => [...new Set(a.filter(Boolean))]);
 
 export const itemInput = z.object({

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.9 (14.11.2026)
+
+- Einkauf: merging a recipe ingredient into an open entry no longer produces a quantity above 100,000 that could not be saved anymore. `mergeAmounts` returns null above `SHOPPING_LIMITS.quantity`, so the ingredient becomes a new line; the Zod schema uses the same limit. New cases in `tests/shopping.test.ts`.
+
 ## 0.5.8 (14.11.2026)
 
 - Achtsamkeit: saving a rating twice at the same moment (double submit) no longer ends in a 500. `saveEntry` now uses an upsert (`INSERT ... ON CONFLICT`) on the unique key instead of look-up-then-create. New race case in `tests/mindfulness.test.ts`.
