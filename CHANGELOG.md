@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.10 (14.11.2026)
+
+- Essen: planning or editing a meal while its recipe (or slot, cook profile) is deleted at the same moment no longer ends in a 500. The meal services' constraint helper now maps a foreign key violation (P2003) to `NotFoundError`, so the page shows the "nicht gefunden" notice; P2002 stays a conflict. New cases in `tests/meals.test.ts`.
+
 ## 0.5.9 (14.11.2026)
 
 - Einkauf: merging a recipe ingredient into an open entry no longer produces a quantity above 100,000 that could not be saved anymore. `mergeAmounts` returns null above `SHOPPING_LIMITS.quantity`, so the ingredient becomes a new line; the Zod schema uses the same limit. New cases in `tests/shopping.test.ts`.

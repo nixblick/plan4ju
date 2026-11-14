@@ -3,7 +3,7 @@ import { admin, app, cleanup, seed, type Fixture } from "./helpers";
 import { ForbiddenError, NotFoundError } from "../src/server/errors";
 import { getDashboard } from "../src/server/services/dashboard";
 import {
-  addMealSlot, copyMealWeek, createMeal, deleteMeal, deleteMealSlot, getMealWeek, MealConflictError, moveMealSlot, renameMealSlot, updateMeal,
+  addMealSlot, copyMealWeek, createMeal, deleteMeal, deleteMealSlot, getMealWeek, MealConflictError, moveMealSlot, renameMealSlot, uniqueToConflict, updateMeal,
 } from "../src/server/services/meals";
 import { createRecipe, deleteRecipe } from "../src/server/services/recipes";
 
@@ -154,5 +154,27 @@ describe("meal plan RLS", () => {
     const r = await Promise.allSettled([1, 2, 3].map((n) => createMeal(f.userA, f.familyA, { date: "2026-12-01", slotId: frueh!.id, text: `Race ${n}` }, app)));
     expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(1);
     for (const x of r) if (x.status === "rejected") expect(x.reason).toBeInstanceOf(MealConflictError);
+  });
+});
+
+describe("meal constraint races", () => {
+  it("maps a foreign key violation (recipe deleted meanwhile) to NotFoundError and a unique one to a conflict", () => {
+    expect(() => uniqueToConflict({ code: "P2003" })).toThrow(NotFoundError);
+    expect(() => uniqueToConflict({ code: "P2002" })).toThrow(MealConflictError);
+    const other = new Error("boom");
+    expect(() => uniqueToConflict(other)).toThrow(other);
+  });
+
+  it("planning a meal while its recipe is deleted never ends in a raw database error", async () => {
+    const slot = (await slotsA())[0]!;
+    for (let i = 0; i < 5; i++) {
+      const r = await createRecipe(f.userA, f.familyA, { title: `Wettlauf ${i}`, ingredients: [], steps: [], tags: [] }, app);
+      const date = `2027-03-0${i + 1}`;
+      const [c] = await Promise.allSettled([
+        createMeal(f.userA, f.familyA, { date, slotId: slot.id, recipeId: r.id }, app),
+        deleteRecipe(f.userA, f.familyA, r.id, app),
+      ]);
+      if (c.status === "rejected") expect(c.reason).toBeInstanceOf(NotFoundError);
+    }
   });
 });

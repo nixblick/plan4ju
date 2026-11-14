@@ -16,9 +16,14 @@ export class MealConflictError extends ConflictError {
   }
 }
 
-/** A unique index lost a race (two concurrent plans of one slot, same slot name): conflict, not 500. */
-function uniqueToConflict(e: unknown): never {
-  if (e && typeof e === "object" && (e as { code?: unknown }).code === "P2002") throw new MealConflictError("Unique constraint");
+/**
+ * A constraint lost a race, not a 500: a unique index (two concurrent plans of one slot, same slot name)
+ * becomes a conflict; a foreign key (recipe, slot or profile deleted between check and write) becomes not found.
+ */
+export function uniqueToConflict(e: unknown): never {
+  const code = e && typeof e === "object" ? (e as { code?: unknown }).code : undefined;
+  if (code === "P2002") throw new MealConflictError("Unique constraint");
+  if (code === "P2003") throw new NotFoundError("Referenced row is gone");
   throw e;
 }
 
