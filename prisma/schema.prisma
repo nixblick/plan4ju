@@ -233,7 +233,7 @@ model TaskAssignment {
   familyId  String
   createdAt DateTime      @default(now())
   task      Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  profile   FamilyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile   FamilyProfile @relation(fields: [profileId, familyId], references: [id, familyId], onDelete: Cascade)
 
   @@id([taskId, profileId])
   @@index([familyId])
@@ -350,7 +350,7 @@ model RoutineAssignment {
   familyId  String
   position  Int           @default(0)
   routine   Routine       @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  profile   FamilyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile   FamilyProfile @relation(fields: [profileId, familyId], references: [id, familyId], onDelete: Cascade)
 
   @@id([routineId, profileId])
   @@index([familyId])
@@ -384,7 +384,7 @@ model RoutineOccurrenceAssignment {
   profileId    String
   familyId     String
   occurrence   RoutineOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
-  profile      FamilyProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile      FamilyProfile     @relation(fields: [profileId, familyId], references: [id, familyId], onDelete: Cascade)
 
   @@id([occurrenceId, profileId])
   @@index([familyId])

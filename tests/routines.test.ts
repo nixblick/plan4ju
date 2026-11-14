@@ -233,3 +233,19 @@ describe("tasks: extended features", () => {
     await admin.task.deleteMany({ where: { id: { in: [mine.id, other.id, none.id, done.id] } } });
   });
 });
+
+describe("assignments: profile must belong to the row's family (composite FKs)", () => {
+  it("refuses a foreign profile even for the table owner, own profile still works", async () => {
+    const t = await createTask(f.userA, f.familyA, { title: "FK-Probe", assigneeIds: [] }, app);
+    const r = await createRoutine(f.userA, f.familyA, { ...base, title: "FK-Probe", assigneeIds: [] }, app, NOW);
+    const occ = await admin.routineOccurrence.findFirstOrThrow({ where: { routineId: r.id } });
+    await expect(admin.taskAssignment.create({ data: { taskId: t.id, profileId: f.profileB, familyId: f.familyA } })).rejects.toThrow();
+    await expect(admin.routineAssignment.create({ data: { routineId: r.id, profileId: f.profileB, familyId: f.familyA } })).rejects.toThrow();
+    await expect(admin.routineOccurrenceAssignment.create({ data: { occurrenceId: occ.id, profileId: f.profileB, familyId: f.familyA } })).rejects.toThrow();
+    await admin.taskAssignment.create({ data: { taskId: t.id, profileId: f.profileA, familyId: f.familyA } });
+    await admin.routineAssignment.create({ data: { routineId: r.id, profileId: f.profileA, familyId: f.familyA } });
+    await admin.routineOccurrenceAssignment.create({ data: { occurrenceId: occ.id, profileId: f.profileA, familyId: f.familyA } });
+    await admin.task.delete({ where: { id: t.id } });
+    await admin.routine.delete({ where: { id: r.id } });
+  });
+});

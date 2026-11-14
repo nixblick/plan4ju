@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.7 (14.11.2026)
+
+- Assignments of tasks, routines and routine occurrences now keep the profile inside the row's family at database level: migration `assignment_profile_family_fk` (appended) replaces the single `profileId` foreign keys with composite `(profileId, familyId)` keys like `meal_cook`. Before, only the services checked it. New case in `tests/routines.test.ts`.
+
 ## 0.5.6 (14.11.2026)
 
 - Wunschzettel: the wishing person no longer sees reservation rows (and `reservedById`) at database level, also outside surprise mode. Migration `wish_reservation_wisher` (appended) narrows the `wish_reservation` policy; the taken flag comes from the SECURITY DEFINER function `app_wish_reserved_for_wisher` (wish ids only). New case in `tests/rls.test.ts`.
