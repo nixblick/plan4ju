@@ -281,11 +281,14 @@ test.describe.serial("Abnahme Release 0.5", () => {
     const [, m, d] = isoDay(1).split("-").map(Number) as [number, number, number];
     await admin.birthday.create({ data: { familyId: fa, name: BDAY, month: m, day: d, createdById: `anna-a5-${run}` } });
     const b = pages.ben!;
-    await b.goto("/");
-    await expect(b.locator("[data-testid=bell-count]:visible")).toBeVisible();
+    // Rows written straight into the database bypass the app's change mark: since 0.7.2 the bell picks them up
+    // within 5 minutes, the notifications page at once (docs/benachrichtigungen.md).
     await b.goto("/benachrichtigungen");
     await expect(b.getByRole("button", { name: new RegExp(`Heute fällig: ${TASK}`) })).toBeVisible();
     await expect(b.getByText(`Morgen hat ${BDAY} Geburtstag`)).toBeVisible();
+    await b.goto("/");
+    await expect(b.locator("[data-testid=bell-count]:visible")).toBeVisible();
+    await b.goto("/benachrichtigungen");
     await noOverflow(b);
     await b.screenshot({ path: `${shots}/09-benachrichtigungen.png`, fullPage: true });
     const dp = pages.dora!;

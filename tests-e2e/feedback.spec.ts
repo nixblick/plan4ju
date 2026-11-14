@@ -65,8 +65,8 @@ test.describe.serial("Feedback", () => {
     await expect(dialog).toBeHidden();
 
     const row = await admin.feedback.findFirstOrThrow({ where: { familyId, message: `Bitte eine Einkaufsliste ${run}` } });
-    expect(row).toMatchObject({ kind: "IDEA", pagePath: "/aufgaben", screenWidth: 375, imageType: "image/png" });
-    expect(row.image!.length).toBeGreaterThan(1000);
+    // Delivered: the screenshot is in the mail (checked below), not kept in the database (0.7.2).
+    expect(row).toMatchObject({ kind: "IDEA", pagePath: "/aufgaben", screenWidth: 375, imageType: null, image: null });
     expect(row.authorName).toBe("Udo Muster");
     expect(row.mailedAt).not.toBeNull();
 

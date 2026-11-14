@@ -12,7 +12,7 @@ Code review: errors, load and token costs.
 - Feedback: after a successful delivery the screenshot (`image`, `imageType`) is cleared, because it went out as the attachment. Existing rows are unchanged.
 - AI recipe idea: the default model is now `claude-haiku-4-5` (`AI_MODEL` still overrides it). `max_tokens` drops from 2000 to 1200. The recipe comes back through a forced tool call with a schema instead of free-text JSON; text is kept as a fallback. New limits on top of 20 per family and hour: 30 per family and day, and 300 per day for all families together.
 - Open: routine rotation after a rule change (#17).
-- Tests: `tests/feed-route.test.ts`, `tests/notification-sync.test.ts`, plus new cases for the digest retry, digest titles, exceptions of a long series, pictures with a module off, feedback screenshot removal, AI tool call and daily limit.
+- Tests: `tests/feed-route.test.ts`, `tests/notification-sync.test.ts`, plus new cases for the digest retry, digest titles, exceptions of a long series, pictures with a module off, feedback screenshot removal, AI tool call and daily limit. Playwright: `feedback.spec.ts` expects the screenshot gone after delivery; `abnahme-0.5.spec.ts` opens `/benachrichtigungen` first, because rows written straight into the database reach the bell only within 5 minutes.
 
 ## 0.7.1 (14.11.2026)
 
