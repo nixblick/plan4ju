@@ -8,6 +8,9 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 // missing or broken external source (an address that cannot be resolved) leaves the core functions
 // working and shows a clear notice. The other family sees nothing. 375 px. No real retailer or FES
 // endpoint is contacted: flyer links are only links, pickups come from an ICS file uploaded here.
+// Since 0.5.2/0.5.3 also: the core modules (Karte, Wunschzettel, Achtsamkeit, Essen) switch off
+// without hurting the core; notifications for a due task and a birthday; the private ICS feed
+// carries only the own family's dates and is revocable.
 // Users are created directly with a password (no sign-up).
 const run = randomBytes(4).toString("hex");
 const admin = new PrismaClient({ datasourceUrl: process.env.DATABASE_ADMIN_URL });
@@ -21,8 +24,14 @@ const people = {
 const MARKET = `Wochenmarkt ${run}`;
 const BIO = `Bioabfall ${run}`;
 const REST = `Restmüll ${run}`;
+const TASK = `Fahrrad flicken ${run}`;
+const BDAY = `Opa Muster ${run}`;
+const EVENT_A = `Laternenumzug ${run}`;
+const EVENT_B = `Elternabend Beispiel ${run}`;
+const CORE = ["Karte", "Wunschzettel", "Achtsamkeit", "Essen und Rezepte"];
 const pages: Record<string, Page> = {};
 const families: string[] = [];
+const profiles: Record<string, string> = {};
 
 function isoDay(offset: number): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date(Date.now() + offset * 86_400_000));
@@ -47,7 +56,7 @@ async function createUser(key: keyof typeof people, familyId: string, role: "OWN
     data: { id: `acc-${key}-a5-${run}`, accountId: u.id, providerId: "credential", userId: u.id, password: await hash(who.phrase, { memoryCost: 19456, timeCost: 2, parallelism: 1 }) },
   });
   await admin.familyMembership.create({ data: { familyId, userId: u.id, role } });
-  await admin.familyProfile.create({ data: { familyId, displayName: who.name, userId: u.id } });
+  profiles[key] = (await admin.familyProfile.create({ data: { familyId, displayName: who.name, userId: u.id } })).id;
 }
 
 async function signIn(browser: Browser, key: keyof typeof people): Promise<Page> {
@@ -233,9 +242,90 @@ test.describe.serial("Abnahme Release 0.5", () => {
     await d.screenshot({ path: `${shots}/07-andere-familie.png`, fullPage: true });
   });
 
+  test("Kernmodule schaltbar: Karte, Wunschzettel, Achtsamkeit, Essen aus; Kern läuft, andere Familie unberührt", async ({ browser }) => {
+    const a = pages.anna!;
+    await a.goto("/familie/module");
+    for (const label of CORE) {
+      await a.getByRole("button", { name: `${label} ausschalten` }).click();
+      await expect(a.getByRole("status")).toHaveText("Modul ausgeschaltet.");
+    }
+    const b = pages.ben!;
+    for (const path of ["/karte", "/wuensche", "/achtsamkeit", "/essen", "/rezepte"]) await gone(b, path);
+    for (const path of ["/", "/kalender", "/aufgaben", "/einkauf", "/geburtstage"]) {
+      const r = await b.goto(path);
+      expect(r?.status(), path).toBe(200);
+      await expect(b.locator("main")).toBeVisible();
+    }
+    await b.goto("/");
+    await expect(b.getByTestId("week")).toBeVisible();
+    await expect(b.getByRole("region", { name: "Essen heute" })).toHaveCount(0);
+    await noOverflow(b);
+    await b.screenshot({ path: `${shots}/08-kernmodule-aus.png`, fullPage: true });
+    // Familie Beispiel keeps its modules.
+    const d = pages.dora ?? (await signIn(browser, "dora"));
+    expect((await d.goto("/karte"))?.status()).toBe(200);
+    await a.goto("/familie/module");
+    for (const label of CORE) {
+      await a.getByRole("button", { name: `${label} einschalten` }).click();
+      await expect(a.getByRole("status")).toHaveText("Modul eingeschaltet.");
+    }
+    expect((await b.goto("/karte"))?.status()).toBe(200);
+  });
+
+  test("Benachrichtigungen: fällige Aufgabe und Geburtstag, nur für Ben, nicht für Familie Beispiel", async () => {
+    const fa = families[0]!;
+    const today = isoDay(0);
+    await admin.task.create({
+      data: { familyId: fa, title: TASK, dueDate: new Date(`${today}T00:00:00Z`), createdById: `anna-a5-${run}`, assignments: { create: { profileId: profiles.ben!, familyId: fa } } },
+    });
+    const [, m, d] = isoDay(1).split("-").map(Number) as [number, number, number];
+    await admin.birthday.create({ data: { familyId: fa, name: BDAY, month: m, day: d, createdById: `anna-a5-${run}` } });
+    const b = pages.ben!;
+    await b.goto("/");
+    await expect(b.locator("[data-testid=bell-count]:visible")).toBeVisible();
+    await b.goto("/benachrichtigungen");
+    await expect(b.getByRole("button", { name: new RegExp(`Heute fällig: ${TASK}`) })).toBeVisible();
+    await expect(b.getByText(`Morgen hat ${BDAY} Geburtstag`)).toBeVisible();
+    await noOverflow(b);
+    await b.screenshot({ path: `${shots}/09-benachrichtigungen.png`, fullPage: true });
+    const dp = pages.dora!;
+    await dp.goto("/benachrichtigungen");
+    await expect(dp.locator("main")).toBeVisible();
+    for (const s of [TASK, BDAY]) await expect(dp.locator("body")).not.toContainText(s);
+  });
+
+  test("Privater Kalender-Feed: nur eigene Familientermine, widerrufbar", async ({ request }) => {
+    const [fa, fb] = families as [string, string];
+    for (const [familyId, title, by] of [[fa, EVENT_A, "anna"], [fb, EVENT_B, "dora"]] as const) {
+      await admin.calendarEvent.create({
+        data: { familyId, title, allDay: true, startDate: new Date(`${isoDay(2)}T00:00:00Z`), endDate: new Date(`${isoDay(2)}T00:00:00Z`), createdById: `${by}-a5-${run}` },
+      });
+    }
+    const b = pages.ben!;
+    await b.goto("/benachrichtigungen/einstellungen");
+    await b.getByRole("button", { name: "Kalender-Link erzeugen" }).click();
+    const url = await b.getByLabel("Kalender-Link").inputValue();
+    expect(url).toMatch(/\/api\/kalender\/feed\/[A-Za-z0-9_-]{43}\.ics$/);
+    await noOverflow(b);
+    await b.screenshot({ path: `${shots}/10-kalender-link.png`, fullPage: true });
+    const path = new URL(url).pathname;
+    const res = await request.get(path);
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toContain("text/calendar");
+    const body = await res.text();
+    expect(body).toContain(`SUMMARY:${EVENT_A}`);
+    expect(body).toContain(`SUMMARY:Geburtstag: ${BDAY}`);
+    expect(body).not.toContain(EVENT_B);
+    expect(body).not.toContain("Dora");
+    await b.reload();
+    await b.getByRole("button", { name: "Link widerrufen" }).click();
+    await expect(b.getByText(/Kalender-Link widerrufen/)).toBeVisible();
+    expect((await request.get(path)).status()).toBe(404);
+  });
+
   test("375 px ohne Überlauf", async () => {
     const p = pages.anna!;
-    for (const path of ["/", "/familie/module", "/einkauf", "/einkauf/prospekte", "/kalender", "/kalender/abfall", "/kalender/quellen"]) {
+    for (const path of ["/", "/familie/module", "/einkauf", "/einkauf/prospekte", "/kalender", "/kalender/abfall", "/kalender/quellen", "/benachrichtigungen", "/benachrichtigungen/einstellungen"]) {
       await p.goto(path);
       await expect(p.locator("main")).toBeVisible();
       await noOverflow(p);

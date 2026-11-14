@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.5 (14.11.2026)
+
+Release 0.5 vollständig abgenommen (v0.5.0 war schon getaggt und live, daher als 0.5.5): umfasst die Kernmodule-Schalter (0.5.2), Benachrichtigungen und das private Kalender-Abo (0.5.3, 0.5.4).
+
+- Acceptance `abnahme-0.5` extended: core modules (Karte, Wunschzettel, Achtsamkeit, Essen) off without hurting the core and without touching the other family, notifications for a due task and a birthday tomorrow (not visible to the other family), private ICS feed with only the own family's dates and revocation (404 afterwards), 375 px for the notification pages.
+- Abnahme gegen den Produktionscontainer mit zwei erfundenen Familien: `abnahme-0.5` 10 von 10 grün, `abnahme-0.4` 8 von 8, `abnahme-0.3` 7 von 7, `abnahme-0.2` 7 von 7; Vitest 486 von 486, Lint und Typecheck sauber.
+
 ## 0.5.4 (14.11.2026)
 
 - Kalender-Abo: semicolons in titles, places and descriptions are escaped correctly in the ICS feed (RFC 5545); the test checked the wrong value.
