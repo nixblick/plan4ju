@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 0.8.1 (14.11.2026)
+
+Calendar series (#13).
+
+- The edit page of a series lists its changed instances ("Geänderte Einzeltermine": cancelled or moved, with the new day and time); each links to the instance page, so a cancelled date can be restored without knowing its address (`listEventInstances`).
+- Moving an instance with only a new start time (no end time, no end date) keeps the series' duration instead of making it zero minutes long; the duration is kept in real minutes, also across the DST change.
+- Tests: `tests/series-exceptions.test.ts` (duration across DST, list of changed instances, other family), Playwright `serie-einzeln.spec.ts` (list at 375 px, restore from there).
+
 ## 0.8.0 (14.11.2026)
 
 Customer feedback (#19): menu, start page per user, shopping categories, POI search, bell.

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { errorMessages, okMessages, one } from "@/lib/messages";
 import { NotFoundError } from "@/server/errors";
-import { getEvent } from "@/server/services/calendar";
+import { getEvent, listEventInstances } from "@/server/services/calendar";
 import { getDashboard } from "@/server/services/dashboard";
 import { requireFamily } from "@/server/session";
 import { deleteEventAction, updateEventAction } from "../../../kalender-actions";
@@ -10,6 +10,8 @@ import { buttonCls, Card, Notice } from "../../../ui";
 import { EventFields } from "../../form";
 
 export const dynamic = "force-dynamic";
+
+const dmy = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
 export default async function TerminBearbeiten({
   params,
@@ -31,6 +33,7 @@ export default async function TerminBearbeiten({
     }),
   ]);
   if (!ev) notFound();
+  const changed = ev.freq ? await listEventInstances(user.id, familyId, ev.id) : [];
   return (
     <div className="space-y-6">
       <p>
@@ -47,6 +50,22 @@ export default async function TerminBearbeiten({
           <button className={buttonCls}>Änderungen speichern</button>
         </form>
       </Card>
+      {changed.length > 0 ? (
+        <Card title="Geänderte Einzeltermine">
+          <ul className="divide-y divide-stone-200" data-testid="geaenderte-termine">
+            {changed.map((i) => (
+              <li key={i.date}>
+                <Link href={`/kalender/termin/${encodeURIComponent(ev.id)}/${i.date}`} className="flex min-h-11 flex-wrap items-center gap-x-2 py-2 text-sm underline">
+                  <span>{dmy(i.date)}</span>
+                  <span className="text-stone-700">
+                    {i.cancelled ? "abgesagt" : `verschoben auf ${dmy(i.startDate)}${i.startTime ? `, ${i.startTime} Uhr` : ""}`}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
       <Card title="Löschen">
         <details className="rounded-xl border border-red-200 bg-red-50 p-3">
           <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-red-800">Endgültig löschen …</summary>

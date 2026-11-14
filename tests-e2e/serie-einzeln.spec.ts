@@ -84,6 +84,23 @@ test.describe.serial("Einzelne Termine einer Serie", () => {
     await expect(page.getByTestId("instance-state")).toHaveText("Wie in der Serie: 18.01.2027, 18:00 Uhr.");
   });
 
+  test("Die Serie listet abgesagte Termine, von dort zurückholen", async () => {
+    await page.goto("/kalender?ansicht=woche&datum=2027-01-25&tag=2027-01-25");
+    await page.getByRole("link", { name: `Chor ${run}` }).click();
+    await page.getByRole("button", { name: "Nur diesen Termin absagen" }).click();
+    await expect(page.getByTestId("instance-state")).toHaveText("Abgesagt.");
+    const id = new URL(page.url()).pathname.split("/")[3];
+    await page.goto(`/kalender/termin/${id}`);
+    const list = page.getByTestId("geaenderte-termine");
+    await expect(list).toContainText("25.01.2027abgesagt");
+    await expect(list).toContainText("11.01.2027verschoben auf 13.01.2027, 19:00 Uhr");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+    await list.getByRole("link", { name: /25\.01\.2027/ }).click();
+    await expect(page).toHaveURL(/\/2027-01-25$/);
+    await page.getByRole("button", { name: "Wie in der Serie" }).click();
+    await expect(page.getByTestId("instance-state")).toHaveText("Wie in der Serie: 25.01.2027, 18:00 Uhr.");
+  });
+
   test("Eine Routine auf morgen verschieben", async () => {
     const tomorrow = plus(berlinToday(), 1);
     await page.goto("/routinen");

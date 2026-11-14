@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { admin, app, cleanup, seed, type Fixture } from "./helpers";
 import { DayTakenError, NotFoundError } from "../src/server/errors";
 import { expandEvent, type RawEvent } from "../src/lib/calendar-items";
-import { createEvent, getEventInstance, listItems, resetEventInstance, setEventInstance, updateEvent, getEvent } from "../src/server/services/calendar";
+import { createEvent, getEventInstance, listEventInstances, listItems, resetEventInstance, setEventInstance, updateEvent, getEvent } from "../src/server/services/calendar";
 import { createRoutine, listOccurrences, moveOccurrence, setRoutineStatus, updateRoutine } from "../src/server/services/routines";
 
 let f: Fixture;
@@ -95,6 +95,29 @@ describe("calendar: single instances of a series", () => {
     await setEventInstance(f.userA, f.familyA, e.id, { date: "2026-10-26", startDate: "2026-10-24", startTime: "15:30", endTime: "16:00" }, app);
     const y = await admin.calendarEventException.findFirstOrThrow({ where: { eventId: e.id, date: new Date("2026-10-26T00:00:00Z") } });
     expect([y.startsAt!.toISOString(), y.endsAt!.toISOString()]).toEqual(["2026-10-24T13:30:00.000Z", "2026-10-24T14:00:00.000Z"]);
+  });
+
+  it("moving with a new start time only keeps the series' duration, also across DST", async () => {
+    const e = await createEvent(f.userA, f.familyA, { title: "Training", startDate: "2026-10-19", startTime: "17:00", endTime: "18:30", freq: "WEEKLY", weekdays: [0] }, app);
+    // summer time rule day, moved into winter time with only a start time
+    await setEventInstance(f.userA, f.familyA, e.id, { date: "2026-10-19", startDate: "2026-10-27", startTime: "16:00" }, app);
+    const inst = await getEventInstance(f.userA, f.familyA, e.id, "2026-10-19", app);
+    expect([inst!.startDate, inst!.startTime, inst!.endDate, inst!.endTime]).toEqual(["2026-10-27", "16:00", "2026-10-27", "17:30"]);
+    const x = await admin.calendarEventException.findFirstOrThrow({ where: { eventId: e.id } });
+    expect([x.startsAt!.toISOString(), x.endsAt!.toISOString()]).toEqual(["2026-10-27T15:00:00.000Z", "2026-10-27T16:30:00.000Z"]);
+  });
+
+  it("lists cancelled and moved instances of a series", async () => {
+    const e = await createEvent(f.userA, f.familyA, { title: "Musik", startDate: "2026-11-02", startTime: "15:00", endTime: "16:00", freq: "WEEKLY", weekdays: [0] }, app);
+    expect(await listEventInstances(f.userA, f.familyA, e.id, app)).toEqual([]);
+    await setEventInstance(f.userA, f.familyA, e.id, { date: "2026-11-16", startDate: "2026-11-17" }, app);
+    await setEventInstance(f.userA, f.familyA, e.id, { date: "2026-11-09", cancelled: true }, app);
+    const list = await listEventInstances(f.userA, f.familyA, e.id, app);
+    expect(list.map((i) => [i.date, i.cancelled, i.startDate, i.startTime])).toEqual([
+      ["2026-11-09", true, "2026-11-09", null],
+      ["2026-11-16", false, "2026-11-17", "15:00"],
+    ]);
+    await expect(listEventInstances(f.userB, f.familyB, e.id, app)).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("cancels one instance and resets it again", async () => {

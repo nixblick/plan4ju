@@ -253,7 +253,11 @@ export async function setEventInstance(userId: string, familyId: string, eventId
           const endTime = d.endTime ?? (d.startTime ? d.startTime : localParts(e.endsAt!, tz).time);
           const length = daysBetween(span.startDate, localParts(e.endsAt!, tz).date);
           const end = d.endDate ?? (d.startTime && !d.endTime ? d.startDate! : addDays(d.startDate!, length));
-          shape = { ...shape, startsAt: zonedToUtc(d.startDate!, startTime, tz), endsAt: zonedToUtc(end, endTime, tz) };
+          const startsAt = zonedToUtc(d.startDate!, startTime, tz);
+          // Only a new start time given: keep the series' duration instead of a zero-length event.
+          const keepLength = d.startTime && !d.endTime && !d.endDate;
+          const endsAt = keepLength ? new Date(startsAt.getTime() + (e.endsAt!.getTime() - e.startsAt!.getTime())) : zonedToUtc(end, endTime, tz);
+          shape = { ...shape, startsAt, endsAt };
           if (shape.endsAt! < shape.startsAt!) throw new z.ZodError([{ code: "custom", path: ["endTime"], message: "End before start", input: d }]);
         }
       }
@@ -277,6 +281,25 @@ export function resetEventInstance(userId: string, familyId: string, eventId: st
     async (ctx) => {
       await ownSeries(ctx, eventId);
       await ctx.tx.calendarEventException.deleteMany({ where: { eventId, familyId: ctx.familyId, date: day(dt) } });
+    },
+    client,
+  );
+}
+
+/** All changed (moved or cancelled) instances of a series, ordered by their rule day. */
+export function listEventInstances(userId: string, familyId: string, eventId: string, client?: PrismaClient): Promise<InstanceView[]> {
+  return withFamily(
+    userId,
+    familyId,
+    async (ctx) => {
+      const { e, tz } = await ownSeries(ctx, eventId);
+      const xs = await ctx.tx.calendarEventException.findMany({ where: { eventId, familyId: ctx.familyId }, orderBy: { date: "asc" } });
+      return xs.map((x) => {
+        const date = iso(x.date);
+        if (x.cancelled) return { date, cancelled: true, moved: false, startDate: date, startTime: null, endDate: date, endTime: null };
+        const s = spanOf({ allDay: e.allDay, startsAt: x.startsAt, endsAt: x.endsAt, startDate: x.startDate ? iso(x.startDate) : null, endDate: x.endDate ? iso(x.endDate) : null }, tz);
+        return { date, cancelled: false, moved: true, ...s };
+      });
     },
     client,
   );
