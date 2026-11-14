@@ -96,4 +96,23 @@ test.describe.serial("Feedback", () => {
     await expect(p.getByRole("dialog", { name: "Feedback geben" })).toBeVisible();
     await ctx.close();
   });
+
+  test("Meldungen: Owner sieht Art, Datum und Versuche fremder Meldungen, Text nur bei eigenen", async () => {
+    const owner = await admin.user.findFirstOrThrow({ where: { email } });
+    const other = await admin.user.create({ data: { id: `u-fb-other-${run}`, name: "Bea Muster", email: `fb-other-${run}@example.test` } });
+    try {
+      await admin.familyMembership.create({ data: { familyId, userId: other.id } });
+      const base = { familyId, kind: "BUG" as const, pagePath: "/", appVersion: "test", device: "Test", mailAttempts: 2, mailNextAt: new Date(Date.now() + 3_600_000) };
+      await admin.feedback.create({ data: { ...base, userId: owner.id, message: "Eigener Text sichtbar" } });
+      await admin.feedback.create({ data: { ...base, kind: "IDEA", userId: other.id, message: "Fremder Text geheim" } });
+      await page.goto("/familie/meldungen");
+      await expect(page.getByText("Eigener Text sichtbar")).toBeVisible();
+      await expect(page.getByTestId("meldung-row").filter({ hasText: "Idee" }).first()).toContainText("2 von 5 Versuchen");
+      expect(await page.content()).not.toContain("Fremder Text geheim");
+    } finally {
+      await admin.feedback.deleteMany({ where: { familyId, userId: other.id } });
+      await admin.familyMembership.deleteMany({ where: { familyId, userId: other.id } });
+      await admin.user.deleteMany({ where: { id: other.id } });
+    }
+  });
 });

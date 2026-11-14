@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 (14.11.2026)
+
+- Security (#14): the feedback retry counts an attempt BEFORE sending, through the new SECURITY DEFINER functions `app_feedback_claim` / `app_feedback_finish` (fixed `search_path`, only `mailAttempts`, `mailNextAt`, `mailedAt`, `mailFailedAt`; EXECUTE for `plan4ju_app` only). Feedback whose author left the family is marked failed instead of being resent endlessly. Each row runs in its own try/catch, so one broken row no longer stops the job.
+- `/familie/meldungen`: owners see kind, date and attempts of other members' feedback; the text is only returned by the server for the viewer's own feedback.
+- Tests: author left the family, broken row, owner does not see foreign text (vitest and Playwright).
+
 ## 0.6.0 (14.11.2026)
 
 - Release 0.6: data export and account/family deletion (0.5.16), move or cancel single instances of a series (0.5.17/0.5.18), pictures for recipes and wishes (0.5.19), background refresh of calendar subscriptions (0.5.20), retry of undelivered feedback mails (0.5.21/0.5.22).

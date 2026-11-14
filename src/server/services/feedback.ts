@@ -83,9 +83,9 @@ export async function submitFeedback(
   });
 
   if (!to) return { id, mailed: false };
+  if ((await claimAttempt(prisma, id, 0, new Date())) === null) return { id, mailed: false };
   const mailed = await deliver(id, to, author.email, { ...input, pagePath, appVersion: version, device, familyId: author.familyId, role, createdAt: now, imageType, image: image && imageType ? Buffer.from(image) : null }, deps.send);
-  await withFamily(author.userId, author.familyId, ({ tx }) =>
-    tx.feedback.update({ where: { id }, data: attemptResult(0, mailed, new Date()), select: { id: true } }));
+  await finishAttempt(prisma, id, mailed, new Date());
   return { id, mailed };
 }
 
@@ -100,6 +100,22 @@ export function attemptResult(previous: number, mailed: boolean, now: Date) {
   if (mailed) return { mailAttempts: attempts, mailedAt: now, mailNextAt: null };
   if (attempts >= MAX_MAIL_ATTEMPTS) return { mailAttempts: attempts, mailNextAt: null, mailFailedAt: now };
   return { mailAttempts: attempts, mailNextAt: new Date(now.getTime() + MAIL_BACKOFF_MINUTES[attempts - 1]! * 60_000) };
+}
+
+const ts = (d: Date) => d.toISOString();
+
+/**
+ * Counts one attempt BEFORE sending (SECURITY DEFINER, bookkeeping columns only). Returns the new attempt
+ * number, or null when the row must not be sent; a row whose author left the family is marked failed.
+ */
+async function claimAttempt(client: PrismaClient, id: string, expected: number, now: Date): Promise<number | null> {
+  const [r] = await client.$queryRaw<{ n: number | null }[]>`
+    SELECT app_feedback_claim(${id}, ${expected}::int, (${ts(now)}::timestamptz AT TIME ZONE 'UTC')) AS n`;
+  return r?.n ?? null;
+}
+
+async function finishAttempt(client: PrismaClient, id: string, mailed: boolean, now: Date): Promise<void> {
+  await client.$executeRaw`SELECT app_feedback_finish(${id}, ${mailed}, (${ts(now)}::timestamptz AT TIME ZONE 'UTC'))`;
 }
 
 interface MailFields {
@@ -156,35 +172,51 @@ export async function retryFeedbackMails(deps: FeedbackDeps & { client?: PrismaC
     SELECT * FROM app_feedback_retry_due((${now.toISOString()}::timestamptz AT TIME ZONE 'UTC'), ${RETRY_BATCH}::int)`;
   result.due = rows.length;
   for (const r of rows) {
-    const row = await withFamily(r.user_id, r.family_id, async ({ tx }) => {
-      const f = await tx.feedback.findFirst({ where: { id: r.feedback_id, mailedAt: null, mailFailedAt: null } });
-      if (!f) return null;
-      const m = await tx.familyMembership.findUnique({ where: { familyId_userId: { familyId: r.family_id, userId: f.userId } }, select: { role: true } });
-      return { ...f, role: m?.role ?? "ausgetreten" };
-    }, client);
-    if (!row) continue;
-    const mailed = await deliver(row.id, to, r.reply_to, { ...row, image: row.image ? Buffer.from(row.image) : null }, deps.send);
-    const data = attemptResult(row.mailAttempts, mailed, deps.now ?? new Date());
-    await withFamily(r.user_id, r.family_id, ({ tx }) =>
-      tx.feedback.updateMany({ where: { id: row.id, mailedAt: null, mailAttempts: row.mailAttempts }, data }), client);
-    if (mailed) result.mailed++;
-    else if ("mailFailedAt" in data) result.failed++;
-    else result.error++;
+    // Each row on its own: a broken row is counted as an error and never stops the run.
+    try {
+      const row = await withFamily(r.user_id, r.family_id, async ({ tx }) => {
+        const f = await tx.feedback.findFirst({ where: { id: r.feedback_id, mailedAt: null, mailFailedAt: null } });
+        if (!f) return null;
+        const m = await tx.familyMembership.findUnique({ where: { familyId_userId: { familyId: r.family_id, userId: f.userId } }, select: { role: true } });
+        return { ...f, role: m?.role ?? null };
+      }, client);
+      if (!row) continue;
+      const attempt = await claimAttempt(client, row.id, row.mailAttempts, deps.now ?? new Date());
+      if (attempt === null) {
+        if (!row.role) result.failed++;
+        continue;
+      }
+      const mailed = await deliver(row.id, to, r.reply_to, { ...row, role: row.role ?? "ausgetreten", image: row.image ? Buffer.from(row.image) : null }, deps.send);
+      await finishAttempt(client, row.id, mailed, deps.now ?? new Date());
+      if (mailed) result.mailed++;
+      else if (attempt >= MAX_MAIL_ATTEMPTS) result.failed++;
+      else result.error++;
+    } catch (e) {
+      console.error("feedback retry failed", r.feedback_id.slice(-6), e instanceof Error ? e.name : "error");
+      result.error++;
+    }
   }
   return result;
 }
 
-export interface UndeliveredFeedback { id: string; kind: string; message: string; createdAt: Date; mailAttempts: number; mailNextAt: Date | null; mailFailedAt: Date | null }
+/** message is only set for the viewer's own feedback; for others it is never read out of the service. */
+export interface UndeliveredFeedback { id: string; kind: string; message: string | null; own: boolean; createdAt: Date; mailAttempts: number; mailNextAt: Date | null; mailFailedAt: Date | null }
 
-/** "Meldungen, die nicht zugestellt wurden": owners of the active family only. */
+/** "Meldungen, die nicht zugestellt wurden": owners of the active family only; text of own feedback only. */
 export async function listUndeliveredFeedback(userId: string, familyId: string, client?: PrismaClient): Promise<UndeliveredFeedback[]> {
   return withFamily(userId, familyId, async ({ tx, role }) => {
     if (role !== "OWNER") throw new ForbiddenError("Owners only");
-    return tx.feedback.findMany({
+    const rows = await tx.feedback.findMany({
       where: { familyId, mailedAt: null },
-      select: { id: true, kind: true, message: true, createdAt: true, mailAttempts: true, mailNextAt: true, mailFailedAt: true },
+      select: { id: true, kind: true, userId: true, createdAt: true, mailAttempts: true, mailNextAt: true, mailFailedAt: true },
       orderBy: { createdAt: "desc" },
       take: 100,
     });
+    const ownIds = rows.filter((r) => r.userId === userId).map((r) => r.id);
+    const texts = ownIds.length
+      ? await tx.feedback.findMany({ where: { id: { in: ownIds }, userId }, select: { id: true, message: true } })
+      : [];
+    const byId = new Map(texts.map((t) => [t.id, t.message]));
+    return rows.map(({ userId: author, ...r }) => ({ ...r, own: author === userId, message: author === userId ? byId.get(r.id) ?? null : null }));
   }, client);
 }

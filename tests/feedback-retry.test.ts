@@ -92,4 +92,55 @@ describe("retryFeedbackMails", () => {
     expect(listB.some((r) => r.id === id)).toBe(false);
     await expect(listUndeliveredFeedback(f.userBoth, f.familyA)).rejects.toBeInstanceOf(ForbiddenError);
   });
+
+  it("an author who left the family gets bounded attempts and then counts as failed, never endless", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { id } = await submitFeedback({ userId: f.userBoth, email: "both@example.test", familyId: f.familyA },
+      { kind: "BUG", message: "Autor ist weg", pagePath: "/", screenWidth: 375 }, UA, null, { mailTo: TO, send: failing() });
+    await admin.familyMembership.deleteMany({ where: { familyId: f.familyA, userId: f.userBoth } });
+    try {
+      let t = Date.now();
+      for (let i = 0; i < 8; i++) {
+        t += min(13 * 60);
+        await retryFeedbackMails({ mailTo: TO, send: failing(), now: new Date(t) });
+      }
+      const r = await row(id);
+      expect(r.mailAttempts).toBeLessThanOrEqual(MAX_MAIL_ATTEMPTS);
+      expect(r.mailFailedAt).not.toBeNull();
+      expect(r.mailNextAt).toBeNull();
+    } finally {
+      await admin.familyMembership.create({ data: { familyId: f.familyA, userId: f.userBoth } });
+    }
+  });
+
+  it("a broken row does not stop the run", async () => {
+    const good = await submitFailed("trotzdem zustellen");
+    const broken = await submitFailed("kaputte Zeile");
+    const send = vi.fn().mockImplementation(async (m: { text: string }) => {
+      if (m.text.includes("kaputte Zeile")) throw new TypeError("boom");
+    });
+    // The claim of the broken row explodes; the other rows must still go out.
+    const orig = app.$queryRaw.bind(app);
+    const spy = vi.spyOn(app, "$queryRaw").mockImplementation(((q: TemplateStringsArray, ...v: unknown[]) => {
+      if (q.join("").includes("app_feedback_claim") && v[0] === broken) return Promise.reject(new Error("db broken"));
+      return orig(q, ...v);
+    }) as typeof app.$queryRaw);
+    const res = await retryFeedbackMails({ mailTo: TO, send, now: new Date(Date.now() + min(6)), client: app });
+    spy.mockRestore();
+    expect(res.error).toBeGreaterThanOrEqual(1);
+    expect((await row(good)).mailedAt).not.toBeNull();
+    expect((await row(broken)).mailedAt).toBeNull();
+  });
+
+  it("the owner sees kind, date and attempts of others' feedback, but never their text", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const r = await submitFeedback({ userId: f.userBoth, email: "both@example.test", familyId: f.familyA },
+      { kind: "IDEA", message: "fremder geheimer Text", pagePath: "/", screenWidth: 375 }, UA, null, { mailTo: TO, send: failing() });
+    const list = await listUndeliveredFeedback(f.userA, f.familyA);
+    const other = list.find((x) => x.id === r.id)!;
+    expect(other).toMatchObject({ kind: "IDEA", own: false, message: null, mailAttempts: 1 });
+    expect(JSON.stringify(list)).not.toContain("fremder geheimer Text");
+    const ownId = await submitFailed("mein eigener Text");
+    expect((await listUndeliveredFeedback(f.userA, f.familyA)).find((x) => x.id === ownId)?.message).toBe("mein eigener Text");
+  });
 });

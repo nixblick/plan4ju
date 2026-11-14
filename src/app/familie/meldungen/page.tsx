@@ -30,7 +30,8 @@ export default async function Meldungen() {
             {rows.map((r) => (
               <li key={r.id} className="py-3" data-testid="meldung-row">
                 <span className="block break-words">
-                  <strong>{KIND[r.kind] ?? r.kind}</strong> vom {fmt(r.createdAt)}: {r.message.length > 120 ? `${r.message.slice(0, 120)} …` : r.message}
+                  <strong>{KIND[r.kind] ?? r.kind}</strong> vom {fmt(r.createdAt)}
+                  {r.message !== null ? `: ${r.message.length > 120 ? `${r.message.slice(0, 120)} …` : r.message}` : " (Text nur für die Person, die sie geschrieben hat)"}
                 </span>
                 <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs ${r.mailFailedAt ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900"}`}>
                   {r.mailFailedAt
