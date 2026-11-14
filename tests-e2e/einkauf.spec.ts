@@ -163,7 +163,7 @@ test.describe.serial("Einkaufsliste", () => {
   test("Konto: Seite erreichbar, Kennwort ändern prüft das aktuelle (375 px)", async () => {
     const p = pages.anna!;
     await p.getByRole("banner").getByRole("link", { name: "Konto" }).click();
-    await expect(p.getByRole("heading", { name: "Konto" })).toBeVisible();
+    await expect(p.getByRole("heading", { name: "Konto", exact: true })).toBeVisible();
     await noOverflow(p);
     await p.getByLabel("Aktuelles Kennwort").fill("ganz-falsch-123");
     await p.getByLabel(/^Neues Kennwort \(/).fill("neues-kennwort-123");

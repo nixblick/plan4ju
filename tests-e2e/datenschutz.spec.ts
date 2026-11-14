@@ -1,8 +1,7 @@
 import { randomBytes } from "node:crypto";
+import { hash } from "@node-rs/argon2";
 import { PrismaClient } from "@prisma/client";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { createFamilyWithOwnerInvitation } from "../src/server/admin";
-import { createInvitation } from "../src/server/services/invitations";
 
 // Export, account deletion and family deletion on /konto at 375 px (docs/datenschutz.md).
 const run = randomBytes(4).toString("hex");
@@ -17,26 +16,34 @@ const people = {
 let familyId = "";
 const sessions: Record<string, Page> = {};
 
-async function join(browser: Browser, token: string, who: { name: string; phrase: string }): Promise<Page> {
-  const ctx = await browser.newContext({ viewport: { width: 375, height: 800 }, isMobile: true, hasTouch: true });
-  const page = await ctx.newPage();
-  await page.goto(`/einladung/${token}`);
-  await page.getByLabel("Dein Name").fill(who.name);
-  await page.getByLabel(/^Kennwort/).fill(who.phrase);
-  await page.getByRole("button", { name: "Zugang anlegen und beitreten" }).click();
-  await expect(page.getByTestId("week")).toBeVisible();
-  return page;
+async function signIn(browser: Browser, who: { email: string; phrase: string }): Promise<Page> {
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const p = await ctx.newPage();
+  await p.goto("/anmelden");
+  await p.getByLabel("E-Mail-Adresse").fill(who.email);
+  await p.getByLabel("Kennwort").fill(who.phrase);
+  await p.getByRole("button", { name: /Anmelden/ }).click();
+  await expect(p.getByRole("heading", { name: "Familie wählen" })).toBeVisible();
+  await p.getByRole("button", { name: "Öffnen" }).click();
+  await expect(p.getByTestId("week")).toBeVisible();
+  return p;
 }
 
 test.describe.serial("Datenschutz", () => {
+  // Users without sign-up: the full E2E run is close to the sign-up limit (see einkauf.spec.ts).
   test.beforeAll(async ({ browser }) => {
-    const a = await createFamilyWithOwnerInvitation(admin, { name: FAMILY, ownerEmail: people.anna.email });
-    familyId = a.familyId;
-    sessions.anna = await join(browser, a.token, people.anna);
-    const anna = await admin.user.findUniqueOrThrow({ where: { email: people.anna.email } });
-    await admin.task.create({ data: { familyId, title: `Annas Aufgabe ${run}`, createdById: anna.id } });
-    const invite = await createInvitation(anna.id, familyId, { email: people.ben.email, role: "MEMBER" });
-    sessions.ben = await join(browser, invite.token, people.ben);
+    familyId = (await admin.family.create({ data: { name: FAMILY } })).id;
+    for (const [key, who, role] of [["anna", people.anna, "OWNER"], ["ben", people.ben, "MEMBER"]] as const) {
+      const u = await admin.user.create({ data: { id: `${key}-ds-${run}`, name: who.name, email: who.email, emailVerified: true } });
+      await admin.account.create({
+        data: { id: `acc-${key}-ds-${run}`, accountId: u.id, providerId: "credential", userId: u.id, password: await hash(who.phrase, { memoryCost: 19456, timeCost: 2, parallelism: 1 }) },
+      });
+      await admin.familyMembership.create({ data: { familyId, userId: u.id, role } });
+      await admin.familyProfile.create({ data: { familyId, displayName: who.name, userId: u.id } });
+    }
+    await admin.task.create({ data: { familyId, title: `Annas Aufgabe ${run}`, createdById: `anna-ds-${run}` } });
+    sessions.anna = await signIn(browser, people.anna);
+    sessions.ben = await signIn(browser, people.ben);
   });
 
   test.afterAll(async () => {
