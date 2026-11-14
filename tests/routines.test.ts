@@ -75,6 +75,20 @@ describe("routines: assignment modes", () => {
     for (const r of [fixed, rot, per]) await setRoutineStatus(f.userA, f.familyA, r.id, "ARCHIVED", app, NOW);
   });
 
+  it("rotation keeps its order after a rule change although a future occurrence was skipped (#17)", async () => {
+    const input = { ...base, title: "Wechsel nach Änderung", endDate: addDays(TODAY, 6), assignMode: "ROTATING" as const, assigneeIds: [second, f.profileA] };
+    const r = await createRoutine(f.userA, f.familyA, input, app, NOW);
+    const list = async () => (await listOccurrences(f.userA, f.familyA, ...range(8), app, NOW)).filter((o) => o.routineId === r.id);
+    const before = await list();
+    const who = before.map((o) => o.assigneeIds[0]);
+    expect(who.slice(0, 4)).toEqual([second, f.profileA, second, f.profileA]);
+    await setOccurrenceStatus(f.userA, f.familyA, before[2]!.id, "SKIPPED", app);
+    await updateRoutine(f.userA, f.familyA, r.id, { ...input, description: "geändert" }, app, NOW);
+    const after = await list();
+    expect(after.map((o) => [o.date, o.assigneeIds[0]])).toEqual(before.map((o) => [o.date, o.assigneeIds[0]]));
+    await setRoutineStatus(f.userA, f.familyA, r.id, "ARCHIVED", app, NOW);
+  });
+
   it("a foreign profile cannot be assigned", async () => {
     await expect(createRoutine(f.userA, f.familyA, { ...base, assigneeIds: [f.profileB] }, app, NOW)).rejects.toBeInstanceOf(NotFoundError);
   });
