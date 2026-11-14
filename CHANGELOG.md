@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.22 (14.11.2026)
+
+- Feedback retry: the job no longer picks up feedback whose first delivery is still running (no duplicate mail).
+
 ## 0.5.21 (14.11.2026)
 
 - Feedback mails are retried. A failed delivery counts as attempt 1; the job `POST /api/jobs/kalender` (same `JOB_TOKEN`) now also retries due feedback with `mailedAt` empty, with backoff 5 min, 30 min, 2 h, 12 h; after 5 attempts the row is marked failed (`mailFailedAt`) and not tried again. Without `FEEDBACK_MAIL_TO` nothing is attempted. The new SECURITY DEFINER function `app_feedback_retry_due` only lists; each retry reads and updates the row under RLS as the author (if still a member) or an owner. New columns `mailAttempts`, `mailNextAt`, `mailFailedAt` on `feedback`. Owners see "Meldungen, die nicht zugestellt wurden" at `/familie/meldungen` (link on the module page); other roles get 404. Tests: new `tests/feedback-retry.test.ts`.

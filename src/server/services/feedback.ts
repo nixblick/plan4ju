@@ -67,19 +67,21 @@ export async function submitFeedback(
   const pagePath = sanitizePath(input.pagePath);
   const device = deviceSummary(userAgent);
 
+  const to = "mailTo" in deps ? deps.mailTo : process.env.FEEDBACK_MAIL_TO;
   const { id, role } = await withFamily(author.userId, author.familyId, async ({ tx, role }) => {
     const row = await tx.feedback.create({
       data: {
         familyId: author.familyId, userId: author.userId, kind: input.kind, message: input.message, authorName: input.authorName, pagePath,
         appVersion: version, device, screenWidth: input.screenWidth, createdAt: now,
         imageType, image: imageType && image ? Buffer.from(image) : null,
+        // Hold the job off while the first delivery is in flight, so it cannot send the same mail twice.
+        mailNextAt: to ? new Date(now.getTime() + MAIL_BACKOFF_MINUTES[0] * 60_000) : null,
       },
       select: { id: true },
     });
     return { id: row.id, role: role as FamilyRole };
   });
 
-  const to = "mailTo" in deps ? deps.mailTo : process.env.FEEDBACK_MAIL_TO;
   if (!to) return { id, mailed: false };
   const mailed = await deliver(id, to, author.email, { ...input, pagePath, appVersion: version, device, familyId: author.familyId, role, createdAt: now, imageType, image: image && imageType ? Buffer.from(image) : null }, deps.send);
   await withFamily(author.userId, author.familyId, ({ tx }) =>
