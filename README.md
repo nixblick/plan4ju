@@ -111,6 +111,18 @@ If `ANALYTICS_SCRIPT_URL` is set (full URL of a tracker script), the page includ
 `<script defer src="$ANALYTICS_SCRIPT_URL" data-site="$ANALYTICS_SITE">` and the Content Security Policy allows that
 origin. Without the variable nothing is emitted and no third-party origin is allowed. Read at runtime, no rebuild needed.
 
+## Verify before release
+
+Release and rollout only after a green `scripts/verify.sh` on the pushed commit.
+
+- `scripts/verify.sh` refuses (exit 2) a dirty tree or a HEAD that is not `origin/<branch>`. It starts the compose
+  database with a timeout, then runs lint, typecheck, Vitest, a fresh production build of the container (app container
+  recreated, so the sign-in limiter is empty) and `npm run test:abnahme` against it. Results go to
+  `verify/<sha>.json` and `.md` (git-ignored). Exit 0 only if all is green. It stops only the containers it started.
+  `--schnell` skips build and acceptance (interim states, written as `<sha>.schnell.json`, not valid for a release).
+- `scripts/release-check.sh <version>` tags `v<version>` only if `verify/<sha>.json` for HEAD is a green full run and
+  the CI runs for that SHA are green (`gh run list --commit`).
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every push and pull request: ESLint, typecheck, Vitest and Playwright against a

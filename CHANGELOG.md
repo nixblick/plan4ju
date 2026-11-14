@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 0.8.2 (14.11.2026)
+
+Tooling only, the app is unchanged (no rollout).
+
+- `scripts/verify.sh`: checks the pushed commit (lint, typecheck, Vitest, production container build, acceptance) and writes `verify/<sha>.json` and `.md`; `--schnell` without build and acceptance.
+- `scripts/release-check.sh <version>`: tags only with a green full verify for HEAD and green CI for the SHA.
+- Rule in the README: release and rollout only after a green `verify.sh` on the pushed commit.
+- Tests: `tests/verify-script.test.ts` (abort cases, no database).
+
 ## 0.8.1 (14.11.2026)
 
 Calendar series (#13).

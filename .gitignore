@@ -67,3 +67,6 @@ next-env.d.ts
 coverage/
 test-results/
 playwright-report/
+
+# Results of scripts/verify.sh
+verify/
