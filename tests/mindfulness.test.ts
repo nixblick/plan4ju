@@ -109,6 +109,34 @@ describe("service visibility", () => {
     await deleteEntry(f.userBoth, f.familyA, b, app);
   });
 
+  it("a double submit (two parallel saves) keeps one entry instead of failing with a unique violation", async () => {
+    const input = { profileId: childA, topic: "MOOD" as const, date: D, rating: 3 };
+    // The first submit has inserted but not committed yet when the second one checks: the classic race.
+    let release = () => {};
+    const gate = new Promise<void>((r) => { release = r; });
+    let second: Promise<string> | undefined;
+    const first = admin.$transaction(async (tx) => {
+      const row = await tx.mindfulnessEntry.create({
+        data: { familyId: f.familyA, profileId: childA, topic: "MOOD", date: new Date(`${D}T00:00:00Z`), rating: 2, visibility: "PRIVATE", createdById: f.userA },
+        select: { id: true },
+      });
+      second = saveEntry(f.userA, f.familyA, { ...input, rating: 4 }, app);
+      second.catch(() => {});
+      await new Promise((r) => setTimeout(r, 300));
+      release();
+      return row.id;
+    });
+    const a = await first;
+    await gate;
+    expect(await second).toBe(a);
+    // Parallel saves through the service agree as well.
+    const ids = await Promise.all([1, 2, 3].map((rating) => saveEntry(f.userA, f.familyA, { ...input, rating }, app)));
+    expect(new Set([a, ...ids]).size).toBe(1);
+    const mine = (await listEntries(f.userA, f.familyA, { ...range, profileId: childA }, app)).filter((e) => e.topic === "MOOD");
+    expect(mine.map((e) => e.id)).toEqual([a]);
+    await deleteEntry(f.userA, f.familyA, a, app);
+  });
+
   it("switching from SELECTED to PRIVATE drops the viewer", async () => {
     const id = await saveEntry(f.userBoth, f.familyA, { profileId: profileBoth, topic: "LEISURE", date: D, rating: 4, visibility: "SELECTED", viewerIds: [f.userNone] }, app);
     expect((await getEntry(f.userNone, f.familyA, id, app)).id).toBe(id);

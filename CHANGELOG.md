@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.8 (14.11.2026)
+
+- Achtsamkeit: saving a rating twice at the same moment (double submit) no longer ends in a 500. `saveEntry` now uses an upsert (`INSERT ... ON CONFLICT`) on the unique key instead of look-up-then-create. New race case in `tests/mindfulness.test.ts`.
+
 ## 0.5.7 (14.11.2026)
 
 - Assignments of tasks, routines and routine occurrences now keep the profile inside the row's family at database level: migration `assignment_profile_family_fk` (appended) replaces the single `profileId` foreign keys with composite `(profileId, familyId)` keys like `meal_cook`. Before, only the services checked it. New case in `tests/routines.test.ts`.

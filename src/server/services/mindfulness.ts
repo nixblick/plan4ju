@@ -93,16 +93,13 @@ export async function saveEntry(userId: string, familyId: string, input: EntryIn
     if (!profiles.some((p) => p.id === v.profileId)) throw new ForbiddenError("Not your profile");
     const date = new Date(`${v.date}T00:00:00Z`);
     const data = { rating: v.rating, note: v.note, visibility: v.visibility };
-    const existing = await ctx.tx.mindfulnessEntry.findUnique({
+    // Upsert (INSERT ... ON CONFLICT) so a double submit updates instead of failing with P2002.
+    const entry = await ctx.tx.mindfulnessEntry.upsert({
       where: { profileId_topic_date_createdById: { profileId: v.profileId, topic: v.topic, date, createdById: userId } },
+      update: data,
+      create: { ...data, familyId, profileId: v.profileId, topic: v.topic, date, createdById: userId },
       select: { id: true },
     });
-    const entry = existing
-      ? await ctx.tx.mindfulnessEntry.update({ where: { id: existing.id }, data, select: { id: true } })
-      : await ctx.tx.mindfulnessEntry.create({
-          data: { ...data, familyId, profileId: v.profileId, topic: v.topic, date, createdById: userId },
-          select: { id: true },
-        });
     await setViewers(ctx, entry.id, v.visibility, v.viewerIds);
     return entry.id;
   }, client);
