@@ -1,4 +1,4 @@
-import { errorMessages, one, roleLabels } from "@/lib/messages";
+import { errorMessages, okMessages, one, roleLabels } from "@/lib/messages";
 import { listFamiliesForUser } from "@/server/services/families";
 import { requireUser } from "@/server/session";
 import { chooseFamilyAction } from "../actions";
@@ -7,11 +7,14 @@ import { Card, ghostButtonCls, Notice } from "../ui";
 export default async function FamilieWaehlen({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await requireUser();
   const families = await listFamiliesForUser(user.id);
-  const fehler = one((await searchParams).fehler);
+  const sp = await searchParams;
+  const fehler = one(sp.fehler);
+  const ok = one(sp.ok);
   return (
     <div className="mx-auto max-w-md">
       <Card title="Familie wählen">
         {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
+        {ok && okMessages[ok] ? <Notice kind="ok">{okMessages[ok]}</Notice> : null}
         {families.length === 0 ? (
           <p>Du gehörst noch zu keiner Familie. Bitte nutze den Einladungslink, den du per E-Mail bekommen hast.</p>
         ) : (

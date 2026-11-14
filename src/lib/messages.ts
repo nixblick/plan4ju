@@ -20,6 +20,10 @@ export const errorMessages: Record<string, string> = {
   "eingabe-einkauf": "Bitte prüfe deine Eingaben (Name fehlt oder Menge ungültig).",
   "eingabe-konto": "Das neue Kennwort braucht 10 bis 128 Zeichen und muss zweimal gleich eingegeben werden.",
   "kennwort-falsch": "Das aktuelle Kennwort stimmt nicht.",
+  "letzter-owner": "Du bist letzter Owner einer Familie. Übergib die Familie oder lösche sie zuerst.",
+  "familienname-falsch": "Der Familienname stimmt nicht.",
+  "bestaetigung-fehlt": "Bitte bestätige das Löschen mit dem Häkchen.",
+  "keine-berechtigung": "Dafür fehlt dir die Berechtigung.",
   "eingabe-wunsch": "Bitte prüfe deine Eingaben (Titel fehlt, Link nur mit https://, Preis wie 12,99, bei einer Liste entweder ein Profil oder ein Name).",
   "eingabe-karte": "Bitte prüfe deine Eingaben (Name, Kategorie und Position fehlen oder sind ungültig, Links nur mit https://, Ende nicht vor Beginn).",
   "karte-konflikt": "Das geht so nicht: Die Kategorie gibt es schon oder sie ist ausgeschaltet.",
@@ -28,6 +32,8 @@ export const errorMessages: Record<string, string> = {
 };
 
 export const okMessages: Record<string, string> = {
+  "konto-geloescht": "Dein Konto und deine persönlichen Daten sind gelöscht.",
+  "familie-geloescht": "Die Familie ist mit allen Einträgen gelöscht.",
   "benachrichtigungen-gelesen": "Alle Benachrichtigungen als gelesen markiert.",
   "benachrichtigungen-gespeichert": "Einstellungen gespeichert.",
   "kalender-link-widerrufen": "Kalender-Link widerrufen. Abos mit dem alten Link bekommen nichts mehr.",

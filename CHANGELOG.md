@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.16 (14.11.2026)
+
+- Privacy (masterprompt section 20): data export, account deletion and family deletion on `/konto`. `GET /api/konto/export` returns the user's own data as JSON (account, memberships, own entries, own mindfulness, own feedback without screenshots), built with the restricted role per family context. Account deletion needs the password; the last owner of a family is refused (service and trigger) and shown which family to hand over or delete. An owner deletes the active family by typing its name. New migration `privacy_delete` with the SECURITY DEFINER functions `app_delete_own_account()` and `app_delete_active_family()` (context only, no arguments) and `owner_all` policies on `feedback` and `wish_reservation`. New `docs/datenschutz.md` (contents, deletion concept, retention, operator duties). Tests: new `tests/privacy.test.ts` (export without foreign data, deletion removes everything personal, last owner, RLS of the functions), new `tests-e2e/datenschutz.spec.ts` at 375 px.
+
 ## 0.5.15 (14.11.2026)
 
 - Start page: "in N Minuten" under "Als Nächstes" and the now line on "Heute zu Hause" no longer freeze at page load. A shared one-minute client tick in `clock.tsx` (`useNow`, `NextIn`, `NowLine`) recomputes both; new pure `nextInText` in `today-agenda.ts`. Tests: new cases in `tests/today-agenda.test.ts`, new E2E case in `tests-e2e/heute.spec.ts` (Playwright clock, line appears and moves without reload).
