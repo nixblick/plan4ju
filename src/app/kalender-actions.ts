@@ -95,6 +95,7 @@ export async function updateCalendarAction(form: FormData) {
     updateCalendar(a.user.id, a.familyId, text(form, "calendarId"), {
       name: text(form, "name"),
       colorIndex: Number(text(form, "colorIndex") || 0),
+      ...(text(form, "refreshMinutes") ? { refreshMinutes: Number(text(form, "refreshMinutes")) } : {}),
     }),
   );
 }

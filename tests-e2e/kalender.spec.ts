@@ -134,6 +134,30 @@ test.describe.serial("Kalender", () => {
     expect(await admin.externalCalendar.count({ where: { familyId: familyA, kind: "SUBSCRIPTION" } })).toBe(0);
   });
 
+  test("Pausiertes Abo wird angezeigt, der Abruf-Takt lässt sich einstellen (375 px)", async () => {
+    const p = sessions.anna!;
+    const cal = await admin.externalCalendar.create({
+      data: { familyId: familyA, name: "Verein", kind: "SUBSCRIPTION", urlEnc: "x", createdById: "e2e", failCount: 5, pausedAt: new Date(), lastError: "netz" },
+    });
+    await p.setViewportSize({ width: 375, height: 800 });
+    try {
+      await p.goto("/kalender/quellen");
+      const row = p.getByTestId("calendar-row").filter({ hasText: "Verein" });
+      await expect(row.getByText("pausiert", { exact: true })).toBeVisible();
+      await expect(row.getByTestId("calendar-paused")).toContainText("Automatischer Abruf pausiert");
+      await row.getByText("Name und Farbe").click();
+      await row.getByLabel("Automatisch abrufen").selectOption("360");
+      await row.getByRole("button", { name: "Speichern" }).click();
+      await p.waitForURL(/ok=gespeichert|fehler=/);
+      expect(p.url()).toContain("ok=gespeichert");
+      expect((await admin.externalCalendar.findUniqueOrThrow({ where: { id: cal.id } })).refreshMinutes).toBe(360);
+      expect(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    } finally {
+      await admin.externalCalendar.deleteMany({ where: { id: cal.id } });
+      await p.setViewportSize({ width: 1280, height: 900 });
+    }
+  });
+
   test("Clara (andere Familie) sieht nichts davon", async () => {
     const p = sessions.clara!;
     await p.goto(`/kalender?datum=${tomorrow}`);

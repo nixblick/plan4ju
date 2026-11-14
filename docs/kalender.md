@@ -12,8 +12,9 @@ Stand 0.1.4. Dieses Dokument sagt, was tatsächlich gebaut ist.
   Skript nötig, bei 375 px ohne Überlauf. Kein FullCalendar: weniger Abhängigkeiten, gleiche Gestaltung wie der Rest.
 - **Dashboard**: Termine in den Tageskarten der Woche und Kachel „Termine heute“.
 - **ICS-Datei-Import** (`/kalender/quellen`): einmaliger Import, später mit einer neuen Datei ersetzbar.
-- **ICS-Abo per Adresse**: nur lesend, serverseitig abgerufen, höchstens stündlich (lazy beim Öffnen von Startseite oder Kalender, nach dem Senden der Seite) oder
-  manuell einmal je Minute.
+- **ICS-Abo per Adresse**: nur lesend, serverseitig abgerufen im eingestellten Takt (je Kalender: alle 15 Minuten, stündlich
+  (Standard), alle 6 Stunden, täglich), im Hintergrund per Zeitplan (siehe unten) und zusätzlich lazy beim Öffnen von Startseite
+  oder Kalender, oder manuell einmal je Minute.
 - Externe Termine sind gekennzeichnet („Extern · Name“, Farbe des Kalenders), lassen sich ein- und ausblenden und sind
   nicht bearbeitbar.
 
@@ -45,11 +46,61 @@ Stand 0.1.4. Dieses Dokument sagt, was tatsächlich gebaut ist.
 - Der Abruf läuft ohne offene Datenbank-Transaktion; ein Zeitstempel („Abruf begonnen“) verhindert doppelte Abrufe bei
   parallelen Seitenaufrufen.
 
+## Hintergrundabruf (seit 0.5.20)
+
+- `POST /api/jobs/kalender` frischt alle fälligen Abos aller Familien auf (eingeblendet, nicht pausiert, letzter Abrufversuch
+  älter als der eingestellte Takt), höchstens 200 je Lauf, die ältesten zuerst. Die Antwort enthält nur Zahlen
+  (`due`, `ok`, `error`, `paused`), keine Namen und keine Adressen.
+- Die Datenbankfunktion `app_calendar_refresh_due` (SECURITY DEFINER) listet nur; jeder Abruf läuft danach wie sonst im
+  Familien-Kontext mit RLS, als Ersteller des Kalenders oder, wenn er die Familie verlassen hat, als ältester Eigentümer.
+- **Fehler zählen**: jeder fehlgeschlagene Abruf erhöht einen Zähler, ein erfolgreicher setzt ihn zurück. Nach 5 Fehlern
+  hintereinander wird das Abo **pausiert**: weder Zeitplan noch Seitenaufruf rufen es mehr ab, die bisherigen Termine
+  bleiben sichtbar, die Liste unter „Externe Kalender“ zeigt „pausiert“ mit Hinweis. „Jetzt abrufen“ versucht es erneut;
+  klappt es, läuft der Abruf wieder von selbst.
+- **Token**: `JOB_TOKEN` (mindestens 32 Zeichen, zufällig) steht nur in der Server-Umgebung, nie im Repo. Die App erzeugt ihn
+  nicht. Fehlt er oder ist er zu kurz, antwortet der Endpunkt mit 404. Der Digest-Endpunkt nutzt weiter `NOTIFY_JOB_TOKEN`.
+
+Aufruf per systemd-Timer (alle 15 Minuten; der kürzeste Takt), Token in einer Umgebungsdatei mit Modus 600 außerhalb des Repos:
+
+```ini
+# /etc/systemd/system/plan4ju-kalender.service
+[Unit]
+Description=Plan4JU: Kalender-Abos auffrischen
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/plan4ju/job.env
+ExecStart=/bin/sh -c 'curl -fsS -m 300 -X POST -H "Authorization: Bearer $JOB_TOKEN" https://plan4ju.example.org/api/jobs/kalender'
+
+# /etc/systemd/system/plan4ju-kalender.timer
+[Unit]
+Description=Plan4JU: Kalender-Abos alle 15 Minuten
+
+[Timer]
+OnCalendar=*:0/15
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```sh
+systemctl daemon-reload && systemctl enable --now plan4ju-kalender.timer
+```
+
+Oder per cron (der Token kommt aus der Umgebungsdatei, nicht aus der crontab):
+
+```cron
+*/15 * * * * . /etc/plan4ju/job.env && curl -fsS -m 300 -X POST -H "Authorization: Bearer $JOB_TOKEN" https://plan4ju.example.org/api/jobs/kalender >/dev/null
+```
+
+`/etc/plan4ju/job.env` enthält eine Zeile `JOB_TOKEN=…` (Wert aus dem Vault); dieselbe Variable bekommt der App-Container.
+
 ## Nicht gebaut
 
 - Google- und Apple-Anmeldung (OAuth): später. Bis dahin hilft die geheime iCal-Adresse der Anbieter.
 - Ausnahmen einzelner Termine einer eigenen Serie (nur diesen Termin verschieben oder löschen).
 - Zurückschreiben in externe Kalender, Erinnerungen, ICS-Export.
 - Zusammenführen gleicher Termine aus verschiedenen externen Kalendern.
-- Ein regelmäßiger Hintergrundabruf: Abos werden beim Öffnen der Startseite oder des Kalenders aufgefrischt, nicht per Zeitplan.
 - Eine gespeicherte Adresse ändern: nicht möglich, Kalender löschen und neu abonnieren (die Adresse wird nie wieder angezeigt). Nach einem Wechsel von `BETTER_AUTH_SECRET` zeigt der Kalender dazu einen eigenen Hinweis.

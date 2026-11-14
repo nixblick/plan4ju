@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { errorMessages, okMessages, one } from "@/lib/messages";
 import { fetchErrorText } from "@/server/safe-fetch";
-import { listCalendars, MAX_CALENDARS, type CalendarSummary } from "@/server/services/calendar";
+import { listCalendars, MAX_CALENDARS, MAX_FAILURES, type CalendarSummary } from "@/server/services/calendar";
 import { getDashboard } from "@/server/services/dashboard";
 import { requireFamily } from "@/server/session";
 import {
@@ -11,6 +11,13 @@ import { buttonCls, Card, Field, ghostButtonCls, inputCls, Notice } from "../../
 import { CalendarBadge } from "../parts";
 
 export const dynamic = "force-dynamic";
+
+const REFRESH = [
+  { m: 15, label: "alle 15 Minuten" },
+  { m: 60, label: "stündlich" },
+  { m: 360, label: "alle 6 Stunden" },
+  { m: 1440, label: "täglich" },
+];
 
 const COLORS = ["Blau", "Gelb", "Rosa", "Grün", "Violett", "Türkis", "Orange", "Grau"];
 
@@ -37,10 +44,16 @@ function CalendarRow({ c, tz }: { c: CalendarSummary; tz: string }) {
         <span className="min-w-0 flex-1 break-words font-medium">{c.name}</span>
         <CalendarBadge name={sub ? "Abo" : "Datei"} colorIndex={c.colorIndex} />
         {!c.enabled ? <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs">ausgeblendet</span> : null}
+        {sub && c.pausedAt ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">pausiert</span> : null}
       </div>
       <p className="mt-1 text-sm text-stone-600">
         {c.eventCount} Termine{c.truncated ? " (gekürzt: sehr viele Wiederholungen)" : ""} · {sub ? "Letzter erfolgreicher Abruf" : "Eingelesen"}: {when(c.lastSuccessAt, tz)}
       </p>
+      {sub && c.pausedAt ? (
+        <p role="alert" className="mt-1 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200" data-testid="calendar-paused">
+          Automatischer Abruf pausiert: {MAX_FAILURES}-mal hintereinander fehlgeschlagen. Mit „Jetzt abrufen“ versuchst du es erneut; klappt es, läuft der Abruf wieder von selbst.
+        </p>
+      ) : null}
       {error ? <p role="alert" className="mt-1 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-200">{error} Die bisherigen Termine bleiben sichtbar.</p> : null}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {sub ? (
@@ -61,6 +74,13 @@ function CalendarRow({ c, tz }: { c: CalendarSummary; tz: string }) {
           <input type="hidden" name="calendarId" value={c.id} />
           <Field label="Name"><input className={inputCls} name="name" maxLength={100} defaultValue={c.name} required /></Field>
           <Field label="Farbe"><ColorSelect value={c.colorIndex} /></Field>
+          {sub ? (
+            <Field label="Automatisch abrufen">
+              <select className={inputCls} name="refreshMinutes" defaultValue={c.refreshMinutes}>
+                {REFRESH.map((r) => <option key={r.m} value={r.m}>{r.label}</option>)}
+              </select>
+            </Field>
+          ) : null}
           <div><button className={ghostButtonCls}>Speichern</button></div>
         </form>
       </details>
@@ -129,7 +149,7 @@ export default async function Quellen({ searchParams }: { searchParams: Promise<
 
       <Card title="Kalender abonnieren (ICS-Adresse)">
         <p className="mb-3 text-sm text-stone-700">
-          Der Server ruft die Adresse regelmäßig ab (höchstens stündlich, oder mit „Jetzt abrufen“) und zeigt die Termine nur an. Die Adresse kann einen geheimen Zugangsschlüssel enthalten:
+          Der Server ruft die Adresse regelmäßig ab (stündlich, beim Kalender einstellbar, oder mit „Jetzt abrufen“) und zeigt die Termine nur an. Die Adresse kann einen geheimen Zugangsschlüssel enthalten:
           sie wird verschlüsselt gespeichert und nie wieder angezeigt, auch dir nicht. Erlaubt ist nur https (oder webcal).
         </p>
         <form action={addSubscriptionAction}>
