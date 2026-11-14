@@ -1,7 +1,7 @@
 // Shared by server action files (this module is NOT a "use server" file, so nothing here is callable from the browser).
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ConflictError, ForbiddenError, NotFoundError, RateLimitError } from "@/server/errors";
+import { ConflictError, ForbiddenError, ModuleOffError, NotFoundError, RateLimitError } from "@/server/errors";
 import { IcsError } from "@/server/ics";
 import { FetchError } from "@/server/safe-fetch";
 import { requireFamily } from "@/server/session";
@@ -12,6 +12,7 @@ export const text = (f: FormData, k: string) => String(f.get(k) ?? "");
 export function calendarErrorCode(e: unknown): string {
   if (e instanceof RateLimitError) return "zu-viele";
   if (e instanceof ForbiddenError) return "verboten";
+  if (e instanceof ModuleOffError) return "modul-aus";
   if (e instanceof NotFoundError) return "nicht-gefunden";
   if (e instanceof ConflictError) return "kalender-limit";
   if (e instanceof IcsError) return "datei";

@@ -6,6 +6,7 @@ export const errorMessages: Record<string, string> = {
   ungueltig: "E-Mail-Adresse oder Zugangsdaten stimmen nicht, oder der Link ist abgelaufen.",
   verboten: "Dafür fehlt dir die Berechtigung.",
   konflikt: "Das geht so nicht (zum Beispiel ist die Person schon Mitglied oder es wäre der letzte Owner).",
+  "modul-aus": "Dieses Modul ist ausgeschaltet.",
   "nicht-gefunden": "Eintrag nicht gefunden.",
   einladung: "Diese Einladung ist ungültig, abgelaufen oder wurde schon verwendet.",
   "eingabe-plan": "Bitte prüfe deine Eingaben (Titel oder Name fehlt, Datum oder Uhrzeit ungültig, Enddatum vor dem Start).",

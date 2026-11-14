@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { APIError } from "better-auth/api";
 import { auth } from "@/server/auth";
 import { baseUrl } from "@/server/env";
-import { ConflictError, ForbiddenError, InvalidInvitationError, NotFoundError, RateLimitError } from "@/server/errors";
+import { ConflictError, ForbiddenError, InvalidInvitationError, ModuleOffError, NotFoundError, RateLimitError } from "@/server/errors";
 import { normalizeLoginEmail, rateLimit } from "@/server/ratelimit";
 import { guardedLogin } from "@/server/login-guard";
 import { type DeviceCookie, deviceCookieName, newDeviceCookie, readDeviceCookie, remainingMaxAge, securityStampFor } from "@/server/device-cookie";
@@ -34,6 +34,7 @@ function codeFor(e: unknown): string {
   if (e instanceof RateLimitError) return "zu-viele";
   if (e instanceof ForbiddenError) return "verboten";
   if (e instanceof ConflictError) return "konflikt";
+  if (e instanceof ModuleOffError) return "modul-aus";
   if (e instanceof NotFoundError) return "nicht-gefunden";
   if (e instanceof InvalidInvitationError) return "einladung";
   if (e instanceof Error && e.name === "ZodError") return "eingabe";

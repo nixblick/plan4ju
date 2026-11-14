@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { admin, app, cleanup, seed, type Fixture } from "./helpers";
-import { ForbiddenError, NotFoundError } from "../src/server/errors";
+import { ForbiddenError, ModuleOffError, NotFoundError } from "../src/server/errors";
 import { DEFAULT_FLYERS, parseFlyers, pickupDayLabel } from "../src/lib/modules";
 import { listCategories } from "../src/server/services/map";
 import { listWishlists } from "../src/server/services/wishes";
@@ -44,6 +44,7 @@ describe("module switches", () => {
   it("are off by default and a switched-off module is NotFound", async () => {
     expect(await getModules(f.userA, f.familyA, app)).toEqual({ ...CORE_ON, flyers: false, waste: false });
     await expect(getFlyers(f.userA, f.familyA, app)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(getFlyers(f.userA, f.familyA, app)).rejects.toBeInstanceOf(ModuleOffError);
     await expect(getWaste(f.userA, f.familyA, now, app)).rejects.toBeInstanceOf(NotFoundError);
   });
 

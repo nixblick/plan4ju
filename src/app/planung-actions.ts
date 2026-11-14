@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ConflictError, ForbiddenError, NotFoundError, RateLimitError } from "@/server/errors";
+import { ConflictError, ForbiddenError, ModuleOffError, NotFoundError, RateLimitError } from "@/server/errors";
 import { createBirthday, deleteBirthday, updateBirthday } from "@/server/services/birthdays";
 import {
   createRoutine,
@@ -26,6 +26,7 @@ function codeFor(e: unknown): string {
   if (e instanceof RateLimitError) return "zu-viele";
   if (e instanceof ForbiddenError) return "verboten";
   if (e instanceof ConflictError) return "konflikt";
+  if (e instanceof ModuleOffError) return "modul-aus";
   if (e instanceof NotFoundError) return "nicht-gefunden";
   if (e instanceof Error && e.name === "ZodError") return "eingabe-plan";
   throw e;

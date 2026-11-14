@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.14 (14.11.2026)
+
+- Modules: a server action against a switched-off module now redirects with `fehler=modul-aus` and shows "Dieses Modul ist ausgeschaltet." instead of "Eintrag nicht gefunden.". New `ModuleOffError` (subclass of `NotFoundError`, so pages still answer 404), mapped in `action-helpers.ts`, `actions.ts` and `planung-actions.ts`. Vitest gets the `@/` alias. New `tests/module-off-message.test.ts`, extra case in `tests/modules.test.ts`.
+
 ## 0.5.13 (14.11.2026)
 
 - Navigation: the bottom tab "Geburtstage" is now "Feste" (sub tabs Geburtstage, Wunschzettel, Karte), so the map is findable; still 7 tabs, labels never wrap. Achtsamkeit gets a tile on the start page (only with the module on) and stays under Familie. New E2E case in `tests-e2e/module.spec.ts` at 375 px: 7 tabs in one line, every target at least 44 px.

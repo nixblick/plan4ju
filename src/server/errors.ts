@@ -12,6 +12,14 @@ export class NotFoundError extends Error {
   }
 }
 
+/** A switchable module is off. Subclass of NotFoundError, so pages still answer 404. */
+export class ModuleOffError extends NotFoundError {
+  constructor(message = "Module off") {
+    super(message);
+    this.name = "ModuleOffError";
+  }
+}
+
 export class ConflictError extends Error {
   constructor(message = "Conflict") {
     super(message);

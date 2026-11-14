@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { DEFAULT_FLYERS, FLYER_MAX, flyerInput, parseFlyers, type FlyerLink, type ModuleKey } from "../../lib/modules";
 import { todayIn } from "../../lib/week";
 import { zonedToUtc } from "../../lib/tz";
-import { ConflictError, NotFoundError } from "../errors";
+import { ConflictError, ModuleOffError, NotFoundError } from "../errors";
 import { assertRole } from "../permissions";
 import { withFamily, type FamilyContext } from "../tenant";
 
@@ -52,7 +52,7 @@ export async function modulesOf(ctx: FamilyContext): Promise<ModuleState> {
 
 /** Throws NotFound when the module is off: the page and its actions behave as if they did not exist. */
 export async function requireModule(ctx: FamilyContext, key: ModuleKey): Promise<void> {
-  if (!(await modulesOf(ctx))[key]) throw new NotFoundError("Module off");
+  if (!(await modulesOf(ctx))[key]) throw new ModuleOffError();
 }
 
 /** Like withFamily, but the module must be on: every service of a switchable module goes through this. */
