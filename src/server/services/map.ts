@@ -207,11 +207,12 @@ export function listPois(userId: string, familyId: string, filter: PoiFilter = {
   );
 }
 
-export function getPoi(userId: string, familyId: string, id: string, client?: PrismaClient): Promise<PoiView> {
+export function getPoi(userId: string, familyId: string, id: string, client?: PrismaClient, now = new Date()): Promise<PoiView> {
   return withModule("map", 
     userId,
     familyId,
     async (ctx) => {
+      await archiveExpired(ctx, now);
       const [p] = await viewPois(ctx, { id });
       if (!p) throw new NotFoundError("Point not found");
       return p;
@@ -221,11 +222,12 @@ export function getPoi(userId: string, familyId: string, id: string, client?: Pr
 }
 
 /** Members who created at least one point (for the creator filter). */
-export function listPoiCreators(userId: string, familyId: string, client?: PrismaClient): Promise<{ id: string; name: string }[]> {
+export function listPoiCreators(userId: string, familyId: string, client?: PrismaClient, now = new Date()): Promise<{ id: string; name: string }[]> {
   return withModule("map", 
     userId,
     familyId,
     async (ctx) => {
+      await archiveExpired(ctx, now);
       const rows = await ctx.tx.poi.findMany({ where: { familyId: ctx.familyId }, distinct: ["createdById"], select: { createdById: true } });
       const names = await namesOf(ctx, rows.map((r) => r.createdById));
       return rows

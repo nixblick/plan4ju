@@ -137,6 +137,15 @@ describe("temporary events", () => {
     await updatePoi(f.userA, f.familyA, ev.id, point("Herbstfest", { startDate: "2027-11-20" }), app, new Date("2026-11-22T10:00:00Z"));
     expect((await getPoi(f.userA, f.familyA, ev.id, app)).archived).toBe(false);
   });
+
+  it("the detail page archives an expired event too, without listing first", async () => {
+    const ev = await createPoi(f.userA, f.familyA, point("Laternenumzug", { startDate: "2026-11-11" }), app);
+    expect((await getPoi(f.userA, f.familyA, ev.id, app, new Date("2026-11-11T12:00:00Z"))).archived).toBe(false);
+    expect((await getPoi(f.userA, f.familyA, ev.id, app, new Date("2026-11-12T12:00:00Z"))).archived).toBe(true);
+    const ev2 = await createPoi(f.userA, f.familyA, point("Basar", { startDate: "2026-11-11" }), app);
+    await listPoiCreators(f.userA, f.familyA, app, new Date("2026-11-12T12:00:00Z"));
+    expect((await admin.poi.findUniqueOrThrow({ where: { id: ev2.id } })).archivedAt).not.toBeNull();
+  });
 });
 
 describe("row level security", () => {

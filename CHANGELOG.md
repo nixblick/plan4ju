@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.11 (14.11.2026)
+
+- Karte: an expired temporary point is now archived when its detail page (`/karte/[id]`) or the creator filter is loaded, not only when the list is read, so the detail page no longer shows a past event as active. `getPoi` and `listPoiCreators` run `archiveExpired` first. New case in `tests/map.test.ts`.
+
 ## 0.5.10 (14.11.2026)
 
 - Essen: planning or editing a meal while its recipe (or slot, cook profile) is deleted at the same moment no longer ends in a 500. The meal services' constraint helper now maps a foreign key violation (P2003) to `NotFoundError`, so the page shows the "nicht gefunden" notice; P2002 stays a conflict. New cases in `tests/meals.test.ts`.
