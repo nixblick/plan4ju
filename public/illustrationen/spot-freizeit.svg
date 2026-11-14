@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="160" viewBox="0 0 200 160" role="img" aria-label="Gefaltete Karte mit Ortsmarke und Geschenk">
+<path d="M24 40 L72 26 L128 42 L176 28 V120 L128 134 L72 118 L24 132 Z" fill="#FFFFFF" stroke="#B7D3F2" stroke-width="4" stroke-linejoin="round"/>
+<path d="M72 26 V118 M128 42 V134" stroke="#B7D3F2" stroke-width="4"/>
+<path d="M100 54 a16 16 0 0 1 32 0 c0 18 -16 32 -16 32 s-16 -14 -16 -32z" fill="#C65D3B"/>
+<circle cx="116" cy="54" r="6" fill="#FFFFFF"/>
+<rect x="40" y="76" width="30" height="26" rx="5" fill="#CDB8E8"/>
+<rect x="36" y="70" width="38" height="10" rx="4" fill="#B49AD6"/>
+<path d="M55 70 V102" stroke="#FFFFFF" stroke-width="4"/>
+</svg>

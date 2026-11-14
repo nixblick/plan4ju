@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="520" viewBox="0 0 720 520" role="img" aria-label="Illustration: ein Haus, darin die Wochentage als Karten mit Aufgaben in vier Familienfarben, davor vier Personen">
+<circle cx="380" cy="270" r="230" fill="#F3E7DC"/>
+<path d="M150 230 L380 70 L610 230" fill="none" stroke="#C65D3B" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="190" y="210" width="380" height="250" rx="22" fill="#FFFFFF"/>
+<rect x="352" y="118" width="56" height="44" rx="10" fill="#F6E08C"/>
+<g>
+<rect x="212" y="232" width="44" height="200" rx="10" fill="#FAF6F1"/>
+<rect x="264" y="232" width="44" height="200" rx="10" fill="#FAF6F1"/>
+<rect x="316" y="232" width="44" height="200" rx="10" fill="#FCEDE6" stroke="#C65D3B" stroke-width="3"/>
+<rect x="368" y="232" width="44" height="200" rx="10" fill="#FAF6F1"/>
+<rect x="420" y="232" width="44" height="200" rx="10" fill="#FAF6F1"/>
+<rect x="472" y="232" width="44" height="200" rx="10" fill="#FAF6F1"/>
+<rect x="524" y="232" width="28" height="200" rx="10" fill="#FAF6F1"/>
+</g>
+<g>
+<rect x="218" y="256" width="32" height="18" rx="6" fill="#CDB8E8"/>
+<rect x="218" y="282" width="32" height="18" rx="6" fill="#B7D3F2"/>
+<rect x="270" y="256" width="32" height="18" rx="6" fill="#BFE3B4"/>
+<rect x="322" y="256" width="32" height="18" rx="6" fill="#F2B5B0"/>
+<rect x="322" y="282" width="32" height="18" rx="6" fill="#F6E08C"/>
+<rect x="322" y="308" width="32" height="18" rx="6" fill="#A9E3DA"/>
+<rect x="374" y="256" width="32" height="18" rx="6" fill="#CDB8E8"/>
+<rect x="426" y="256" width="32" height="18" rx="6" fill="#B7D3F2"/>
+<rect x="426" y="282" width="32" height="18" rx="6" fill="#BFE3B4"/>
+<rect x="478" y="256" width="32" height="18" rx="6" fill="#F2B5B0"/>
+<path d="M326 362 L334 370 L348 354" fill="none" stroke="#C65D3B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="490" cy="380" r="10" fill="#F6E08C"/>
+<path d="M486 380 h8 M490 376 v8" stroke="#C65D3B" stroke-width="3" stroke-linecap="round"/>
+</g>
+<g>
+<circle cx="150" cy="380" r="34" fill="#CDB8E8"/>
+<rect x="112" y="420" width="76" height="70" rx="34" fill="#CDB8E8"/>
+<circle cx="640" cy="370" r="36" fill="#A9E3DA"/>
+<rect x="600" y="412" width="80" height="78" rx="36" fill="#A9E3DA"/>
+<circle cx="230" cy="452" r="22" fill="#F6E08C"/>
+<rect x="206" y="478" width="48" height="36" rx="22" fill="#F6E08C"/>
+<circle cx="560" cy="456" r="20" fill="#F2B5B0"/>
+<rect x="538" y="480" width="44" height="34" rx="20" fill="#F2B5B0"/>
+</g>
+<g>
+<rect x="600" y="120" width="96" height="60" rx="16" fill="#FFFFFF" stroke="#EADFD5" stroke-width="2"/>
+<circle cx="624" cy="150" r="10" fill="#BFE3B4"/>
+<rect x="642" y="140" width="40" height="8" rx="4" fill="#E2D6CB"/>
+<rect x="642" y="154" width="28" height="8" rx="4" fill="#E2D6CB"/>
+<rect x="40" y="140" width="110" height="64" rx="16" fill="#FFFFFF" stroke="#EADFD5" stroke-width="2"/>
+<path d="M62 162 a10 10 0 0 1 20 0 c0 10 -10 18 -10 18 s-10 -8 -10 -18z" fill="#C65D3B"/>
+<rect x="92" y="158" width="44" height="8" rx="4" fill="#E2D6CB"/>
+<rect x="92" y="172" width="30" height="8" rx="4" fill="#E2D6CB"/>
+</g>
+</svg>

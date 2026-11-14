@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.1 (14.11.2026)
+
+- New logo "Wochenhaus" (terracotta square, white house, seven pastel dots for the week; small variant without dots) and the wordmark "plan4ju" (Outfit 700, outlined, the 4 in terracotta). Sources in `assets/`, all PNGs, `favicon.ico` and the `public/` copies are rendered reproducibly by `scripts/render-assets.sh`; `scripts/wordmark.py` outlines the wordmark.
+- Icons: `icon.svg`, `favicon.ico` (16/32/48), `apple-touch-icon.png` 180 px full-bleed without transparency, PWA icons 192/512 plus a maskable 512 icon, `og-image.png` 1280x640. Metadata: favicon, Apple icon, manifest link, theme color `#C65D3B`, Open Graph image (absolute via `BETTER_AUTH_URL`).
+- Header, sign-in page and invitation page show logo and wordmark. The sign-in page for guests gets the hero illustration and four feature illustrations (tasks, routines, food and shopping, leisure and wishes), works at 375 px.
+- Colors: brand `#C65D3B` only for logo and decoration; buttons, links and active states use `#A2462B` (white text 6.1:1, AA); text color `#2B2522`. Outfit self-hosted via `next/font/local` (CSP unchanged).
+- Tests: Playwright checks manifest (maskable icon, theme color), Apple icon type, logo and Open Graph links in the HTML and the guest page at 375 px without horizontal scrolling.
+
 ## 0.7.0 (14.11.2026)
 
 - Achtsamkeit as a compact questionnaire (#15): person and date on top, all six topics below each other with the emoji scale, one "Absenden" stores one entry with all ratings. All topics are preselected, none is required (unticked or unrated topics are skipped, at least one rating). Visibility is now a setting per user ("Sichtbar für" at the top of the page, new table `mindfulness_pref`, own row only), copied into each row on submit; existing entries keep their visibility. Health under "Ganze Familie" stays private. New column `mindfulness_entry.checkinId` groups the rows of one submit; migration gives every existing row its own check-in (no data change). History shows one entry per submit, deleting removes the whole entry.

@@ -1,13 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --color-terracotta: #c2674a;
-  --color-terracotta-dark: #a4523a;
+  /* Brand (logo, wordmark "4", decorative fills). White text on it is below AA, so never use it behind text. */
+  --color-brand: #c65d3b;
+  /* Buttons, links, active states: white on it 6.1:1, on the sand background 5.7:1 (AA). */
+  --color-terracotta: #a2462b;
+  --color-terracotta-dark: #8a3a23;
   --color-sand: #faf6f1;
-  --color-ink: #2b2623;
+  --color-ink: #2b2522;
+  --font-display: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--color-sand);
   color: var(--color-ink);
+}
+
+h1 {
+  font-family: var(--font-display);
 }

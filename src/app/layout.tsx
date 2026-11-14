@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import Image from "next/image";
+import localFont from "next/font/local";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { analyticsConfig } from "@/server/analytics";
@@ -9,26 +9,53 @@ import { getModules } from "@/server/services/modules";
 import { syncAndCount } from "@/server/services/notifications";
 import { logoutAction } from "./actions";
 import { Bell } from "./bell";
+import { Logo, Wortmarke } from "./brand";
 import { FeedbackOpenButton, FeedbackWidget } from "./feedback";
 import { NavLinks } from "./nav";
 import { SwRegister } from "./sw-register";
 import { ghostButtonCls } from "./ui";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Plan4JU",
-  description: "Der Familienplaner",
-  icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" },
-  appleWebApp: { capable: true, title: "Plan4JU", statusBarStyle: "default" },
-};
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#c8553d" };
+// Outfit (SIL OFL), self-hosted: the CSP allows fonts from the own origin only.
+const outfit = localFont({ src: "./fonts/outfit-variable.woff2", weight: "100 900", variable: "--font-outfit", display: "swap" });
+
+const BRAND = "#C65D3B";
+
+// Absolute URLs (Open Graph image) need the public origin; it is runtime configuration, not baked into the image.
+export function generateMetadata(): Metadata {
+  let metadataBase: URL | undefined;
+  try {
+    metadataBase = process.env.BETTER_AUTH_URL ? new URL(process.env.BETTER_AUTH_URL) : undefined;
+  } catch {
+    metadataBase = undefined;
+  }
+  return {
+    metadataBase,
+    title: "Plan4JU",
+    description: "Der Familienplaner: Aufgaben, Routinen, Termine, Essen und Einkauf für die ganze Familie.",
+    icons: {
+      icon: [
+        { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+        { url: "/icon.svg", type: "image/svg+xml" },
+      ],
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    },
+    manifest: "/manifest.webmanifest",
+    appleWebApp: { capable: true, title: "Plan4JU", statusBarStyle: "default" },
+    openGraph: {
+      type: "website",
+      siteName: "Plan4JU",
+      title: "Plan4JU – die ganze Familienwoche an einem Ort",
+      description: "Aufgaben, Routinen, Termine, Essen und Einkauf – für alle sichtbar, für jeden in seiner Farbe.",
+      locale: "de_DE",
+      images: [{ url: "/og-image.png", width: 1280, height: 640, alt: "Plan4JU: Logo und Illustration eines Hauses mit der Familienwoche" }],
+    },
+  };
+}
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: BRAND };
 
 // Visible without signing in (e.g. on /anmelden), so the deployed version can be checked from outside.
 const VERSION = `Plan4JU ${process.env.NEXT_PUBLIC_APP_VERSION ?? ""}`.trim();
-
-function Logo({ size }: { size: number }) {
-  return <Image src="/logo.svg" alt="" width={size} height={size} unoptimized className="rounded-lg" />;
-}
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const user = await getSessionUser();
@@ -41,15 +68,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // Notifications are generated lazily here; a failure must never break the page.
   const unread = user && familyId ? await syncAndCount(user.id, familyId).catch(() => 0) : 0;
   return (
-    <html lang="de">
+    <html lang="de" className={outfit.variable}>
       <body className="min-h-screen antialiased">
         <SwRegister />
         {analytics ? <script defer src={analytics.src} {...(analytics.site ? { "data-site": analytics.site } : {})} /> : null}
         {user ? (
           <div className="md:flex">
             <aside className="hidden md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col md:gap-1 md:border-r md:border-stone-200 md:bg-white md:p-4">
-              <Link href="/" className="mb-4 flex items-center gap-3 text-xl font-semibold text-terracotta">
-                <Logo size={36} /> Plan4JU
+              <Link href="/" className="mb-4 flex items-center gap-3" aria-label="Plan4JU, zur Startseite">
+                <Logo size={36} /> <Wortmarke height={26} />
               </Link>
               <nav aria-label="Hauptmenü" className="flex flex-col gap-1">
                 <NavLinks variant="side" modules={modules} />
@@ -71,8 +98,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </aside>
             <div className="min-w-0 flex-1">
               <header className="flex items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2 md:hidden">
-                <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-terracotta">
-                  <Logo size={28} /> Plan4JU
+                <Link href="/" className="flex items-center gap-2" aria-label="Plan4JU, zur Startseite">
+                  <Logo size={28} /> <Wortmarke height={22} />
                 </Link>
                 <div className="flex items-center gap-1">
                   {hasFamily ? <Bell count={unread} /> : null}
@@ -98,14 +125,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         ) : (
           <>
             <header className="border-b border-stone-200 bg-white">
-              <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-3">
-                <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-terracotta">
-                  <Logo size={28} /> Plan4JU
+              <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3">
+                <Link href="/" className="flex items-center gap-2" aria-label="Plan4JU, zur Startseite">
+                  <Logo size={28} /> <Wortmarke height={22} />
                 </Link>
               </div>
             </header>
-            <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
-            <footer className="mx-auto max-w-3xl px-4 pb-6 text-center text-xs text-stone-400" data-testid="app-version">
+            <main className="mx-auto max-w-5xl px-4 py-6 md:py-10">{children}</main>
+            <footer className="mx-auto max-w-5xl px-4 pb-6 text-center text-xs text-stone-400" data-testid="app-version">
               {VERSION}
             </footer>
           </>

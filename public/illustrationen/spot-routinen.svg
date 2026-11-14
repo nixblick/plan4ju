@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="160" viewBox="0 0 200 160" role="img" aria-label="Kreislauf-Pfeil um einen Mond: wiederkehrende Routine">
+<path d="M100 28 a52 52 0 1 1 -48 32" fill="none" stroke="#A9E3DA" stroke-width="14" stroke-linecap="round"/>
+<path d="M40 52 L52 60 L60 46" fill="none" stroke="#A9E3DA" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M112 58 a26 26 0 1 0 22 40 a20 20 0 1 1 -22 -40z" fill="#C65D3B"/>
+<circle cx="76" cy="78" r="4" fill="#F6E08C"/>
+<circle cx="88" cy="58" r="3" fill="#F6E08C"/>
+</svg>

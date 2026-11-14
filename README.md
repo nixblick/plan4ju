@@ -1,4 +1,14 @@
+<p>
+  <img src="assets/logo.svg" width="96" height="96" alt="Plan4JU-Logo: Haus mit sieben Tagespunkten">
+  &nbsp;
+  <img src="assets/wortmarke.svg" height="64" alt="plan4ju">
+</p>
+
 # Plan4JU
+
+**Die ganze Familienwoche an einem Ort.** Nutzbar nur mit Einladung.
+
+<img src="assets/hero.png" width="720" alt="Illustration: ein Haus, darin die Wochentage als Karten mit Aufgaben in Familienfarben, davor vier Personen">
 
 Familienplanungs-App (Aufgaben, Routinen, Termine, Mahlzeiten, Einkäufe, Wünsche).
 Der Auftrag steht in [docs/masterprompt.md](docs/masterprompt.md).
@@ -164,3 +174,9 @@ MIT, siehe [LICENSE](LICENSE). Sicherheitslücken bitte privat melden: [SECURITY
 ## Geheimnisse
 
 Datenbank- und Auth-Zugänge: `.env` lokal, Vorlage `.env.example`, Vault `~/.secrets/plan4ju/`.
+
+## Logo und Bilder
+
+Logo „Wochenhaus“ (Terrakotta `#C65D3B`, sieben Punkte für die Wochentage; klein ohne Punkte), Wortmarke in Outfit 700 (SIL OFL, `assets/fonts/OFL.txt`).
+Quellen sind die SVGs in `assets/`; die PNGs, `favicon.ico` und die Kopien in `public/` erzeugt `scripts/render-assets.sh` (librsvg, ImageMagick).
+Die Wortmarke wird mit `python3 scripts/wordmark.py assets/fonts/Outfit-Variable.ttf > assets/wortmarke.svg` in Pfade umgewandelt.

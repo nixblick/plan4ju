@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="160" viewBox="0 0 200 160" role="img" aria-label="Aufgabenliste mit farbigen Prioritäten und Haken">
+<rect x="30" y="16" width="140" height="128" rx="18" fill="#FFFFFF"/>
+<rect x="46" y="36" width="8" height="22" rx="4" fill="#CDB8E8"/>
+<rect x="62" y="40" width="70" height="12" rx="6" fill="#E2D6CB"/>
+<rect x="46" y="70" width="8" height="22" rx="4" fill="#F2B5B0"/>
+<rect x="62" y="74" width="54" height="12" rx="6" fill="#E2D6CB"/>
+<rect x="46" y="104" width="8" height="22" rx="4" fill="#BFE3B4"/>
+<rect x="62" y="108" width="62" height="12" rx="6" fill="#E2D6CB"/>
+<circle cx="150" cy="114" r="14" fill="#C65D3B"/>
+<path d="M143 114 L148 119 L157 109" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

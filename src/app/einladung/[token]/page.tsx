@@ -3,6 +3,7 @@ import { errorMessages, one, roleLabels } from "@/lib/messages";
 import { lookupInvitation } from "@/server/services/invitations";
 import { getSessionUser } from "@/server/session";
 import { acceptAction, registerAction } from "../../actions";
+import { Logo } from "../../brand";
 import { buttonCls, Card, Field, inputCls, Notice } from "../../ui";
 
 export default async function Einladung({
@@ -29,6 +30,9 @@ export default async function Einladung({
   const here = `/einladung/${encodeURIComponent(token)}`;
   return (
     <div className="mx-auto max-w-md">
+      <div className="mb-4 flex justify-center">
+        <Logo size={72} />
+      </div>
       <Card title={`Einladung zu „${info.familyName}“`}>
         {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
         <p className="mb-4 text-sm text-stone-600">

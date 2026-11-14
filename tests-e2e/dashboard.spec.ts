@@ -302,7 +302,11 @@ test.describe.serial("Familienwoche", () => {
     expect(manifest.display).toBe("standalone");
     expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(expect.arrayContaining(["192x192", "512x512"]));
     for (const i of manifest.icons) expect((await request.get(i.src)).ok()).toBe(true);
-    expect((await request.get("/apple-touch-icon.png")).ok()).toBe(true);
+    expect(manifest.theme_color).toBe("#C65D3B");
+    expect(manifest.icons.some((i: { purpose?: string }) => i.purpose === "maskable")).toBe(true);
+    const touch = await request.get("/apple-touch-icon.png");
+    expect(touch.ok()).toBe(true);
+    expect(touch.headers()["content-type"]).toContain("image/png");
     const sw = await request.get("/sw.js");
     expect(sw.ok()).toBe(true);
     expect(await sw.text()).not.toMatch(/cache\.(put|add)|addEventListener\("fetch"/);
@@ -317,7 +321,13 @@ test.describe.serial("Familienwoche", () => {
     expect(h["x-powered-by"]).toBeUndefined();
     // the version is visible without signing in, so a deployment can be checked from outside
     const { version } = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
-    expect(await r.text()).toContain(`Plan4JU ${version}`);
+    const html = await r.text();
+    expect(html).toContain(`Plan4JU ${version}`);
+    // brand: logo, wordmark, Apple icon and social preview are linked in the delivered HTML
+    expect(html).toContain("/logo-klein.svg");
+    expect(html).toContain("/wortmarke.svg");
+    expect(html).toContain('rel="apple-touch-icon"');
+    expect(html).toContain("og-image.png");
   });
 
   test("Ohne Anmeldung kein Zugriff auf das Dashboard", async ({ browser }) => {
@@ -325,6 +335,20 @@ test.describe.serial("Familienwoche", () => {
     const p = await ctx.newPage();
     await p.goto("/");
     await expect(p).toHaveURL(/\/anmelden/);
+    await ctx.close();
+  });
+
+  test("Startseite für Gäste bei 375 px: Hero, Anmeldung, Funktionen, kein Querscrollen", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
+    const p = await ctx.newPage();
+    await p.goto("/anmelden");
+    await expect(p.getByRole("heading", { level: 1 })).toContainText("Familienwoche");
+    await expect(p.getByRole("button", { name: /Anmelden/ })).toBeVisible();
+    await expect(p.locator("#funktionen li")).toHaveCount(4);
+    await expect(p.getByText(/registrieren/i)).toHaveCount(0);
+    const overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    await p.screenshot({ path: "test-results/anmelden-375.png", fullPage: true });
     await ctx.close();
   });
 });

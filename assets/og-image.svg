@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1280" height="640" viewBox="0 0 1280 640">
+  <rect width="1280" height="640" fill="#FAF6F1"/>
+  <image x="80" y="190" width="160" height="160" xlink:href="logo.svg"/>
+  <image x="80" y="392" width="400" height="120" xlink:href="wortmarke.svg"/>
+  <image x="520" y="80" width="720" height="520" xlink:href="illustrationen/hero.svg"/>
+</svg>
