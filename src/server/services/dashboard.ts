@@ -1,6 +1,6 @@
 import { modulesOf, wastePickups } from "./modules";
 import type { PrismaClient } from "@prisma/client";
-import { addDays, daysBetween, nextBirthday, todayIn, weekOf } from "../../lib/week";
+import { addDays, birthdayIn, daysBetween, nextBirthday, parseIso, todayIn, weekOf } from "../../lib/week";
 import { pickupDayLabel } from "../../lib/modules";
 import { itemsOnDay, type CalendarItem } from "../../lib/calendar-items";
 import { withFamily } from "../tenant";
@@ -48,6 +48,7 @@ export interface DashboardData {
   mine: DashTask[];
   dueToday: DashTask[];
   overdue: DashTask[];
+  /** Birthdays of the last 2 and the next 3 days (inDays -2 … 3), oldest first. */
   nextBirthdays: DashBirthdayNext[];
   /** Planned meals of today in slot order (filled by getDashboard). */
   mealsToday?: (MealView & { slotName: string })[];
@@ -63,6 +64,24 @@ export interface RawDashboard {
   occurrences?: DashOccurrence[];
   /** Calendar items (internal and external) touching the displayed week. */
   events?: CalendarItem[];
+}
+
+export const BIRTHDAYS_BACK = 2;
+export const BIRTHDAYS_AHEAD = 3;
+
+/** Pure: birthdays from BIRTHDAYS_BACK days ago to BIRTHDAYS_AHEAD days ahead, across the turn of the year. */
+export function birthdaysAround(birthdays: DashBirthday[], today: string): DashBirthdayNext[] {
+  const y = parseIso(today).y;
+  return birthdays
+    .flatMap((b) => {
+      const date = [y - 1, y, y + 1].map((yy) => birthdayIn(yy, b.month, b.day)).find((d) => {
+        const n = daysBetween(today, d);
+        return n >= -BIRTHDAYS_BACK && n <= BIRTHDAYS_AHEAD;
+      });
+      if (!date) return [];
+      return [{ ...b, date, inDays: daysBetween(today, date), turns: b.birthYear ? Number(date.slice(0, 4)) - b.birthYear : null }];
+    })
+    .sort((a, b) => a.inDays - b.inDays || a.name.localeCompare(b.name, "de"));
 }
 
 /** Pure: shapes the raw family data into what the dashboard shows. */
@@ -99,7 +118,7 @@ export function buildDashboard(raw: RawDashboard, userId: string, now: Date = ne
     mine: myProfileId ? open.filter((t) => t.assigneeIds.includes(myProfileId)).sort(byDue) : [],
     dueToday: open.filter((t) => t.due === today).sort(byDue),
     overdue: open.filter((t) => t.due !== null && t.due < today).sort(byDue),
-    nextBirthdays: upcoming.slice(0, 4),
+    nextBirthdays: birthdaysAround(raw.birthdays, today),
   };
 }
 

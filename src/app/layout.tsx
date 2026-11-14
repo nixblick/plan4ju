@@ -10,7 +10,6 @@ import { bellCount } from "@/server/notification-sync";
 import { logoutAction } from "./actions";
 import { Bell } from "./bell";
 import { Logo, Wortmarke } from "./brand";
-import { FeedbackOpenButton, FeedbackWidget } from "./feedback";
 import { NavLinks } from "./nav";
 import { SwRegister } from "./sw-register";
 import { ghostButtonCls } from "./ui";
@@ -60,7 +59,7 @@ const VERSION = `Plan4JU ${process.env.NEXT_PUBLIC_APP_VERSION ?? ""}`.trim();
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const user = await getSessionUser();
   const analytics = analyticsConfig();
-  // Feedback is stored in the active family (RLS); without one the button is hidden instead of failing.
+  // Without an active family the bell is hidden instead of failing.
   const familyId = user ? await activeFamilyId(user) : null;
   const hasFamily = Boolean(familyId);
   // Switched-off modules leave the navigation; their pages answer 404 anyway.
@@ -83,7 +82,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               </nav>
               <div className="mt-auto flex flex-col gap-2">
                 {hasFamily ? <Bell count={unread} withLabel /> : null}
-                {hasFamily ? <FeedbackOpenButton className="px-3 py-2 text-left text-sm text-stone-600 underline">Feedback geben</FeedbackOpenButton> : null}
                 <Link href="/konto" className="px-3 py-2 text-sm text-stone-600 underline">
                   Konto
                 </Link>
@@ -120,7 +118,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             >
               <NavLinks variant="tabs" modules={modules} />
             </nav>
-            {hasFamily ? <FeedbackWidget /> : null}
           </div>
         ) : (
           <>

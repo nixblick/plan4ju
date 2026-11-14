@@ -1,5 +1,6 @@
 // The Content Security Policy is set per request in src/proxy.ts (it depends on runtime env).
 import { readFileSync } from "node:fs";
+import { legacyRedirects } from "./src/lib/legacy-routes.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 const dev = process.env.NODE_ENV !== "production";
@@ -8,7 +9,7 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), payment=(), usb=()" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   ...(dev ? [] : [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]),
 ];
@@ -23,6 +24,9 @@ const config = {
   // Feedback may carry a screenshot of up to 5 MB (multipart, plus form fields); the calendar file import (max 2 MB) fits in too.
   experimental: { serverActions: { bodySizeLimit: "6mb" } },
   serverExternalPackages: ["@node-rs/argon2", "nodemailer"],
+  async redirects() {
+    return legacyRedirects();
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

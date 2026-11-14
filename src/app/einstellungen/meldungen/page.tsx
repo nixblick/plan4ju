@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { listUndeliveredFeedback } from "@/server/services/feedback";
 import { requireFamily } from "@/server/session";
 import { Card } from "../../ui";
-import { FamilieTabs } from "../tabs";
+import { EinstellungenTabs } from "../tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export default async function Meldungen() {
   const rows = await listUndeliveredFeedback(user.id, familyId);
   return (
     <div className="space-y-6">
-      <FamilieTabs active="module" />
+      <EinstellungenTabs active="module" />
       <h1 className="text-2xl font-bold">Meldungen, die nicht zugestellt wurden</h1>
       <p className="text-sm text-stone-600">
         Rückmeldungen werden gespeichert und per Mail weitergegeben. Klappt der Versand nicht, versucht Plan4JU es bis zu fünfmal

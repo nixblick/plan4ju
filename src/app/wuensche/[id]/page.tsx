@@ -10,7 +10,7 @@ import { getDashboard } from "@/server/services/dashboard";
 import { listProfiles } from "@/server/services/members";
 import { getWishlist, type WishView } from "@/server/services/wishes";
 import { requireFamily } from "@/server/session";
-import { FesteTabs } from "../../geburtstage/tabs";
+import { ReminderTabs } from "../../reminder-tabs";
 import { buttonCls, Card, ghostButtonCls, Notice } from "../../ui";
 import {
   createWishAction, deleteWishAction, deleteWishlistAction, releaseWishAction, reserveWishAction, setGivenAction, setWishReceivedAction,
@@ -90,7 +90,7 @@ export default async function Wunschzettel({
   return (
     <div className="space-y-6">
       <h1 className="break-words text-2xl font-bold">{list.title}</h1>
-      <FesteTabs active="wuensche" />
+      <ReminderTabs active="wuensche" />
       <Link href="/wuensche" className={linkCls}>← Alle Wunschzettel</Link>
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
       {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}

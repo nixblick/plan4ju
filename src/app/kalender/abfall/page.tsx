@@ -7,6 +7,7 @@ import { getWaste, type WasteView } from "@/server/services/modules";
 import { requireFamily } from "@/server/session";
 import { setWasteCalendarAction } from "../../module-actions";
 import { buttonCls, Card, inputCls, Notice } from "../../ui";
+import { KalenderTabs } from "../tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function Abfall({ searchParams }: { searchParams: Promise<R
   }
   return (
     <div className="space-y-5">
-      <Link href="/kalender" className="text-sm text-terracotta-dark underline">← Kalender</Link>
+      <KalenderTabs active="quellen" />
       <h1 className="text-2xl font-bold">Abfallkalender</h1>
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
       {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}

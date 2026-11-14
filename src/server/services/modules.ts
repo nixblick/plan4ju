@@ -19,6 +19,8 @@ const COLUMN = {
   wishes: "moduleWishes",
   mindfulness: "moduleMindfulness",
   meals: "moduleMeals",
+  school: "moduleSchool",
+  stars: "moduleStars",
 } as const satisfies Record<ModuleKey, string>;
 
 async function familyRow(ctx: FamilyContext) {
@@ -31,6 +33,8 @@ async function familyRow(ctx: FamilyContext) {
       moduleWishes: true,
       moduleMindfulness: true,
       moduleMeals: true,
+      moduleSchool: true,
+      moduleStars: true,
       flyerLinks: true,
       wasteCalendarId: true,
       timezone: true,
@@ -47,6 +51,8 @@ export async function modulesOf(ctx: FamilyContext): Promise<ModuleState> {
     wishes: f.moduleWishes,
     mindfulness: f.moduleMindfulness,
     meals: f.moduleMeals,
+    school: f.moduleSchool,
+    stars: f.moduleStars,
   };
 }
 

@@ -44,6 +44,7 @@ export const okMessages: Record<string, string> = {
   "kalender-link-widerrufen": "Kalender-Link widerrufen. Abos mit dem alten Link bekommen nichts mehr.",
   "modul-an": "Modul eingeschaltet.",
   "modul-aus": "Modul ausgeschaltet.",
+  dashboard: "Deine Startseite ist gespeichert.",
   prospekt: "Prospekt-Link gespeichert.",
   "prospekt-weg": "Prospekt-Link entfernt.",
   "abfall-kalender": "Abfallkalender gespeichert.",

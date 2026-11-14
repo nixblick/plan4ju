@@ -77,7 +77,7 @@ describe("buildDashboard", () => {
     expect(d.mine.map((t) => t.id)).toEqual(["t1", "t4"]);
     expect(d.dueToday.map((t) => t.id)).toEqual(["t1"]);
     expect(d.overdue.map((t) => t.id)).toEqual(["t2"]);
-    expect(d.nextBirthdays.map((b) => b.id)).toEqual(["b1", "b2"]);
+    expect(d.nextBirthdays.map((b) => b.id)).toEqual(["b1"]); // b2 (1 March) is outside 2 days back, 3 ahead
     expect(d.nextBirthdays[0]!.inDays).toBe(2);
   });
   it("gives every person a fixed colour index in creation order; no own profile means no 'mine'", () => {

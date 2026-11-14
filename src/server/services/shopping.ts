@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { addSource, DEFAULT_SHOPS, mergeAmounts, nameKey, SHOPPING_LIMITS as L } from "../../lib/shopping";
+import { categoryRank, isCategory, resolveCategory, type Category } from "../../lib/shopping-categories";
 import { ConflictError, NotFoundError } from "../errors";
 import { withModule } from "./modules";
 import { withFamily, type FamilyContext } from "../tenant";
@@ -28,6 +29,15 @@ export const itemInput = z.object({
   unit: optText(L.unit),
   note: optText(L.note),
   shopIds,
+  /** "" or missing: automatic (memory, then word list); otherwise a manual choice that is remembered. */
+  category: z.string().max(20).nullish().transform((v, c) => {
+    if (!v) return null;
+    if (!isCategory(v)) {
+      c.addIssue({ code: "custom", message: "unknown category" });
+      return null;
+    }
+    return v;
+  }),
 });
 export type ItemInput = z.input<typeof itemInput>;
 
@@ -66,8 +76,27 @@ async function setShops(ctx: FamilyContext, itemId: string, ids: string[], repla
   if (ids.length) await ctx.tx.shoppingItemShop.createMany({ data: ids.map((shopId) => ({ itemId, shopId, familyId: ctx.familyId })), skipDuplicates: true });
 }
 
+/** A manual choice is remembered for the name; switching back to automatic forgets it. */
+async function rememberCategory(ctx: FamilyContext, name: string, category: Category | null) {
+  const key = nameKey(name).slice(0, 200);
+  if (!key) return;
+  if (category) {
+    await ctx.tx.shoppingCategoryMemo.upsert({
+      where: { familyId_nameKey: { familyId: ctx.familyId, nameKey: key } },
+      create: { familyId: ctx.familyId, nameKey: key, category },
+      update: { category },
+    });
+  } else {
+    await ctx.tx.shoppingCategoryMemo.deleteMany({ where: { familyId: ctx.familyId, nameKey: key } });
+  }
+}
+
 export interface ShoppingItemView {
   id: string;
+  /** Resolved category (manual, remembered or from the word list). */
+  category: Category;
+  /** True when someone chose it by hand for this entry. */
+  categoryManual: boolean;
   name: string;
   quantity: number | null;
   unit: string | null;
@@ -97,13 +126,19 @@ export function getShoppingList(userId: string, familyId: string, opts: { shopId
         include: { shops: { select: { shopId: true } } },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       });
+      const memos = new Map(
+        (await ctx.tx.shoppingCategoryMemo.findMany({ where: { familyId: ctx.familyId }, select: { nameKey: true, category: true }, take: 5000 })).map((m) => [m.nameKey, m.category]),
+      );
       const view = rows.map<ShoppingItemView>((r) => ({
-        id: r.id, name: r.name, quantity: r.quantity, unit: r.unit, note: r.note, done: r.done, cleared: Boolean(r.clearedAt),
+        id: r.id,
+        category: resolveCategory(r.category, memos.get(nameKey(r.name).slice(0, 200)), r.name),
+        categoryManual: isCategory(r.category), name: r.name, quantity: r.quantity, unit: r.unit, note: r.note, done: r.done, cleared: Boolean(r.clearedAt),
         fromRecipes: r.fromRecipes, shopIds: r.shops.map((s) => s.shopId),
       }));
       return {
         shops,
-        open: view.filter((i) => !i.done && !i.cleared),
+        // by category, then as before (oldest first)
+        open: view.filter((i) => !i.done && !i.cleared).sort((a, b) => categoryRank(a.category) - categoryRank(b.category)),
         done: view.filter((i) => i.done && !i.cleared),
         cleared: view.filter((i) => i.cleared),
       };
@@ -121,10 +156,11 @@ export function createItem(userId: string, familyId: string, raw: ItemInput, cli
       await assertShops(ctx, d.shopIds);
       await assertRoom(ctx, 1);
       const item = await ctx.tx.shoppingItem.create({
-        data: { familyId: ctx.familyId, name: d.name, quantity: d.quantity, unit: d.unit, note: d.note, fromRecipes: [], createdById: ctx.userId },
+        data: { familyId: ctx.familyId, name: d.name, quantity: d.quantity, unit: d.unit, note: d.note, category: d.category, fromRecipes: [], createdById: ctx.userId },
         select: { id: true },
       });
       await setShops(ctx, item.id, d.shopIds, false);
+      if (d.category) await rememberCategory(ctx, d.name, d.category);
       return item;
     },
     client,
@@ -138,9 +174,16 @@ export function updateItem(userId: string, familyId: string, id: string, raw: It
     familyId,
     async (ctx) => {
       await assertShops(ctx, d.shopIds);
-      const res = await ctx.tx.shoppingItem.updateMany({ where: { id, familyId: ctx.familyId }, data: { name: d.name, quantity: d.quantity, unit: d.unit, note: d.note } });
+      const before = await ctx.tx.shoppingItem.findFirst({ where: { id, familyId: ctx.familyId }, select: { category: true } });
+      if (!before) throw new NotFoundError("Item not found");
+      const res = await ctx.tx.shoppingItem.updateMany({
+        where: { id, familyId: ctx.familyId },
+        data: { name: d.name, quantity: d.quantity, unit: d.unit, note: d.note, category: d.category },
+      });
       if (res.count === 0) throw new NotFoundError("Item not found");
       await setShops(ctx, id, d.shopIds, true);
+      // a new manual choice is remembered; going back from manual to automatic forgets the name
+      if (d.category || before.category) await rememberCategory(ctx, d.name, d.category);
     },
     client,
   );

@@ -189,15 +189,15 @@ function birthdayFromForm(form: FormData) {
 }
 
 export async function createBirthdayAction(form: FormData) {
-  await run("/geburtstage", "geburtstag", (a) => createBirthday(a.user.id, a.familyId, birthdayFromForm(form)).then(() => {}));
+  await run("/kalender/geburtstage", "geburtstag", (a) => createBirthday(a.user.id, a.familyId, birthdayFromForm(form)).then(() => {}));
 }
 
 export async function updateBirthdayAction(form: FormData) {
-  await run("/geburtstage", "gespeichert", (a) =>
+  await run("/kalender/geburtstage", "gespeichert", (a) =>
     updateBirthday(a.user.id, a.familyId, text(form, "birthdayId"), birthdayFromForm(form)),
   );
 }
 
 export async function deleteBirthdayAction(form: FormData) {
-  await run("/geburtstage", "geburtstag-weg", (a) => deleteBirthday(a.user.id, a.familyId, text(form, "birthdayId")));
+  await run("/kalender/geburtstage", "geburtstag-weg", (a) => deleteBirthday(a.user.id, a.familyId, text(form, "birthdayId")));
 }

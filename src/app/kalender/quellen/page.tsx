@@ -9,6 +9,8 @@ import {
 } from "../../kalender-actions";
 import { buttonCls, Card, Field, ghostButtonCls, inputCls, Notice } from "../../ui";
 import { CalendarBadge } from "../parts";
+import { KalenderTabs } from "../tabs";
+import { getModules } from "@/server/services/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -113,14 +115,17 @@ export default async function Quellen({ searchParams }: { searchParams: Promise<
   const sp = await searchParams;
   const fehler = one(sp.fehler);
   const ok = one(sp.ok);
-  const [calendars, dash] = await Promise.all([listCalendars(user.id, familyId), getDashboard(user.id, familyId)]);
+  const [calendars, dash, modules] = await Promise.all([listCalendars(user.id, familyId), getDashboard(user.id, familyId), getModules(user.id, familyId)]);
   const full = calendars.length >= MAX_CALENDARS;
   return (
     <div className="space-y-6">
-      <p>
-        <Link href="/kalender" className="inline-flex min-h-11 items-center text-sm underline">← Zurück zum Kalender</Link>
-      </p>
+      <KalenderTabs active="quellen" />
       <h1 className="text-2xl font-bold">Externe Kalender</h1>
+      {modules.waste ? (
+        <p>
+          <Link href="/kalender/abfall" className="inline-flex min-h-11 items-center rounded-xl bg-orange-100 px-4 text-sm font-medium text-terracotta-dark">FES: Abfallkalender</Link>
+        </p>
+      ) : null}
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
       {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}
 

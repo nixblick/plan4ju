@@ -172,7 +172,7 @@ export async function chooseFamilyAction(form: FormData) {
 
 // ---- Members, invitations, child profiles ---------------------------------------------
 
-const MEMBERS = "/familie/mitglieder";
+const MEMBERS = "/einstellungen/mitglieder";
 
 async function manage(run: (a: Awaited<ReturnType<typeof requireFamily>>) => Promise<string | void>) {
   const active = await requireFamily();

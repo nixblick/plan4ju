@@ -9,7 +9,7 @@ import {
 } from "@/server/services/mindfulness";
 import { requireFamily } from "@/server/session";
 import { deleteCheckinAction, saveCheckinAction, savePrefAction } from "../achtsamkeit-actions";
-import { FamilieTabs } from "../familie/tabs";
+import { ReminderTabs } from "../reminder-tabs";
 import { buttonCls, Card, ghostButtonCls, inputCls, Notice } from "../ui";
 import { pageModule } from "@/server/active-modules";
 
@@ -73,7 +73,7 @@ export default async function Achtsamkeit({ searchParams }: { searchParams: Prom
   return (
     // data-feedback-ignore: the feedback screenshot leaves this area out, so no rating or note ends up in a mail.
     <div className="space-y-6" data-feedback-ignore="true">
-      <FamilieTabs active="achtsamkeit" />
+      <ReminderTabs active="achtsamkeit" />
       <div>
         <h1 className="text-2xl font-bold">Achtsamkeit</h1>
         <p className="text-sm text-stone-600">

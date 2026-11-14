@@ -46,6 +46,7 @@ function itemFromForm(form: FormData): ItemInput {
     unit: text(form, "unit") || null,
     note: text(form, "note") || null,
     shopIds: form.getAll("shopIds").map(String).filter(Boolean),
+    category: text(form, "category") || null,
   };
 }
 

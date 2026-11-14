@@ -3,15 +3,18 @@ import { httpsUrl } from "./wishes";
 
 /**
  * Optional modules (docs/module.md), switched per family by admins. The 0.4 features and meal planning start
- * on (existing families keep them), the integrations of 0.5 start off. Off hides a module, its data stays.
+ * on (existing families keep them), the integrations of 0.5 start off, and so do "Schule heute" and "Sterne"
+ * since 0.8 (only for new families; existing ones keep their setting). Off hides a module, its data stays.
  */
 export const MODULES = {
   meals: { label: "Essen und Rezepte", description: "Wochenplan, Rezepte und Ideen. Die Einkaufsliste bleibt immer da.", defaultOn: true },
-  wishes: { label: "Wunschzettel", description: "Wunschlisten mit Reservierung, unter Geburtstage.", defaultOn: true },
-  map: { label: "Karte", description: "Orte und Veranstaltungen auf der Karte, unter Geburtstage.", defaultOn: true },
-  mindfulness: { label: "Achtsamkeit", description: "Persönliche Bewertungen mit Sichtbarkeit je Eintrag, unter Familie.", defaultOn: true },
+  wishes: { label: "Wunschzettel", description: "Wunschlisten mit Reservierung, unter Reminder.", defaultOn: true },
+  map: { label: "POI", description: "Orte und Veranstaltungen auf der Karte, mit Adresssuche, unter Reminder.", defaultOn: true },
+  mindfulness: { label: "Achtsamkeit", description: "Persönliche Bewertungen mit Sichtbarkeit je Eintrag, unter Reminder.", defaultOn: true },
   flyers: { label: "Prospekte", description: "Links zu den Prospekten der Händler, unter Einkauf.", defaultOn: false },
-  waste: { label: "Abfallkalender", description: "Nächste Abfuhrtermine aus einem eigenen Kalender (ICS), im Kalender und auf der Startseite.", defaultOn: false },
+  waste: { label: "FES", description: "Nächste Abfuhrtermine aus einem eigenen Kalender (ICS), im Kalender und auf der Startseite.", defaultOn: false },
+  school: { label: "Schule heute", description: "Kachel auf der Startseite (Inhalt folgt in einer späteren Version).", defaultOn: false },
+  stars: { label: "Sterne", description: "Kachel auf der Startseite (Inhalt folgt in einer späteren Version).", defaultOn: false },
 } as const;
 export type ModuleKey = keyof typeof MODULES;
 export const MODULE_KEYS = Object.keys(MODULES) as ModuleKey[];

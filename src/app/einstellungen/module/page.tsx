@@ -4,9 +4,11 @@ import { MODULE_KEYS, MODULES } from "@/lib/modules";
 import { atLeast } from "@/server/permissions";
 import { getModules } from "@/server/services/modules";
 import { requireFamily } from "@/server/session";
-import { setModuleAction } from "../../module-actions";
+import { allowedElements, DASHBOARD_ELEMENTS } from "@/lib/dashboard-elements";
+import { getHiddenElements } from "@/server/services/dashboard-prefs";
+import { setDashboardAction, setModuleAction } from "../../module-actions";
 import { buttonCls, Card, ghostButtonCls, Notice } from "../../ui";
-import { FamilieTabs } from "../tabs";
+import { EinstellungenTabs } from "../tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -16,18 +18,19 @@ export default async function Module({ searchParams }: { searchParams: Promise<R
   const sp = await searchParams;
   const fehler = one(sp.fehler);
   const ok = one(sp.ok);
-  const state = await getModules(user.id, familyId);
+  const [state, hidden] = await Promise.all([getModules(user.id, familyId), getHiddenElements(user.id, familyId)]);
+  const offered = allowedElements(state);
   const isAdmin = atLeast(role, "ADMIN");
   return (
     <div className="space-y-6">
-      <FamilieTabs active="module" />
+      <EinstellungenTabs active="module" />
       <h1 className="text-2xl font-bold">Module</h1>
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
       {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}
       <p className="text-sm text-stone-600">
         Jedes Modul lässt sich für die ganze Familie einzeln ein- und ausschalten. Ausgeschaltet verschwindet es aus Navigation und
         Startseite, gespeicherte Einträge bleiben erhalten und sind nach dem Einschalten wieder da. Aufgaben, Routinen, Kalender,
-        Geburtstage und Einkaufsliste bleiben immer an. Prospekte und Abfallkalender sind zu Beginn aus.
+        Geburtstage und Einkaufsliste bleiben immer an. Prospekte, FES, Schule heute und Sterne sind bei neuen Familien zu Beginn aus.
       </p>
       <Card title="Schalter">
         <ul className="divide-y divide-stone-100">
@@ -54,9 +57,28 @@ export default async function Module({ searchParams }: { searchParams: Promise<R
         </ul>
         {isAdmin ? null : <p className="mt-2 text-sm text-stone-600">Module schalten nur Admins der Familie.</p>}
       </Card>
+      <Card title="Meine Startseite">
+        <form action={setDashboardAction} className="space-y-3" data-testid="dashboard-prefs">
+          <p className="text-sm text-stone-600">
+            Was „Heute“ für dich zeigt. Gilt nur für dich; Elemente ausgeschalteter Module erscheinen hier nicht.
+          </p>
+          <ul className="grid gap-x-6 sm:grid-cols-2">
+            {offered.map((k) => (
+              <li key={k}>
+                <input type="hidden" name="offered" value={k} />
+                <label className="flex min-h-11 items-center gap-3 text-sm">
+                  <input type="checkbox" name="show" value={k} defaultChecked={!hidden.includes(k)} className="h-5 w-5 accent-terracotta" />
+                  {DASHBOARD_ELEMENTS[k].label}
+                </label>
+              </li>
+            ))}
+          </ul>
+          <button className={buttonCls}>Startseite speichern</button>
+        </form>
+      </Card>
       {role === "OWNER" ? (
         <p className="text-sm">
-          <Link href="/familie/meldungen" className="text-terracotta-dark underline">Meldungen, die nicht zugestellt wurden</Link>
+          <Link href="/einstellungen/meldungen" className="text-terracotta-dark underline">Meldungen, die nicht zugestellt wurden</Link>
         </p>
       ) : null}
     </div>

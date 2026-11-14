@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { isModuleKey } from "@/lib/modules";
 import { NotFoundError } from "@/server/errors";
 import { addFlyer, deleteFlyer, setModule, setWasteCalendar, updateFlyer } from "@/server/services/modules";
+import { setVisibleElements } from "@/server/services/dashboard-prefs";
 import { requireFamily } from "@/server/session";
 import { calendarErrorCode, text } from "./action-helpers";
 
@@ -24,7 +25,7 @@ async function run(path: string, ok: string, job: (a: Awaited<ReturnType<typeof 
 export async function setModuleAction(form: FormData) {
   const key = text(form, "module");
   const on = text(form, "on") === "1";
-  await run("/familie/module", on ? "modul-an" : "modul-aus", async (a) => {
+  await run("/einstellungen/module", on ? "modul-an" : "modul-aus", async (a) => {
     if (!isModuleKey(key)) throw new NotFoundError("unknown module");
     await setModule(a.user.id, a.familyId, key, on);
   });
@@ -46,4 +47,10 @@ export async function deleteFlyerAction(form: FormData) {
 
 export async function setWasteCalendarAction(form: FormData) {
   await run("/kalender/abfall", "abfall-kalender", (a) => setWasteCalendar(a.user.id, a.familyId, text(form, "calendarId") || null));
+}
+
+export async function setDashboardAction(form: FormData) {
+  await run("/einstellungen/module", "dashboard", (a) =>
+    setVisibleElements(a.user.id, a.familyId, form.getAll("offered").map(String), form.getAll("show").map(String)),
+  );
 }

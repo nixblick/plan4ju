@@ -94,7 +94,8 @@ describe("dashboard service", () => {
     expect(a).toContain("Heute fällige Aufgabe A");
     expect(a).not.toContain("Geheime Aufgabe B");
     expect(a).not.toContain("Oma Beispiel");
-    const b = JSON.stringify(await getDashboard(f.userB, f.familyB, new Date(), app));
+    // the birthday tile shows 2 days back to 3 ahead; the seeded birthday is 14 March
+    const b = JSON.stringify(await getDashboard(f.userB, f.familyB, new Date("2027-03-13T10:00:00Z"), app));
     expect(b).toContain("Oma Beispiel");
     expect(b).not.toContain("Heute fällige Aufgabe A");
     await expect(getDashboard(f.userA, f.familyB, new Date(), app)).rejects.toThrow(ForbiddenError);

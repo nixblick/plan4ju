@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 - Default AI model for recipe ideas is now claude-haiku-5-5 (current Haiku).
+- Menu (#19): "Feste" becomes "Reminder" with the tabs Wunschzettel, POI (formerly Karte) and Achtsamkeit (moved from "Familie"). "Familie" becomes "Einstellungen" (bottom bar: "Optionen", the long word does not fit a seventh of 375 px) with the tabs Mitglieder, Module and Feedback. The floating feedback button, the menu entry and the start page tile are gone; feedback is a tab now and sends the page the person came from. Calendar in tabs: Kalender, Geburtstage (`/kalender/geburtstage`), Quellen (external calendars and the waste calendar). The waste module is called "FES". Old addresses redirect (307): `/geburtstage`, `/familie`, `/familie/*` (`src/lib/legacy-routes.mjs`).
+- Start page: the three task tiles sit in one group tile. "Schule heute" and "Sterne" are modules now, off for new families; existing families keep them on and can switch them off. Each user chooses the elements of the start page (Einstellungen → Module → "Meine Startseite", table `dashboard_pref`, own row only); default is everything the family's modules allow. Birthdays: the last 2 and the next 3 days.
+- Shopping list: optional category (Fleisch, Wurst, Fisch, Käse, Gemüse, Obst, Getränke, Gewürz, Tiefkühl, Süßigkeiten, Konserven, Sonstiges). Without a choice it comes from a local word list (plural, umlauts, compounds such as "Rinderhack"; no AI, no external service). A manual choice wins and is remembered per family and name (table `shopping_category_memo`). The open list is sorted by category, then as before.
+- POI: address search through the public Nominatim instance of OpenStreetMap, from the server only (`/api/karte/suche`, safe-fetch, User-Agent "Plan4JU", at most 1 request per second for the whole server, cache, 20 searches per user and minute, search on button or Enter from 3 characters, no autocomplete as the usage policy requires). "Mein Standort" asks the browser on click; the position is only written into the form. Permissions-Policy `geolocation=(self)`.
+- Bell: unread notifications get a red frame (red-700) and the count stays in the label.
 
 ## 0.7.2 (14.11.2026)
 

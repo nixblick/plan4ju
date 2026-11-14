@@ -4,7 +4,7 @@ import { atLeast } from "@/server/permissions";
 import { mapConfig } from "@/server/map-config";
 import { listCategories, listPoiCreators, listPois } from "@/server/services/map";
 import { requireFamily } from "@/server/session";
-import { FesteTabs } from "../geburtstage/tabs";
+import { ReminderTabs } from "../reminder-tabs";
 import { buttonCls, Card, ghostButtonCls, inputCls, Notice } from "../ui";
 import { createPoiAction } from "../karte-actions";
 import { MapView } from "./map-view";
@@ -39,8 +39,8 @@ export default async function Karte({ searchParams }: { searchParams: Promise<Re
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Karte</h1>
-      <FesteTabs active="karte" />
+      <h1 className="text-2xl font-bold">POI</h1>
+      <ReminderTabs active="karte" />
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
       {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}
 

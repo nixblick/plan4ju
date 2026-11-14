@@ -38,7 +38,8 @@ afterAll(async () => {
 });
 
 const now = new Date("2026-11-15T10:00:00Z");
-const CORE_ON = { meals: true, wishes: true, map: true, mindfulness: true };
+// school and stars start off for new families (0.8); existing families kept theirs in the migration
+const CORE_ON = { meals: true, wishes: true, map: true, mindfulness: true, school: false, stars: false };
 
 describe("module switches", () => {
   it("are off by default and a switched-off module is NotFound", async () => {

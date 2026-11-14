@@ -2,13 +2,13 @@ import { errorMessages, okMessages, one } from "@/lib/messages";
 import { daysBetween, nextBirthday, todayIn } from "@/lib/week";
 import { listBirthdays } from "@/server/services/birthdays";
 import { requireFamily } from "@/server/session";
-import { createBirthdayAction, deleteBirthdayAction, updateBirthdayAction } from "../planung-actions";
-import { buttonCls, Card, Field, ghostButtonCls, inputCls, Notice } from "../ui";
+import { createBirthdayAction, deleteBirthdayAction, updateBirthdayAction } from "../../planung-actions";
+import { buttonCls, Card, Field, ghostButtonCls, inputCls, Notice } from "../../ui";
 import { getDashboard } from "@/server/services/dashboard";
 import { wishlistsByBirthday } from "@/server/services/wishes";
 import { activeModules } from "@/server/active-modules";
 import Link from "next/link";
-import { FesteTabs } from "./tabs";
+import { KalenderTabs } from "../tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +65,7 @@ export default async function Geburtstage({ searchParams }: { searchParams: Prom
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Geburtstage</h1>
-      <FesteTabs active="geburtstage" />
+      <KalenderTabs active="geburtstage" />
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
       {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}
 

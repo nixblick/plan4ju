@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
 import type { Map as LeafletMap, Marker } from "leaflet";
 import { HEX_COLOR, MAP_ICONS, type MapIcon } from "@/lib/map";
+import { MAP_PICK_EVENT } from "./address-search";
 
 export interface MapPoint {
   id: string;
@@ -47,6 +48,7 @@ export function MapView({
   useEffect(() => {
     let map: LeafletMap | null = null;
     let cancelled = false;
+    let onPick: ((e: Event) => void) | null = null;
     void import("leaflet").then((L) => {
       if (cancelled || !box.current) return;
       map = L.map(box.current, { scrollWheelZoom: false });
@@ -96,10 +98,19 @@ export function MapView({
           place(e.latlng.lat, e.latlng.lng);
           write(e.latlng.lat, e.latlng.lng);
         });
+        // address search and "Mein Standort" fill the fields themselves; the map follows
+        onPick = (e: Event) => {
+          const d = (e as CustomEvent<{ lat: number; lng: number }>).detail;
+          if (!map || !d || !Number.isFinite(d.lat) || !Number.isFinite(d.lng)) return;
+          place(d.lat, d.lng);
+          map.setView([d.lat, d.lng], 16);
+        };
+        window.addEventListener(MAP_PICK_EVENT, onPick);
       }
     });
     return () => {
       cancelled = true;
+      if (onPick) window.removeEventListener(MAP_PICK_EVENT, onPick);
       map?.remove();
     };
   }, [tileUrl, attribution, points, pick, pickStart]);

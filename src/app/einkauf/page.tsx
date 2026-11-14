@@ -2,6 +2,7 @@ import Link from "next/link";
 import { errorMessages, okMessages, one } from "@/lib/messages";
 import { formatQuantity } from "@/lib/recipes";
 import { SHOPPING_LIMITS as L } from "@/lib/shopping";
+import { CATEGORIES, CATEGORY_KEYS } from "@/lib/shopping-categories";
 import { getShoppingList, type ShoppingItemView } from "@/server/services/shopping";
 import { getModules } from "@/server/services/modules";
 import { requireFamily } from "@/server/session";
@@ -36,6 +37,15 @@ function ItemFields({ item, shops, filter }: { item?: ShoppingItemView; shops: S
           <input name="name" required maxLength={L.name} defaultValue={item?.name ?? ""} className={inputCls} />
         </label>
       </div>
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium">Kategorie (optional)</span>
+        <select name="category" defaultValue={item?.categoryManual ? item.category : ""} className={inputCls}>
+          <option value="">Automatisch{item && !item.categoryManual ? ` (${CATEGORIES[item.category]})` : ""}</option>
+          {CATEGORY_KEYS.map((k) => (
+            <option key={k} value={k}>{CATEGORIES[k]}</option>
+          ))}
+        </select>
+      </label>
       <label className="block">
         <span className="mb-1 block text-sm font-medium">Notiz</span>
         <input name="note" maxLength={L.note} defaultValue={item?.note ?? ""} className={inputCls} />
@@ -156,7 +166,12 @@ export default async function Einkauf({ searchParams }: { searchParams: Promise<
           groups.map((g) => (
             <section key={g.key} className="mb-3 last:mb-0" data-testid="shop-group">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-500">{g.name}</h3>
-              <ul>{g.items.map((i) => <Row key={i.id} item={i} shops={all.shops} filter={filter} />)}</ul>
+              {CATEGORY_KEYS.filter((c) => g.items.some((i) => i.category === c)).map((c) => (
+                <div key={c} data-testid="category-group" data-category={c}>
+                  <h4 className="mt-2 text-xs font-medium text-stone-600">{CATEGORIES[c]}</h4>
+                  <ul>{g.items.filter((i) => i.category === c).map((i) => <Row key={i.id} item={i} shops={all.shops} filter={filter} />)}</ul>
+                </div>
+              ))}
             </section>
           ))
         )}

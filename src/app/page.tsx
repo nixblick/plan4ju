@@ -5,9 +5,10 @@ import { parseIso, weekdayIndex } from "@/lib/week";
 import { syncStaleCalendars } from "@/server/services/calendar";
 import { getDashboard, type DashTask } from "@/server/services/dashboard";
 import { activeModules } from "@/server/active-modules";
+import { visibleElements } from "@/lib/dashboard-elements";
+import { getHiddenElements } from "@/server/services/dashboard-prefs";
 import { requireFamily } from "@/server/session";
 import { DashboardHeader } from "./clock";
-import { FeedbackOpenButton } from "./feedback";
 import { occurrenceStatusAction } from "./planung-actions";
 import { Dots, names } from "./people";
 import { NextCard, TodayStrip } from "./heute";
@@ -43,6 +44,19 @@ function Tile({ title, href, count, children, soon }: { title: string; href?: st
   );
 }
 
+/** Part of the grouped task tile: one framed block per list, so the group reads as one unit on a phone. */
+function SubTile({ title, count, children }: { title: string; count: number; children: ReactNode }) {
+  return (
+    <section aria-label={title} className="rounded-xl bg-stone-50 p-3 ring-1 ring-stone-200" data-testid="tile">
+      <h3 className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-stone-600">
+        <span>{title}</span>
+        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] normal-case tracking-normal text-terracotta-dark">{count}</span>
+      </h3>
+      {children}
+    </section>
+  );
+}
+
 function TaskList({ tasks, profiles, empty, showDue }: { tasks: DashTask[]; profiles: Awaited<ReturnType<typeof getDashboard>>["profiles"]; empty: string; showDue?: boolean }) {
   if (tasks.length === 0) return <p className="text-sm text-stone-600">{empty}</p>;
   return (
@@ -62,19 +76,23 @@ function TaskList({ tasks, profiles, empty, showDue }: { tasks: DashTask[]; prof
 export default async function Home() {
   const { user, familyId } = await requireFamily();
   const now = new Date();
-  const [d, modules] = await Promise.all([getDashboard(user.id, familyId, now), activeModules()]);
+  const [d, modules, hidden] = await Promise.all([getDashboard(user.id, familyId, now), activeModules(), getHiddenElements(user.id, familyId)]);
+  // per user (Einstellungen → Module): what the family allows, minus what this user hid
+  const show = visibleElements(modules, hidden);
   // refresh stale calendar subscriptions after the response is sent
   after(() => syncStaleCalendars(user.id, familyId));
-  const when = (n: number) => (n === 0 ? "heute" : n === 1 ? "morgen" : `in ${n} Tagen`);
+  const when = (n: number) => (n === -2 ? "vorgestern" : n === -1 ? "gestern" : n === 0 ? "heute" : n === 1 ? "morgen" : `in ${n} Tagen`);
+  const side = show.has("meals") || show.has("waste") || show.has("school") || show.has("stars");
 
   return (
     <div className="space-y-6">
       <DashboardHeader timeZone={d.timezone} familyName={d.familyName} initial={now.getTime()} />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className={`grid gap-6 ${side ? "xl:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
         <div className="min-w-0 space-y-6">
-          <NextCard d={d} now={now} />
-          <TodayStrip d={d} now={now} />
+          {show.has("next") ? <NextCard d={d} now={now} /> : null}
+          {show.has("today") ? <TodayStrip d={d} now={now} /> : null}
+      {show.has("week") ? (
       <section aria-labelledby="woche" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200" data-testid="week">
         <h2 id="woche" className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-600">Diese Woche</h2>
         <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
@@ -147,9 +165,11 @@ export default async function Home() {
           </ul>
         ) : null}
       </section>
+      ) : null}
         </div>
+        {side ? (
         <aside className="grid content-start gap-4 sm:grid-cols-3 xl:grid-cols-1" aria-label="Weitere Module">
-          {d.mealsToday ? (
+          {d.mealsToday && show.has("meals") ? (
           <Tile title="Essen heute" href="/essen">
             {d.mealsToday.length === 0 ? (
               <p className="text-sm text-stone-600">Für heute ist noch nichts geplant.</p>
@@ -179,8 +199,8 @@ export default async function Home() {
             )}
           </Tile>
           ) : null}
-          {d.nextPickups ? (
-            <Tile title="Abfuhr" href="/kalender/abfall">
+          {d.nextPickups && show.has("waste") ? (
+            <Tile title="FES" href="/kalender/abfall">
               {d.nextPickups.length === 0 ? (
                 <p className="text-sm text-stone-600">In den nächsten 7 Tagen keine Abfuhr.</p>
               ) : (
@@ -196,13 +216,16 @@ export default async function Home() {
               )}
             </Tile>
           ) : null}
-          {["Schule heute", "Sterne"].map((t) => (
-            <Tile key={t} title={t} soon>
+          {(["school", "stars"] as const).filter((k) => show.has(k)).map((k) => (
+            <Tile key={k} title={k === "school" ? "Schule heute" : "Sterne"} soon>
               <p className="text-sm text-stone-600">Dieses Modul folgt in einer späteren Version.</p>
             </Tile>
           ))}
         </aside>
+        ) : null}
       </div>
+
+      {show.has("events") ? (
 
       <Tile title="Termine heute" href="/kalender" count={d.eventsToday.length}>
         {d.eventsToday.length === 0 ? (
@@ -221,7 +244,9 @@ export default async function Home() {
           </ul>
         )}
       </Tile>
+      ) : null}
 
+      {show.has("routines") ? (
       <Tile title="Routinen heute" href="/routinen" count={d.routinesToday.filter((o) => o.status === "OPEN").length}>
         {d.routinesToday.length === 0 ? (
           <p className="text-sm text-stone-600">Heute stehen keine Routinen an.</p>
@@ -250,32 +275,47 @@ export default async function Home() {
           </ul>
         )}
       </Tile>
+      ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Tile title="Meine Aufgaben" href="/aufgaben" count={d.mine.length}>
-          <TaskList tasks={d.mine} profiles={d.profiles} empty="Nichts offen für dich." showDue />
-        </Tile>
-        <Tile title="Heute fällig" href="/aufgaben" count={d.dueToday.length}>
-          <TaskList tasks={d.dueToday} profiles={d.profiles} empty="Heute ist nichts fällig." />
-        </Tile>
-        <Tile title="Überfällig" href="/aufgaben" count={d.overdue.length}>
-          <TaskList tasks={d.overdue} profiles={d.profiles} empty="Nichts überfällig." showDue />
-        </Tile>
-        <Tile title="Nächste Geburtstage" href="/geburtstage">
+      {show.has("tasks") ? (
+        <section aria-labelledby="aufgaben-gruppe" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200" data-testid="tasks-group">
+          <h2 id="aufgaben-gruppe" className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-stone-600">
+            <span>Aufgaben</span>
+            <Link href="/aufgaben" className="py-1 text-sm normal-case tracking-normal text-terracotta-dark underline">Alle ansehen</Link>
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <SubTile title="Meine Aufgaben" count={d.mine.length}>
+              <TaskList tasks={d.mine} profiles={d.profiles} empty="Nichts offen für dich." showDue />
+            </SubTile>
+            <SubTile title="Heute fällig" count={d.dueToday.length}>
+              <TaskList tasks={d.dueToday} profiles={d.profiles} empty="Heute ist nichts fällig." />
+            </SubTile>
+            <SubTile title="Überfällig" count={d.overdue.length}>
+              <TaskList tasks={d.overdue} profiles={d.profiles} empty="Nichts überfällig." showDue />
+            </SubTile>
+          </div>
+        </section>
+      ) : null}
+
+      {show.has("birthdays") || show.has("mindfulness") ? (
+      <div className="grid gap-4 sm:grid-cols-2">
+        {show.has("birthdays") ? (
+        <Tile title="Geburtstage" href="/kalender/geburtstage">
           {d.nextBirthdays.length === 0 ? (
-            <p className="text-sm text-stone-600">Noch keine Geburtstage eingetragen.</p>
+            <p className="text-sm text-stone-600">Keine Geburtstage von vorgestern bis in 3 Tagen.</p>
           ) : (
             <ul className="space-y-1.5">
               {d.nextBirthdays.map((b) => (
-                <li key={b.id} className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="min-w-0 truncate">{b.name}{b.turns ? ` wird ${b.turns}` : ""}</span>
+                <li key={b.id} className="flex items-baseline justify-between gap-2 text-sm" data-testid="birthday-near">
+                  <span className="min-w-0 truncate">{b.name}{b.turns ? (b.inDays < 0 ? ` wurde ${b.turns}` : ` wird ${b.turns}`) : ""}</span>
                   <span className="shrink-0 text-xs text-stone-600">{when(b.inDays)}</span>
                 </li>
               ))}
             </ul>
           )}
         </Tile>
-        {modules.mindfulness ? (
+        ) : null}
+        {show.has("mindfulness") ? (
           <Tile title="Achtsamkeit">
             <p className="text-sm text-stone-600">Wie war dein Tag? Ein kurzer Eintrag hilft, den Überblick zu behalten.</p>
             <Link href="/achtsamkeit" className="mt-2 inline-flex min-h-11 items-center rounded-xl bg-orange-100 px-4 text-sm font-medium text-terracotta-dark">
@@ -284,13 +324,7 @@ export default async function Home() {
           </Tile>
         ) : null}
       </div>
-
-      <section aria-label="Feedback" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-orange-50 p-4 ring-1 ring-terracotta/30" data-testid="feedback-tile">
-        <p className="text-sm font-medium text-stone-800">Testphase: Sag uns, was fehlt.</p>
-        <FeedbackOpenButton className="inline-flex min-h-11 items-center rounded-xl bg-terracotta px-4 py-2 text-sm font-medium text-white hover:bg-terracotta-dark">
-          Feedback geben
-        </FeedbackOpenButton>
-      </section>
+      ) : null}
     </div>
   );
 }

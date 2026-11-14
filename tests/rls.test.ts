@@ -35,8 +35,8 @@ describe("database role", () => {
   it("every family-scoped table has forced row level security", async () => {
     const rows = await admin.$queryRaw<{ relname: string; relrowsecurity: boolean; relforcerowsecurity: boolean }[]>`
       SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
-      WHERE relname IN ('family','family_membership','family_profile','family_invitation','task','task_assignment','birthday','routine','routine_assignment','routine_occurrence','routine_occurrence_assignment','feedback','calendar_event','calendar_event_participant','external_calendar','external_calendar_event','recipe','recipe_ingredient','meal_slot','meal','meal_cook','shop','shopping_item','shopping_item_shop','wishlist','wish','wish_reservation','map_category','poi','mindfulness_entry','mindfulness_share','notification','notification_pref','calendar_feed','calendar_event_exception','image','task_decline','mindfulness_pref')`;
-    expect(rows).toHaveLength(38);
+      WHERE relname IN ('family','family_membership','family_profile','family_invitation','task','task_assignment','birthday','routine','routine_assignment','routine_occurrence','routine_occurrence_assignment','feedback','calendar_event','calendar_event_participant','external_calendar','external_calendar_event','recipe','recipe_ingredient','meal_slot','meal','meal_cook','shop','shopping_item','shopping_item_shop','wishlist','wish','wish_reservation','map_category','poi','mindfulness_entry','mindfulness_share','notification','notification_pref','calendar_feed','calendar_event_exception','image','task_decline','mindfulness_pref','dashboard_pref','shopping_category_memo')`;
+    expect(rows).toHaveLength(40);
     for (const r of rows) expect([r.relname, r.relrowsecurity, r.relforcerowsecurity]).toEqual([r.relname, true, true]);
   });
 });
@@ -483,6 +483,41 @@ describe("assignment acceptance (0.7.0)", () => {
       expect(await raw(f.familyB, f.userBoth, (tx) => tx.mindfulnessPref.count())).toBe(0);
     } finally {
       await admin.mindfulnessPref.deleteMany({ where: { familyId: f.familyA } });
+    }
+  });
+});
+
+describe("Release 0.8 tables", () => {
+  it("dashboard_pref: own row only, not even the owner reads or writes another member's setting", async () => {
+    await raw(f.familyA, f.userBoth, (tx) => tx.dashboardPref.create({ data: { familyId: f.familyA, userId: f.userBoth, hidden: ["week"] } }));
+    try {
+      expect(await raw(f.familyA, f.userA, (tx) => tx.dashboardPref.count())).toBe(0);
+      await expect(raw(f.familyA, f.userA, (tx) => tx.dashboardPref.create({ data: { familyId: f.familyA, userId: f.userBoth } }))).rejects.toThrow();
+      expect(await raw(f.familyA, f.userA, (tx) => tx.dashboardPref.updateMany({ data: { hidden: [] } }))).toEqual({ count: 0 });
+      expect(await raw(f.familyA, f.userA, (tx) => tx.dashboardPref.deleteMany())).toEqual({ count: 0 });
+      expect(await raw(f.familyA, f.userBoth, (tx) => tx.dashboardPref.count())).toBe(1);
+      expect(await raw(f.familyB, f.userBoth, (tx) => tx.dashboardPref.count())).toBe(0);
+      // a user without membership in the family cannot create a row there (foreign key to the membership)
+      await expect(raw(f.familyB, f.userA, (tx) => tx.dashboardPref.create({ data: { familyId: f.familyB, userId: f.userA } }))).rejects.toThrow();
+    } finally {
+      await admin.dashboardPref.deleteMany({ where: { familyId: f.familyA } });
+    }
+  });
+
+  it("shopping_category_memo and shopping_item.category: family scope, foreign rows invisible and unwritable", async () => {
+    await admin.shoppingCategoryMemo.create({ data: { familyId: f.familyB, nameKey: "geheim b", category: "OBST" } });
+    try {
+      expect(await raw(f.familyA, f.userA, (tx) => tx.shoppingCategoryMemo.count())).toBe(0);
+      expect(await raw(f.familyA, f.userA, (tx) => tx.shoppingCategoryMemo.updateMany({ data: { category: "WURST" } }))).toEqual({ count: 0 });
+      await expect(raw(f.familyA, f.userA, (tx) => tx.shoppingCategoryMemo.create({ data: { familyId: f.familyB, nameKey: "x", category: "OBST" } }))).rejects.toThrow();
+      expect(await raw(f.familyB, f.userB, (tx) => tx.shoppingCategoryMemo.count())).toBe(1);
+      // the check constraints refuse unknown categories
+      await expect(raw(f.familyA, f.userA, (tx) => tx.shoppingCategoryMemo.create({ data: { familyId: f.familyA, nameKey: "y", category: "KAPUTT" } }))).rejects.toThrow();
+      await expect(
+        raw(f.familyA, f.userA, (tx) => tx.shoppingItem.create({ data: { familyId: f.familyA, name: "z", category: "KAPUTT", fromRecipes: [], createdById: f.userA } })),
+      ).rejects.toThrow();
+    } finally {
+      await admin.shoppingCategoryMemo.deleteMany({ where: { familyId: { in: [f.familyA, f.familyB] } } });
     }
   });
 });

@@ -86,6 +86,8 @@ model Family {
   moduleWishes      Boolean  @default(true)
   moduleMindfulness Boolean  @default(true)
   moduleMeals       Boolean  @default(true)
+  moduleSchool      Boolean  @default(false)
+  moduleStars       Boolean  @default(false)
   flyerLinks        Json     @default("[]")
   // Composite FK (wasteCalendarId, id) -> external_calendar(id, familyId) ON DELETE SET NULL exists in SQL only
   // (migration optional_modules): a Prisma relation over the primary key breaks family.create(). When running
@@ -116,6 +118,7 @@ model Family {
   pois             Poi[]
   mindfulness      MindfulnessEntry[]
   mindfulShares    MindfulnessShare[]
+  shoppingMemos    ShoppingCategoryMemo[]
 
   @@map("family")
 }
@@ -141,6 +144,7 @@ model FamilyMembership {
   notificationPrefs  NotificationPref[]
   calendarFeeds      CalendarFeed[]
   mindfulnessPrefs   MindfulnessPref[]
+  dashboardPrefs     DashboardPref[]
   declinesMade       TaskDecline[]      @relation("declinedBy")
   declinesReceived   TaskDecline[]      @relation("assignedBy")
 
@@ -670,6 +674,8 @@ model ShoppingItem {
   doneAt      DateTime?
   clearedAt   DateTime?
   fromRecipes String[]
+  /// Manual category only (lib/shopping-categories.ts); null = derived from memory or word list when reading.
+  category    String?
   createdById String
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
@@ -983,4 +989,28 @@ model Image {
   @@unique([wishId])
   @@index([familyId])
   @@map("image")
+}
+
+/// Dashboard elements one user hides in one family (opt-out list, unknown keys are ignored).
+model DashboardPref {
+  familyId   String
+  userId     String
+  hidden     String[]         @default([])
+  updatedAt  DateTime         @default(now()) @updatedAt
+  membership FamilyMembership @relation(fields: [familyId, userId], references: [familyId, userId], onDelete: Cascade, map: "dashboard_pref_membership_fkey")
+
+  @@id([familyId, userId])
+  @@map("dashboard_pref")
+}
+
+/// Remembered manual shopping category per family and item name key.
+model ShoppingCategoryMemo {
+  familyId  String
+  nameKey   String
+  category  String
+  updatedAt DateTime @default(now()) @updatedAt
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@id([familyId, nameKey])
+  @@map("shopping_category_memo")
 }

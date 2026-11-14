@@ -1,5 +1,6 @@
 import type { CategoryView, PoiView } from "@/server/services/map";
 import { Field, inputCls } from "../ui";
+import { AddressSearch } from "./address-search";
 
 /** Form fields of a point. lat/lng get fixed ids so the map can fill them on click. */
 export function PoiFields({ categories, poi, idPrefix }: { categories: CategoryView[]; poi?: PoiView; idPrefix: string }) {
@@ -17,7 +18,8 @@ export function PoiFields({ categories, poi, idPrefix }: { categories: CategoryV
           ))}
         </select>
       </Field>
-      <p className="mb-2 text-sm text-stone-600">Position: auf die Karte tippen (Markierung lässt sich ziehen) oder Koordinaten eingeben.</p>
+      <AddressSearch idPrefix={idPrefix} />
+      <p className="mb-2 text-sm text-stone-600">Position: Adresse suchen, „Mein Standort“, auf die Karte tippen (Markierung lässt sich ziehen) oder Koordinaten eingeben.</p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Breite (Lat)">
           <input id={`${idPrefix}-lat`} name="lat" required inputMode="decimal" defaultValue={poi?.lat} placeholder="50.1" className={inputCls} />
@@ -27,7 +29,7 @@ export function PoiFields({ categories, poi, idPrefix }: { categories: CategoryV
         </Field>
       </div>
       <Field label="Adresse (optional, nur Text)">
-        <input name="address" maxLength={300} defaultValue={poi?.address ?? ""} className={inputCls} />
+        <input id={`${idPrefix}-address`} name="address" maxLength={300} defaultValue={poi?.address ?? ""} className={inputCls} />
       </Field>
       <Field label="Beschreibung (optional)">
         <textarea name="description" maxLength={2000} rows={2} defaultValue={poi?.description ?? ""} className={inputCls} />

@@ -97,7 +97,7 @@ export async function generateFor(ctx: FamilyContext, now: Date = new Date()): P
           kind: "BIRTHDAY",
           dedupeKey: `birthday:${b.id}:${d}:${isToday ? "heute" : "morgen"}`,
           title: isToday ? `Heute hat ${b.name} Geburtstag` : `Morgen hat ${b.name} Geburtstag`,
-          link: "/geburtstage",
+          link: "/kalender/geburtstage",
         });
       }
     }

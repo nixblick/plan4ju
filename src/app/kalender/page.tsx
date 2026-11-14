@@ -11,6 +11,7 @@ import { requireFamily } from "@/server/session";
 import { buttonCls, Card, ghostButtonCls, Notice } from "../ui";
 import { fmtDay } from "../routinen/occurrences";
 import { DayEntries } from "./parts";
+import { KalenderTabs } from "./tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,7 @@ export default async function Kalender({ searchParams }: { searchParams: Promise
 
   return (
     <div className="space-y-6">
+      <KalenderTabs active="kalender" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Kalender</h1>
         <Link href={`/kalender/termin/neu?datum=${selected}`} className={buttonCls}>Neuer Termin</Link>
