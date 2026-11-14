@@ -481,6 +481,9 @@ model ExternalCalendar {
   lastError     String? // fixed code, e.g. "status-404", never an address
   eventCount    Int          @default(0)
   truncated     Boolean      @default(false)
+  refreshMinutes Int         @default(60) // 15, 60, 360 or 1440 (check constraint)
+  failCount     Int          @default(0) // consecutive failed fetches
+  pausedAt      DateTime? // set after MAX_FAILURES failures; only a manual fetch resumes
   createdById   String
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

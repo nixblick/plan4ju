@@ -8,6 +8,7 @@ import { decryptSecret, encryptSecret } from "../calendar-crypto";
 import { ConflictError, NotFoundError } from "../errors";
 import { defaultWindow, IcsError, parseIcs } from "../ics";
 import { fetchCalendarText, FetchError, parseCalendarUrl, type FetchOptions } from "../safe-fetch";
+import { prisma } from "../db";
 import { withFamily, type FamilyContext, type Tx } from "../tenant";
 import { isoDate } from "./routines";
 
@@ -17,6 +18,10 @@ export const MAX_FILE_BYTES = 2 * 1024 * 1024;
 export const STALE_AFTER_MS = 60 * 60 * 1000;
 /** Manual refresh: at most once per minute and calendar. */
 export const MANUAL_MIN_INTERVAL_MS = 60 * 1000;
+/** Refresh intervals a family may choose per subscription (minutes); the default (60) equals STALE_AFTER_MS. */
+export const REFRESH_MINUTES = [15, 60, 360, 1440] as const;
+/** Consecutive failed fetches after which a subscription is paused (only "Jetzt abrufen" resumes it). */
+export const MAX_FAILURES = 5;
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -405,6 +410,7 @@ export function listItems(userId: string, familyId: string, from: string, to: st
 const calendarSelect = {
   id: true, name: true, colorIndex: true, kind: true, enabled: true,
   lastAttemptAt: true, lastSuccessAt: true, lastError: true, eventCount: true, truncated: true,
+  refreshMinutes: true, failCount: true, pausedAt: true,
 } as const satisfies Prisma.ExternalCalendarSelect;
 export type CalendarSummary = Prisma.ExternalCalendarGetPayload<{ select: typeof calendarSelect }>;
 
@@ -497,7 +503,7 @@ export async function reimportIcsFile(userId: string, familyId: string, calendar
   );
 }
 
-export type SyncResult = { status: "ok"; events: number } | { status: "skipped" } | { status: "error"; code: string };
+export type SyncResult = { status: "ok"; events: number } | { status: "skipped" } | { status: "error"; code: string; paused?: true };
 
 export interface SyncOptions {
   /** Manual refresh (one per minute) instead of the lazy one (older than an hour). */
@@ -517,16 +523,16 @@ const storedCode = (e: unknown): string => (e instanceof FetchError ? e.stored :
  */
 export async function syncCalendar(userId: string, familyId: string, calendarId: string, opts: SyncOptions = {}): Promise<SyncResult> {
   const now = opts.now ?? new Date();
-  const minAge = opts.manual ? MANUAL_MIN_INTERVAL_MS : STALE_AFTER_MS;
   const claimed = await withFamily(
     userId,
     familyId,
     async (ctx) => {
       await ctx.tx.$queryRaw`SELECT id FROM external_calendar WHERE id = ${calendarId} FOR UPDATE`;
-      const cal = await ctx.tx.externalCalendar.findFirst({ where: { id: calendarId, familyId }, select: { id: true, kind: true, enabled: true, urlEnc: true, lastAttemptAt: true } });
+      const cal = await ctx.tx.externalCalendar.findFirst({ where: { id: calendarId, familyId }, select: { id: true, kind: true, enabled: true, urlEnc: true, lastAttemptAt: true, refreshMinutes: true, pausedAt: true } });
       if (!cal) throw new NotFoundError("Calendar not found");
       if (cal.kind !== "SUBSCRIPTION" || !cal.urlEnc) throw new ConflictError("Not a subscription");
-      if (!opts.manual && !cal.enabled) return null;
+      if (!opts.manual && (!cal.enabled || cal.pausedAt)) return null;
+      const minAge = opts.manual ? MANUAL_MIN_INTERVAL_MS : cal.refreshMinutes * 60 * 1000;
       if (cal.lastAttemptAt && now.getTime() - cal.lastAttemptAt.getTime() < minAge) return null;
       await ctx.tx.externalCalendar.update({ where: { id: calendarId }, data: { lastAttemptAt: now } });
       return { urlEnc: cal.urlEnc, tz: await familyZone(ctx) };
@@ -551,23 +557,29 @@ export async function syncCalendar(userId: string, familyId: string, calendarId:
     }
   }
 
-  await withFamily(
+  const pausedNow = await withFamily(
     userId,
     familyId,
     async (ctx) => {
       if (!parsed) {
-        await ctx.tx.externalCalendar.updateMany({ where: { id: calendarId, familyId }, data: { lastError: code } });
-        return;
+        // one statement, so parallel runs cannot lose a count; the pause starts at the MAX_FAILURES-th failure
+        const r = await ctx.tx.$queryRaw<{ just_paused: boolean }[]>`UPDATE external_calendar SET "lastError" = ${code}, "failCount" = "failCount" + 1,
+          "pausedAt" = CASE WHEN "pausedAt" IS NULL AND "failCount" + 1 >= ${MAX_FAILURES} THEN ${now.toISOString()}::timestamptz AT TIME ZONE 'UTC' ELSE "pausedAt" END
+          WHERE id = ${calendarId} AND "familyId" = ${familyId}
+          RETURNING ("pausedAt" IS NOT NULL AND "failCount" = ${MAX_FAILURES}) AS just_paused`;
+        return r[0]?.just_paused === true;
       }
       await replaceEvents(ctx.tx, familyId, calendarId, parsed);
       await ctx.tx.externalCalendar.updateMany({
         where: { id: calendarId, familyId },
-        data: { lastSuccessAt: now, lastError: null, eventCount: parsed.events.length, truncated: parsed.truncated },
+        data: { lastSuccessAt: now, lastError: null, failCount: 0, pausedAt: null, eventCount: parsed.events.length, truncated: parsed.truncated },
       });
+      return false;
     },
     opts.client,
   );
-  return parsed ? { status: "ok", events: parsed.events.length } : { status: "error", code };
+  if (parsed) return { status: "ok", events: parsed.events.length };
+  return pausedNow ? { status: "error", code, paused: true } : { status: "error", code };
 }
 
 /** Adds a subscription (read only) and fetches it once. An unacceptable address is refused before anything is stored. */
@@ -594,7 +606,7 @@ export async function addSubscription(
   return { id, sync: await syncCalendar(userId, familyId, id, { ...opts, manual: true }) };
 }
 
-/** Lazy refresh of every enabled subscription whose data is older than an hour. Never throws. */
+/** Lazy refresh of every enabled, not paused subscription that is due by its own interval. Never throws. */
 export async function syncStaleCalendars(userId: string, familyId: string, opts: Omit<SyncOptions, "manual"> = {}): Promise<number> {
   const now = opts.now ?? new Date();
   let done = 0;
@@ -604,9 +616,9 @@ export async function syncStaleCalendars(userId: string, familyId: string, opts:
       familyId,
       (ctx) =>
         ctx.tx.externalCalendar.findMany({
-          where: { familyId, kind: "SUBSCRIPTION", enabled: true, OR: [{ lastAttemptAt: null }, { lastAttemptAt: { lt: new Date(now.getTime() - STALE_AFTER_MS) } }] },
-          select: { id: true },
-        }),
+          where: { familyId, kind: "SUBSCRIPTION", enabled: true, pausedAt: null },
+          select: { id: true, lastAttemptAt: true, refreshMinutes: true },
+        }).then((rows) => rows.filter((r) => !r.lastAttemptAt || now.getTime() - r.lastAttemptAt.getTime() >= r.refreshMinutes * 60 * 1000)),
       opts.client,
     );
     for (const { id } of ids) {
@@ -623,17 +635,18 @@ export async function updateCalendar(
   userId: string,
   familyId: string,
   id: string,
-  raw: { name?: string; colorIndex?: number; enabled?: boolean },
+  raw: { name?: string; colorIndex?: number; enabled?: boolean; refreshMinutes?: number },
   client?: PrismaClient,
 ) {
   const meta = calendarMeta.partial().parse({ name: raw.name, colorIndex: raw.colorIndex });
+  const refresh = raw.refreshMinutes === undefined ? undefined : z.number().int().refine((m) => (REFRESH_MINUTES as readonly number[]).includes(m)).parse(raw.refreshMinutes);
   return withFamily(
     userId,
     familyId,
     async (ctx) => {
       const r = await ctx.tx.externalCalendar.updateMany({
         where: { id, familyId },
-        data: { ...(meta.name !== undefined ? { name: meta.name } : {}), ...(raw.colorIndex !== undefined ? { colorIndex: meta.colorIndex } : {}), ...(raw.enabled !== undefined ? { enabled: raw.enabled } : {}) },
+        data: { ...(meta.name !== undefined ? { name: meta.name } : {}), ...(raw.colorIndex !== undefined ? { colorIndex: meta.colorIndex } : {}), ...(raw.enabled !== undefined ? { enabled: raw.enabled } : {}), ...(refresh !== undefined ? { refreshMinutes: refresh } : {}) },
       });
       if (r.count === 0) throw new NotFoundError("Calendar not found");
     },
@@ -651,4 +664,31 @@ export function deleteCalendar(userId: string, familyId: string, id: string, cli
     },
     client,
   );
+}
+
+/** Calendars one job run looks at, at most (the timer runs again soon). */
+export const JOB_BATCH = 200;
+
+export interface RefreshJobResult { due: number; ok: number; error: number; paused: number }
+
+/**
+ * Background refresh (POST /api/jobs/kalender): every enabled, not paused subscription that is due by its
+ * own interval, across all families. The contextless function only lists; each fetch runs through
+ * syncCalendar under RLS as a current member. Counts only, never names or addresses.
+ */
+export async function refreshDueCalendars(opts: Omit<SyncOptions, "manual"> & { client?: PrismaClient } = {}): Promise<RefreshJobResult> {
+  const now = opts.now ?? new Date();
+  const client = opts.client ?? prisma;
+  const rows = await client.$queryRaw<{ calendar_id: string; family_id: string; user_id: string }[]>`
+    SELECT * FROM app_calendar_refresh_due((${now.toISOString()}::timestamptz AT TIME ZONE 'UTC'), ${JOB_BATCH}::int)`;
+  const result: RefreshJobResult = { due: rows.length, ok: 0, error: 0, paused: 0 };
+  for (const r of rows) {
+    const s = await syncCalendar(r.user_id, r.family_id, r.calendar_id, { ...opts, now, client }).catch(() => ({ status: "error" as const, code: "netz" }));
+    if (s.status === "ok") result.ok++;
+    else if (s.status === "error") {
+      result.error++;
+      if ("paused" in s && s.paused) result.paused++;
+    }
+  }
+  return result;
 }

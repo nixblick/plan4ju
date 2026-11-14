@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
-/** Minimum length of NOTIFY_JOB_TOKEN; shorter (or unset) disables the job endpoint. */
+/** Minimum length of a job token (NOTIFY_JOB_TOKEN, JOB_TOKEN); shorter (or unset) disables the job endpoint. */
 export const MIN_JOB_TOKEN = 32;
 
 /** True when the Authorization header carries exactly the job token from the environment. */
