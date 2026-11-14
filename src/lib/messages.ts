@@ -1,4 +1,6 @@
 export const errorMessages: Record<string, string> = {
+  "bild-typ": "Das Bild konnte nicht gelesen werden. Erlaubt sind PNG, JPEG und WebP.",
+  "bild-gross": "Das Bild ist zu groß (höchstens 5 MB).",
   "eingabe-prospekt": "Bitte prüfe Name und Adresse: erlaubt sind nur Links mit https://, höchstens 20 Einträge.",
   "eingabe-achtsamkeit": "Bitte prüfe deine Eingaben: Bewertung von 1 bis 5, gültiges Datum, bei „Ausgewählte Personen“ mindestens eine Person. Gesundheit ist nie für die ganze Familie sichtbar.",
   "zu-viele": "Zu viele Versuche. Bitte warte ein paar Minuten.",
@@ -33,6 +35,8 @@ export const errorMessages: Record<string, string> = {
 };
 
 export const okMessages: Record<string, string> = {
+  bild: "Bild gespeichert.",
+  "bild-weg": "Bild entfernt.",
   "konto-geloescht": "Dein Konto und deine persönlichen Daten sind gelöscht.",
   "familie-geloescht": "Die Familie ist mit allen Einträgen gelöscht.",
   "benachrichtigungen-gelesen": "Alle Benachrichtigungen als gelesen markiert.",

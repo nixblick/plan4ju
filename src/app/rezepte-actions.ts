@@ -7,7 +7,9 @@ import { createRecipe, deleteRecipe, importRecipeDraft, RecipeImportError, updat
 import { requireFamily } from "@/server/session";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { calendarErrorCode, runAction, text } from "./action-helpers";
+import { calendarErrorCode, localPath, runAction, text } from "./action-helpers";
+import { IMAGE_MAX_BYTES, ImageError } from "@/lib/image-clean";
+import { removeImage, setImage } from "@/server/services/images";
 
 /** The client form sends the whole recipe as JSON in "payload" (ingredient rows are dynamic). */
 function recipeFromForm(form: FormData): RecipeInput {
@@ -72,4 +74,36 @@ export async function importRecipeAction(prev: ImportState, form: FormData): Pro
   } catch (e) {
     return { status: "error", message: importMessage(e) };
   }
+}
+
+function fileBytes(form: FormData): Promise<Uint8Array> {
+  const f = form.get("bild");
+  if (!(f instanceof File) || f.size === 0) return Promise.resolve(new Uint8Array());
+  if (f.size > IMAGE_MAX_BYTES) throw new ImageError("gross");
+  return f.arrayBuffer().then((b) => new Uint8Array(b));
+}
+
+function imageErrorCode(e: unknown): string {
+  if (e instanceof ImageError) return e.code === "gross" ? "bild-gross" : "bild-typ";
+  return calendarErrorCode(e);
+}
+
+/** Upload or replace the picture of a recipe or wish; `back` is the page to return to. */
+export async function uploadImageAction(form: FormData) {
+  const { user, familyId } = await requireFamily();
+  const kind = text(form, "kind") === "wish" ? "wish" : "recipe";
+  const back = localPath(text(form, "back"), "/");
+  let failure: string | null = null;
+  try {
+    await setImage(user.id, familyId, { kind, id: text(form, "ownerId") }, await fileBytes(form));
+  } catch (e) {
+    failure = imageErrorCode(e);
+  }
+  revalidatePath("/", "layout");
+  redirect(`${back}?${failure ? `fehler=${failure}` : "ok=bild"}`);
+}
+
+export async function removeImageAction(form: FormData) {
+  const kind = text(form, "kind") === "wish" ? "wish" : "recipe";
+  await runAction(localPath(text(form, "back"), "/"), "bild-weg", (a) => removeImage(a.user.id, a.familyId, { kind, id: text(form, "ownerId") }));
 }

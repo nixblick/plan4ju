@@ -12,6 +12,8 @@ const anna = { name: "Anna Muster", email: `anna-r-${run}@example.test`, phrase:
 const TITLE = `Kartoffelsuppe ${run}`;
 const pages: Record<string, Page> = {};
 let foreignId = "";
+let foreignImage = "";
+let familyA = "";
 
 async function join(browser: Browser, token: string, who: { name: string; phrase: string }, width = 375): Promise<Page> {
   const ctx = await browser.newContext({ viewport: { width, height: 812 } });
@@ -35,6 +37,10 @@ test.describe.serial("Rezepte", () => {
     const b = await createFamilyWithOwnerInvitation(admin, { name: "Familie Beispiel", ownerEmail: `clara-r-${run}@example.test` });
     const r = await admin.recipe.create({ data: { familyId: b.familyId, title: `Fremdes Rezept ${run}`, createdById: "niemand" } });
     foreignId = r.id;
+    familyA = a.familyId;
+    // 1x1 PNG of the other family, stored directly
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNoAAAAggCBd81ytgAAAABJRU5ErkJggg==", "base64");
+    foreignImage = (await admin.image.create({ data: { familyId: b.familyId, recipeId: r.id, mime: "image/png", size: png.length, data: png, createdById: "niemand" } })).id;
     pages.anna = await join(browser, a.token, anna);
   });
 
@@ -134,4 +140,45 @@ test.describe.serial("Rezepte", () => {
     await expect(p.getByRole("status")).toContainText("Rezept gelöscht");
     await expect(p.locator("main")).not.toContainText(TITLE);
   });
+
+  test("Bild hochladen, anzeigen, entfernen; Bild einer anderen Familie gibt 404 (375 px)", async () => {
+    const p = pages.anna!;
+    const r = await admin.recipe.create({ data: { familyId: familyA, title: `Bildrezept ${run}`, createdById: "niemand" } });
+    await p.goto(`/rezepte/${r.id}`);
+    // a real, decodable JPEG made by the browser
+    const b64 = await p.evaluate(async () => {
+      const c = document.createElement("canvas");
+      c.width = 40;
+      c.height = 30;
+      const g = c.getContext("2d")!;
+      g.fillStyle = "#c2552d";
+      g.fillRect(0, 0, 40, 30);
+      const blob: Blob = await new Promise((res) => c.toBlob((x) => res(x!), "image/jpeg", 0.9));
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let s = "";
+      for (const x of bytes) s += String.fromCharCode(x);
+      return btoa(s);
+    });
+    await p.getByLabel("Bild auswählen").setInputFiles({ name: "foto.jpg", mimeType: "image/jpeg", buffer: Buffer.from(b64, "base64") });
+    await p.getByRole("button", { name: "Bild hochladen" }).click();
+    await expect(p.getByText("Bild gespeichert.")).toBeVisible();
+    const img = p.getByRole("img", { name: `Bild zu Bildrezept ${run}` });
+    await expect(img).toBeVisible();
+    await expect.poll(() => img.evaluate((e) => (e as HTMLImageElement).naturalWidth)).toBe(40);
+    await noOverflow(p);
+
+    await p.getByLabel("Bild auswählen").setInputFiles({ name: "x.png", mimeType: "image/png", buffer: Buffer.from("<svg/>") });
+    await p.getByRole("button", { name: "Bild ersetzen" }).click();
+    await expect(p.getByText("Erlaubt sind PNG, JPEG und WebP")).toBeVisible();
+
+    expect((await p.request.get(`/api/bild/${foreignImage}`)).status()).toBe(404);
+    const own = await admin.image.findFirstOrThrow({ where: { recipeId: r.id } });
+    expect((await p.request.get(`/api/bild/${own.id}`)).status()).toBe(200);
+
+    await p.getByRole("button", { name: "Bild entfernen" }).click();
+    await expect(p.getByText("Bild entfernt.")).toBeVisible();
+    expect((await p.request.get(`/api/bild/${own.id}`)).status()).toBe(404);
+    await admin.recipe.delete({ where: { id: r.id } });
+  });
+
 });

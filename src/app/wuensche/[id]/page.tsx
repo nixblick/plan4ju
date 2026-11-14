@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ImageUpload } from "../../image-upload";
 import { notFound } from "next/navigation";
 import { errorMessages, okMessages, one } from "@/lib/messages";
 import { daysBetween, todayIn } from "@/lib/week";
@@ -142,6 +143,9 @@ export default async function Wunschzettel({
                       </a>
                     ) : null}
                   </div>
+                  {w.imageId || list.canEdit ? (
+                    <ImageUpload kind="wish" ownerId={w.id} imageId={w.imageId} back={`/wuensche/${encodeURIComponent(list.id)}`} alt={`Bild zu ${w.title}`} canEdit={list.canEdit} />
+                  ) : null}
                   <ReservationBox w={w} listId={list.id} />
                   {list.canEdit ? (
                     <details>

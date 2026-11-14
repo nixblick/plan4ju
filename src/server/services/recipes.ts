@@ -73,7 +73,7 @@ export function getRecipe(userId: string, familyId: string, id: string, client?:
     userId,
     familyId,
     async (ctx) => {
-      const r = await ctx.tx.recipe.findFirst({ where: { id, familyId: ctx.familyId }, include: withIngredients });
+      const r = await ctx.tx.recipe.findFirst({ where: { id, familyId: ctx.familyId }, include: { ...withIngredients, images: { select: { id: true } } } });
       if (!r) throw new NotFoundError("Recipe not found");
       return r;
     },

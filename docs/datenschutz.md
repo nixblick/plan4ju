@@ -54,6 +54,16 @@ Familiennamens. `app_delete_active_family()` prüft Rolle und aktiven Familienko
 Familie mit allen Einträgen, Profilen, Mitgliedschaften und Feedbacks. Die Konten der Mitglieder
 bleiben; wer keine Familie mehr hat, sieht die Familienauswahl.
 
+## Bilder (Rezepte, Wünsche)
+
+Hochgeladene Bilder (PNG, JPEG, WebP, höchstens 5 MB) liegen in der Datenbank der Familie (Tabelle
+`image`, RLS) und sind nur über `/api/bild/<id>` für angemeldete Mitglieder der Familie abrufbar, nie
+öffentlich. Der Typ wird an den ersten Bytes erkannt. Metadaten (EXIF mit GPS, XMP, IPTC, Kommentare,
+Textblöcke, angehängte Vorschaubilder) werden entfernt, indem die Datei nur aus erlaubten Blöcken neu
+zusammengesetzt wird; die Bildpunkte selbst werden nicht neu kodiert (keine native Abhängigkeit). Folge:
+Die Drehinformation fehlt, Hochkant-Fotos vom Handy können gedreht erscheinen. Ein Bild verschwindet mit
+seinem Rezept, seinem Wunsch oder der Familie. Bilder sind nicht Teil des JSON-Datenexports.
+
 ## Aufbewahrung
 
 | Daten | Dauer |

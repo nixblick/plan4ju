@@ -110,6 +110,7 @@ model Family {
   shoppingItems    ShoppingItem[]
   wishlists        Wishlist[]
   wishes           Wish[]
+  images           Image[]
   wishReservations WishReservation[]
   mapCategories    MapCategory[]
   pois             Poi[]
@@ -535,6 +536,7 @@ model Recipe {
   family      Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
   ingredients RecipeIngredient[]
   meals       Meal[]
+  images      Image[]
 
   @@unique([id, familyId])
   @@index([familyId, title])
@@ -716,6 +718,7 @@ model Wish {
   family      Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
   list        Wishlist         @relation(fields: [listId, familyId], references: [id, familyId], onDelete: Cascade)
   reservation WishReservation?
+  images      Image[]
 
   @@unique([id, familyId])
   @@index([listId])
@@ -904,4 +907,26 @@ model CalendarFeed {
 
   @@unique([familyId, userId])
   @@map("calendar_feed")
+}
+
+/// Uploaded picture of a recipe or a wish (exactly one), metadata removed; served only via /api/bild/<id>.
+model Image {
+  id          String   @id @default(cuid())
+  familyId    String
+  recipeId    String?
+  wishId      String?
+  mime        String
+  size        Int
+  data        Bytes
+  createdById String
+  createdAt   DateTime @default(now())
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  recipe      Recipe?  @relation(fields: [recipeId, familyId], references: [id, familyId], onDelete: Cascade)
+  wish        Wish?    @relation(fields: [wishId, familyId], references: [id, familyId], onDelete: Cascade)
+
+  @@unique([id, familyId])
+  @@unique([recipeId])
+  @@unique([wishId])
+  @@index([familyId])
+  @@map("image")
 }

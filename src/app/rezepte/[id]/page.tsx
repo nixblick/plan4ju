@@ -8,6 +8,7 @@ import { requireFamily } from "@/server/session";
 import { deleteRecipeAction, updateRecipeAction } from "../../rezepte-actions";
 import { Card, ghostButtonCls, inputCls, Notice } from "../../ui";
 import { RecipeForm } from "../recipe-form";
+import { ImageUpload } from "../../image-upload";
 import { pageModule } from "@/server/active-modules";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +54,10 @@ export default async function Rezept({ params, searchParams }: { params: Promise
           {r.imageUrl ? <a className="text-terracotta-dark underline" href={r.imageUrl} target="_blank" rel="noopener noreferrer nofollow">Bild ansehen</a> : null}
         </p>
         ) : null}
+      </Card>
+
+      <Card title="Bild">
+        <ImageUpload kind="recipe" ownerId={r.id} imageId={r.images[0]?.id ?? null} back={`/rezepte/${encodeURIComponent(r.id)}`} alt={`Bild zu ${r.title}`} />
       </Card>
 
       <Card title="Zutaten">

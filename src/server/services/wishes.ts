@@ -59,6 +59,8 @@ export interface WishView {
   description: string | null;
   url: string | null;
   imageUrl: string | null;
+  /** Uploaded picture, served by /api/bild/<id>. */
+  imageId: string | null;
   priceCents: number | null;
   priority: number;
   note: string | null;
@@ -130,7 +132,7 @@ async function viewLists(ctx: FamilyContext, where: { id?: string }) {
     where: { familyId: ctx.familyId, ...where },
     include: {
       ...listInclude,
-      wishes: { orderBy: [{ received: "asc" }, { priority: "asc" }, { createdAt: "asc" }, { id: "asc" }] },
+      wishes: { orderBy: [{ received: "asc" }, { priority: "asc" }, { createdAt: "asc" }, { id: "asc" }], include: { images: { select: { id: true } } } },
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
@@ -167,7 +169,7 @@ async function viewLists(ctx: FamilyContext, where: { id?: string }) {
         if (wisher) reservation = l.surprise ? null : takenForWisher.has(w.id) ? { state: "reserved-anonymous" } : { state: "free" };
         else reservation = r ? { state: "reserved", byMe: r.reservedById === ctx.userId, byName: names.get(r.reservedById) ?? null, given: r.given } : { state: "free" };
         return {
-          id: w.id, title: w.title, description: w.description, url: w.url, imageUrl: w.imageUrl, priceCents: w.priceCents,
+          id: w.id, title: w.title, description: w.description, url: w.url, imageUrl: w.imageUrl, imageId: w.images[0]?.id ?? null, priceCents: w.priceCents,
           priority: w.priority, note: w.note, occasion: w.occasion, received: w.received, reservation,
         };
       }),
@@ -360,4 +362,15 @@ export function setReservationGiven(userId: string, familyId: string, wishId: st
     },
     client,
   );
+}
+
+/** Whether this user may change the given wish (for its picture). False when the wish is unknown or invisible. */
+export async function canEditWish(ctx: FamilyContext, wishId: string): Promise<boolean> {
+  try {
+    const { list } = await loadWish(ctx, wishId);
+    return canEditList(ctx, list);
+  } catch (e) {
+    if (e instanceof NotFoundError) return false;
+    throw e;
+  }
 }
