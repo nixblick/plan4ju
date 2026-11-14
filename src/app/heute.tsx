@@ -1,10 +1,11 @@
 import Link from "next/link";
 import {
-  agendaOf, buildStrip, inLabel, nextUp, nowLine, nowMinutes, STRIP_FROM, STRIP_TO, type AgendaEntry,
+  agendaOf, buildStrip, nextUp, nowMinutes, STRIP_FROM, STRIP_TO, type AgendaEntry,
 } from "@/lib/today-agenda";
 import { personColor } from "@/lib/colors";
 import type { DashboardData } from "@/server/services/dashboard";
 import { Avatar, colorOf, names } from "./people";
+import { NextIn, NowLine } from "./clock";
 
 type Profiles = DashboardData["profiles"];
 
@@ -32,7 +33,7 @@ const timeRange = (a: AgendaEntry) => {
 /** "Als Nächstes" and "Danach": the next timed event or routine today, then up to three more. */
 export function NextCard({ d, now }: { d: DashboardData; now: Date }) {
   const agenda = agendaOf(d.today, d.eventsToday, d.routinesToday);
-  const { next, inMinutes, running, after } = nextUp(agenda, nowMinutes(now, d.timezone));
+  const { next, inMinutes, after } = nextUp(agenda, nowMinutes(now, d.timezone));
   return (
     <section
       aria-label="Als Nächstes"
@@ -41,7 +42,7 @@ export function NextCard({ d, now }: { d: DashboardData; now: Date }) {
     >
       <div className="min-w-0">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-terracotta-dark">
-          Als Nächstes{next && inMinutes !== null ? <span data-testid="next-in"> · {running ? `läuft seit ${next.since}` : inLabel(inMinutes)}</span> : null}
+          Als Nächstes{next && inMinutes !== null ? <NextIn start={next.start} since={next.since} timeZone={d.timezone} initial={now.getTime()} /> : null}
         </h2>
         {next ? (
           <div className="mt-2 space-y-2" data-testid="next-entry">
@@ -82,7 +83,6 @@ export function NextCard({ d, now }: { d: DashboardData; now: Date }) {
 export function TodayStrip({ d, now }: { d: DashboardData; now: Date }) {
   const agenda = agendaOf(d.today, d.eventsToday, d.routinesToday);
   const rows = buildStrip(agenda, d.profiles.map((p) => p.id));
-  const line = nowLine(nowMinutes(now, d.timezone));
   const allDay = d.eventsToday.filter((e) => e.allDay);
   const ticks = Array.from({ length: (STRIP_TO - STRIP_FROM) / 2 + 1 }, (_, i) => STRIP_FROM + i * 2);
   const empty = rows.every((r) => r.bars.length === 0);
@@ -140,11 +140,7 @@ export function TodayStrip({ d, now }: { d: DashboardData; now: Date }) {
               </div>
             );
           })}
-          {line !== null ? (
-            <div className="pointer-events-none absolute inset-y-0 left-[2.5rem] right-0 sm:left-[3rem]" aria-hidden="true">
-              <span data-testid="now-line" className="absolute inset-y-0 w-0.5 bg-terracotta" style={{ left: `${line}%` }} />
-            </div>
-          ) : null}
+          <NowLine timeZone={d.timezone} initial={now.getTime()} />
         </div>
       )}
       {empty && d.profiles.length > 0 ? (

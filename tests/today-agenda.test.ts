@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarItem } from "../src/lib/calendar-items";
-import { agendaOf, barPosition, buildStrip, inLabel, nextUp, nowLine, nowMinutes } from "../src/lib/today-agenda";
+import { agendaOf, barPosition, buildStrip, inLabel, nextUp, nowLine, nextInText, nowMinutes } from "../src/lib/today-agenda";
 
 const base = { source: "event" as const, description: null, location: null, repeats: false, calendarId: null, calendarName: null, colorIndex: null };
 const ev = (p: Partial<CalendarItem> & { key: string; title: string }): CalendarItem => ({
@@ -99,5 +99,17 @@ describe("labels and strip", () => {
   it("nowMinutes uses the family zone", () => {
     expect(nowMinutes(new Date("2026-11-16T07:12:00Z"), "Europe/Berlin")).toBe(8 * 60 + 12);
     expect(nowMinutes(new Date("2026-07-16T07:12:00Z"), "Europe/Berlin")).toBe(9 * 60 + 12);
+  });
+});
+
+describe("nextInText (minute tick)", () => {
+  it("counts down as the minute advances and switches to running", () => {
+    expect(nextInText(600, "10:00", 590)).toBe("in 10 Minuten");
+    expect(nextInText(600, "10:00", 599)).toBe("in 1 Minute");
+    expect(nextInText(600, "10:00", 600)).toBe("jetzt");
+    expect(nextInText(600, "10:00", 601)).toBe("läuft seit 10:00");
+  });
+  it("now line moves with the minute", () => {
+    expect(nowLine(14 * 60)).not.toBe(nowLine(14 * 60 + 1));
   });
 });

@@ -110,6 +110,11 @@ export function inLabel(min: number): string {
   return m === 0 ? `in ${hours}` : `in ${hours} ${m} Min.`;
 }
 
+/** Header text of "Als Nächstes" at `nowMin`: "läuft seit 9:00" once started, else "in N Minuten". */
+export function nextInText(start: number, since: string, nowMin: number): string {
+  return start < nowMin ? `läuft seit ${since}` : inLabel(start - nowMin);
+}
+
 export interface Bar {
   key: string;
   title: string;

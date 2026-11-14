@@ -1,6 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { nextInText, nowLine, nowMinutes } from "@/lib/today-agenda";
+
+/** Current time in ms, refreshed every `everyMs` (default one minute). */
+function useNow(initial: number, everyMs = 60_000): number {
+  const [now, setNow] = useState(initial);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), everyMs);
+    return () => clearInterval(t);
+  }, [everyMs]);
+  return now;
+}
+
+/** " · in 12 Minuten" / " · läuft seit 9:00", recomputed every minute. */
+export function NextIn({ start, since, timeZone, initial }: { start: number; since: string; timeZone: string; initial: number }) {
+  const now = useNow(initial);
+  return <span data-testid="next-in" suppressHydrationWarning> · {nextInText(start, since, nowMinutes(new Date(now), timeZone))}</span>;
+}
+
+/** The "now" line on the 6-22 h strip, moved every minute; hidden outside the strip. */
+export function NowLine({ timeZone, initial }: { timeZone: string; initial: number }) {
+  const now = useNow(initial);
+  const line = nowLine(nowMinutes(new Date(now), timeZone));
+  if (line === null) return null;
+  return (
+    <div className="pointer-events-none absolute inset-y-0 left-[2.5rem] right-0 sm:left-[3rem]" aria-hidden="true">
+      <span data-testid="now-line" className="absolute inset-y-0 w-0.5 bg-terracotta" style={{ left: `${line}%` }} />
+    </div>
+  );
+}
 
 function greeting(hour: number): { hello: string; hint: string } {
   if (hour < 5) return { hello: "Gute Nacht", hint: "Ruhige Nacht" };
@@ -13,11 +42,7 @@ function greeting(hour: number): { hello: string; hint: string } {
 
 /** Time, date and greeting in the family's time zone. Re-renders every 20 seconds. */
 export function DashboardHeader({ timeZone, familyName, initial }: { timeZone: string; familyName: string; initial: number }) {
-  const [now, setNow] = useState(initial);
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 20_000);
-    return () => clearInterval(t);
-  }, []);
+  const now = useNow(initial, 20_000);
   const d = new Date(now);
   const safe = (tz: string) => {
     try {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.15 (14.11.2026)
+
+- Start page: "in N Minuten" under "Als Nächstes" and the now line on "Heute zu Hause" no longer freeze at page load. A shared one-minute client tick in `clock.tsx` (`useNow`, `NextIn`, `NowLine`) recomputes both; new pure `nextInText` in `today-agenda.ts`. Tests: new cases in `tests/today-agenda.test.ts`, new E2E case in `tests-e2e/heute.spec.ts` (Playwright clock, line appears and moves without reload).
+
 ## 0.5.14 (14.11.2026)
 
 - Modules: a server action against a switched-off module now redirects with `fehler=modul-aus` and shows "Dieses Modul ist ausgeschaltet." instead of "Eintrag nicht gefunden.". New `ModuleOffError` (subclass of `NotFoundError`, so pages still answer 404), mapped in `action-helpers.ts`, `actions.ts` and `planung-actions.ts`. Vitest gets the `@/` alias. New `tests/module-off-message.test.ts`, extra case in `tests/modules.test.ts`.

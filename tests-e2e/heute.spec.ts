@@ -90,6 +90,22 @@ test.describe.serial("Dashboard: Als Nächstes, Zeitstrahl, Woche", () => {
     }
   });
 
+  test("Jetzt-Linie läuft im Minutentakt mit, ohne neu zu laden", async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: await sessions.anna!.context().storageState(), viewport: { width: 1280, height: 900 } });
+    const page = await ctx.newPage();
+    // Browser clock at 10:00 Berlin today, whatever the server time: only the client tick can place the line.
+    await page.clock.install({ time: new Date(`${today}T10:00:00+01:00`) });
+    await page.goto("/");
+    await expect(page.getByTestId("today-strip")).toBeVisible();
+    await page.clock.runFor(61_000);
+    const line = page.getByTestId("now-line");
+    await expect(line).toBeVisible();
+    const before = await line.getAttribute("style");
+    await page.clock.runFor(30 * 60_000);
+    await expect(line).not.toHaveAttribute("style", before ?? "");
+    await ctx.close();
+  });
+
   test("Als Nächstes: ein laufender mehrtägiger Termin steht vorn, mit „läuft seit gestern“", async () => {
     const p = sessions.anna!;
     await p.goto("/");
