@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Default AI model for recipe ideas is now claude-haiku-5-5 (current Haiku).
+
 ## 0.7.2 (14.11.2026)
 
 Code review: errors, load and token costs.

@@ -41,7 +41,7 @@ export class AiProviderError extends Error {
 }
 
 /** A small model is enough for one recipe as JSON; AI_MODEL can pick another. */
-export const DEFAULT_AI_MODEL = "claude-haiku-4-5";
+export const DEFAULT_AI_MODEL = "claude-haiku-5-5";
 /** A recipe as JSON stays well below this; it caps the cost of one call. */
 export const MAX_OUTPUT_TOKENS = 1200;
 export const IDEA_LIMIT = { max: 20, windowMs: 60 * 60_000 } as const;
