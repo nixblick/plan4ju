@@ -329,6 +329,19 @@ export async function itemsBetween(ctx: FamilyContext, from: string, to: string)
           { freq: { not: null }, OR: [{ startsAt: { lte: hi } }, { startDate: { lte: day(to) } }], AND: [{ OR: [{ repeatUntil: null }, { repeatUntil: { gte: day(from) } }] }] },
           { freq: null, allDay: false, startsAt: { lte: hi }, endsAt: { gte: lo } },
           { freq: null, allDay: true, startDate: { lte: day(to) }, endDate: { gte: day(from) } },
+          // a series instance moved before the series starts or after it ends
+          {
+            freq: { not: null },
+            exceptions: {
+              some: {
+                cancelled: false,
+                OR: [
+                  { startsAt: { lte: hi }, endsAt: { gte: lo } },
+                  { startDate: { lte: day(to) }, endDate: { gte: day(from) } },
+                ],
+              },
+            },
+          },
         ],
       },
       include: {

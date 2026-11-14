@@ -111,6 +111,13 @@ describe("calendar: single instances of a series", () => {
     expect(moved.map((i) => [i.startDate, i.endDate, i.moved])).toEqual([["2026-11-17", "2026-11-18", true]]);
   });
 
+  it("shows an instance moved behind the end of the series", async () => {
+    const e = await createEvent(f.userA, f.familyA, { title: "Kurzkurs", startDate: "2026-10-19", startTime: "09:00", endTime: "10:00", freq: "WEEKLY", weekdays: [0], repeatUntil: "2026-10-26" }, app);
+    await setEventInstance(f.userA, f.familyA, e.id, { date: "2026-10-26", startDate: "2026-11-11" }, app);
+    const items = (await listItems(f.userA, f.familyA, "2026-11-09", "2026-11-15", app)).filter((i) => i.id === e.id);
+    expect(items.map((i) => [i.startDate, i.startTime, i.moved])).toEqual([["2026-11-11", "09:00", true]]);
+  });
+
   it("refuses days that are not in the series, one-off events and other families", async () => {
     const e = await createEvent(f.userA, f.familyA, { title: "Kurs", startDate: "2026-11-03", startTime: "18:00", freq: "WEEKLY", weekdays: [1] }, app);
     await expect(setEventInstance(f.userA, f.familyA, e.id, { date: "2026-11-04", cancelled: true }, app)).rejects.toBeInstanceOf(NotFoundError);
