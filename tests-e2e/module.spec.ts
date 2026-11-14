@@ -74,6 +74,50 @@ test.describe.serial("Zusatzmodule", () => {
     await b.context().close();
   });
 
+  test("Navigation 375 px: 7 Tabs ohne Umbruch, Feste führt zur Karte, Achtsamkeit auf der Startseite", async ({ browser }) => {
+    const a = await signIn(browser, anna);
+    await a.goto("/familie/module");
+    for (const label of ["Karte", "Wunschzettel", "Achtsamkeit"]) {
+      const on = a.getByRole("button", { name: `${label} einschalten` });
+      if (await on.count()) {
+        await on.click();
+        await expect(a.getByRole("status")).toHaveText("Modul eingeschaltet.");
+      }
+    }
+    await a.goto("/");
+    const links = a.locator("nav[aria-label=\"Hauptmenü\"].fixed a");
+    const bar = await links.evaluateAll((els) =>
+      els.map((e) => {
+        const r = e.getBoundingClientRect();
+        const span = e.querySelector("span")!;
+        return { label: span.textContent, h: r.height, w: r.width, lineH: span.getBoundingClientRect().height, scroll: span.scrollWidth, client: span.clientWidth };
+      }));
+    expect(bar.map((x) => x.label)).toEqual(["Heute", "Kalender", "Aufgaben", "Routinen", "Essen", "Feste", "Familie"]);
+    for (const x of bar) {
+      expect(x.h, `${x.label} Höhe`).toBeGreaterThanOrEqual(44);
+      expect(x.w, `${x.label} Breite`).toBeGreaterThanOrEqual(44);
+      expect(x.lineH, `${x.label} einzeilig`).toBeLessThan(20);
+    }
+    await noOverflow(a);
+
+    const tile = a.getByRole("region", { name: "Achtsamkeit" });
+    await expect(tile).toBeVisible();
+    const cta = tile.getByRole("link", { name: "Eintrag für heute" });
+    expect((await cta.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await cta.click();
+    await expect(a.getByRole("heading", { name: "Achtsamkeit", level: 1 })).toBeVisible();
+
+    await a.getByRole("link", { name: "Feste" }).click();
+    const sub = a.getByRole("navigation", { name: "Unterseiten" });
+    await expect(sub.getByRole("link")).toHaveText(["Geburtstage", "Wunschzettel", "Karte"]);
+    for (const box of await sub.getByRole("link").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) expect(box).toBeGreaterThanOrEqual(44);
+    await sub.getByRole("link", { name: "Karte" }).click();
+    await expect(a).toHaveURL(/\/karte$/);
+    await expect(a.getByRole("link", { name: "Feste" })).toHaveAttribute("aria-current", "page");
+    await noOverflow(a);
+    await a.context().close();
+  });
+
   test("Anna schaltet Karte, Wunschzettel, Achtsamkeit und Essen aus: weg aus Navigation und Startseite, Einkauf bleibt", async ({ browser }) => {
     const a = await signIn(browser, anna);
     await a.goto("/familie/module");
@@ -84,6 +128,7 @@ test.describe.serial("Zusatzmodule", () => {
     for (const path of ["/karte", "/wuensche", "/achtsamkeit", "/essen", "/rezepte"]) expect((await a.goto(path))?.status()).toBe(404);
     await a.goto("/");
     await expect(a.getByRole("region", { name: "Essen heute" })).toHaveCount(0);
+    await expect(a.getByRole("region", { name: "Achtsamkeit" })).toHaveCount(0);
     await a.goto("/geburtstage");
     await expect(a.getByRole("navigation", { name: "Unterseiten" })).toHaveCount(0);
     await a.goto("/einkauf");

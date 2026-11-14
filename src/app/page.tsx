@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { parseIso, weekdayIndex } from "@/lib/week";
 import { syncStaleCalendars } from "@/server/services/calendar";
 import { getDashboard, type DashTask } from "@/server/services/dashboard";
+import { activeModules } from "@/server/active-modules";
 import { requireFamily } from "@/server/session";
 import { DashboardHeader } from "./clock";
 import { FeedbackOpenButton } from "./feedback";
@@ -61,7 +62,7 @@ function TaskList({ tasks, profiles, empty, showDue }: { tasks: DashTask[]; prof
 export default async function Home() {
   const { user, familyId } = await requireFamily();
   const now = new Date();
-  const d = await getDashboard(user.id, familyId, now);
+  const [d, modules] = await Promise.all([getDashboard(user.id, familyId, now), activeModules()]);
   // refresh stale calendar subscriptions after the response is sent
   after(() => syncStaleCalendars(user.id, familyId));
   const when = (n: number) => (n === 0 ? "heute" : n === 1 ? "morgen" : `in ${n} Tagen`);
@@ -274,6 +275,14 @@ export default async function Home() {
             </ul>
           )}
         </Tile>
+        {modules.mindfulness ? (
+          <Tile title="Achtsamkeit">
+            <p className="text-sm text-stone-600">Wie war dein Tag? Ein kurzer Eintrag hilft, den Überblick zu behalten.</p>
+            <Link href="/achtsamkeit" className="mt-2 inline-flex min-h-11 items-center rounded-xl bg-orange-100 px-4 text-sm font-medium text-terracotta-dark">
+              Eintrag für heute
+            </Link>
+          </Tile>
+        ) : null}
       </div>
 
       <section aria-label="Feedback" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-orange-50 p-4 ring-1 ring-terracotta/30" data-testid="feedback-tile">

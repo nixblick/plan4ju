@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.13 (14.11.2026)
+
+- Navigation: the bottom tab "Geburtstage" is now "Feste" (sub tabs Geburtstage, Wunschzettel, Karte), so the map is findable; still 7 tabs, labels never wrap. Achtsamkeit gets a tile on the start page (only with the module on) and stays under Familie. New E2E case in `tests-e2e/module.spec.ts` at 375 px: 7 tabs in one line, every target at least 44 px.
+
 ## 0.5.12 (14.11.2026)
 
 - Heute: "Als Nächstes" now shows entries that are running right now and multi-day events that began yesterday or earlier (filter `end > now` instead of `start >= now`), labelled "läuft seit 09:00" / "läuft seit gestern 20:00". The E2E check uses a multi-day event from yesterday to tomorrow, so it no longer depends on the time of day. New cases in `tests/today-agenda.test.ts`.

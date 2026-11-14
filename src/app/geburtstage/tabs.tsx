@@ -10,7 +10,7 @@ const TABS = [
 
 const MODULE_OF: Partial<Record<string, ModuleKey>> = { wuensche: "wishes", karte: "map" };
 
-/** Sub navigation of the "Geburtstage" area (the bottom bar has no room for another tab). */
+/** Sub navigation of the "Feste" tab: birthdays, wish lists and the map (the bottom bar keeps 7 tabs). */
 export async function FesteTabs({ active }: { active: (typeof TABS)[number]["key"] }) {
   const modules = await activeModules();
   const tabs = TABS.filter((t) => {
