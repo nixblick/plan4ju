@@ -51,6 +51,9 @@ Stand 0.1.4. Dieses Dokument sagt, was tatsächlich gebaut ist.
 - `POST /api/jobs/kalender` frischt alle fälligen Abos aller Familien auf (eingeblendet, nicht pausiert, letzter Abrufversuch
   älter als der eingestellte Takt), höchstens 200 je Lauf, die ältesten zuerst. Die Antwort enthält nur Zahlen
   (`due`, `ok`, `error`, `paused`), keine Namen und keine Adressen.
+- Derselbe Lauf versendet Rückmeldungen erneut, deren Mail nicht zugestellt wurde (höchstens 50 je Lauf, Abstände 5 min,
+  30 min, 2 h, 12 h; nach 5 Versuchen „fehlgeschlagen“). Die Zahlen stehen unter `feedback` (`due`, `mailed`, `error`,
+  `failed`). Owner sehen offene und fehlgeschlagene Meldungen unter `/familie/meldungen`.
 - Die Datenbankfunktion `app_calendar_refresh_due` (SECURITY DEFINER) listet nur; jeder Abruf läuft danach wie sonst im
   Familien-Kontext mit RLS, als Ersteller des Kalenders oder, wenn er die Familie verlassen hat, als ältester Eigentümer.
 - **Fehler zählen**: jeder fehlgeschlagene Abruf erhöht einen Zähler, ein erfolgreicher setzt ihn zurück. Nach 5 Fehlern

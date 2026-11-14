@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.21 (14.11.2026)
+
+- Feedback mails are retried. A failed delivery counts as attempt 1; the job `POST /api/jobs/kalender` (same `JOB_TOKEN`) now also retries due feedback with `mailedAt` empty, with backoff 5 min, 30 min, 2 h, 12 h; after 5 attempts the row is marked failed (`mailFailedAt`) and not tried again. Without `FEEDBACK_MAIL_TO` nothing is attempted. The new SECURITY DEFINER function `app_feedback_retry_due` only lists; each retry reads and updates the row under RLS as the author (if still a member) or an owner. New columns `mailAttempts`, `mailNextAt`, `mailFailedAt` on `feedback`. Owners see "Meldungen, die nicht zugestellt wurden" at `/familie/meldungen` (link on the module page); other roles get 404. Tests: new `tests/feedback-retry.test.ts`.
+
 ## 0.5.20 (14.11.2026)
 
 - Calendar subscriptions are refreshed in the background. New `POST /api/jobs/kalender` (only with `JOB_TOKEN` from the environment, at least 32 characters, else 404) refreshes every enabled, not paused subscription of all families that is due by its own interval (15 min, hourly default, 6 h, daily; set per calendar under "Name und Farbe"); answers counts only. The new SECURITY DEFINER function `app_calendar_refresh_due` only lists; each fetch runs through `syncCalendar` under RLS as a current member. Failed fetches are counted; after 5 in a row the subscription is paused (job and page skip it, the list shows "pausiert"); a successful "Jetzt abrufen" resumes it. Lazy refresh on page load uses the interval too. New columns `refreshMinutes` (check constraint), `failCount`, `pausedAt` on `external_calendar`. `docs/kalender.md` shows the systemd timer and the cron line. Tests: new `tests/calendar-refresh.test.ts`.

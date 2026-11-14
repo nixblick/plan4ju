@@ -1,8 +1,10 @@
-import type { FamilyRole } from "@prisma/client";
+import type { FamilyRole, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import {
   FEEDBACK_LIMIT, MAX_IMAGE_BYTES, MAX_MESSAGE, MAX_NAME, deviceSummary, feedbackSubject, feedbackText, sanitizePath, sniffImage,
 } from "../../lib/feedback";
+import { prisma } from "../db";
+import { ForbiddenError } from "../errors";
 import { sendMail, type Mail } from "../mail";
 import { rateLimit } from "../ratelimit";
 import { withFamily } from "../tenant";
@@ -79,24 +81,108 @@ export async function submitFeedback(
 
   const to = "mailTo" in deps ? deps.mailTo : process.env.FEEDBACK_MAIL_TO;
   if (!to) return { id, mailed: false };
+  const mailed = await deliver(id, to, author.email, { ...input, pagePath, appVersion: version, device, familyId: author.familyId, role, createdAt: now, imageType, image: image && imageType ? Buffer.from(image) : null }, deps.send);
+  await withFamily(author.userId, author.familyId, ({ tx }) =>
+    tx.feedback.update({ where: { id }, data: attemptResult(0, mailed, new Date()), select: { id: true } }));
+  return { id, mailed };
+}
+
+/** At most this many delivery attempts per feedback; after that it is marked as failed. */
+export const MAX_MAIL_ATTEMPTS = 5;
+/** Wait before attempt n+1 (index n-1): 5 min, 30 min, 2 h, 12 h. */
+export const MAIL_BACKOFF_MINUTES = [5, 30, 120, 720] as const;
+
+/** Columns after one more attempt (previous = attempts before it). */
+export function attemptResult(previous: number, mailed: boolean, now: Date) {
+  const attempts = previous + 1;
+  if (mailed) return { mailAttempts: attempts, mailedAt: now, mailNextAt: null };
+  if (attempts >= MAX_MAIL_ATTEMPTS) return { mailAttempts: attempts, mailNextAt: null, mailFailedAt: now };
+  return { mailAttempts: attempts, mailNextAt: new Date(now.getTime() + MAIL_BACKOFF_MINUTES[attempts - 1]! * 60_000) };
+}
+
+interface MailFields {
+  kind: "BUG" | "IDEA" | "OTHER";
+  message: string;
+  authorName: string | null;
+  pagePath: string;
+  appVersion: string;
+  device: string;
+  screenWidth: number | null;
+  familyId: string;
+  role: string;
+  createdAt: Date;
+  imageType: string | null;
+  image: Buffer | null;
+}
+
+async function deliver(id: string, to: string, replyTo: string | null, f: MailFields, send?: (mail: Mail) => Promise<void>): Promise<boolean> {
+  const imageType = f.imageType === "image/png" || f.imageType === "image/jpeg" ? f.imageType : null;
   try {
-    await (deps.send ?? sendMail)({
+    await (send ?? sendMail)({
       to,
-      replyTo: author.email,
-      subject: feedbackSubject(input),
-      text: feedbackText({
-        ...input, pagePath, appVersion: version, device, familyId: author.familyId, role, createdAt: now,
-        hasImage: !!imageType,
-      }),
-      attachments: imageType && image
-        ? [{ filename: `screenshot-${now.toISOString().slice(0, 10)}.${imageType === "image/png" ? "png" : "jpg"}`, content: Buffer.from(image), contentType: imageType }]
+      ...(replyTo ? { replyTo } : {}),
+      subject: feedbackSubject(f),
+      text: feedbackText({ ...f, hasImage: !!(imageType && f.image) }),
+      attachments: imageType && f.image
+        ? [{ filename: `screenshot-${f.createdAt.toISOString().slice(0, 10)}.${imageType === "image/png" ? "png" : "jpg"}`, content: f.image, contentType: imageType }]
         : undefined,
     });
-    await withFamily(author.userId, author.familyId, ({ tx }) =>
-      tx.feedback.update({ where: { id }, data: { mailedAt: new Date() }, select: { id: true } }));
-    return { id, mailed: true };
+    return true;
   } catch (e) {
-    console.error("feedback mail failed", e instanceof Error ? e.name : "error");
-    return { id, mailed: false };
+    console.error("feedback mail failed", id.slice(-6), e instanceof Error ? e.name : "error");
+    return false;
   }
+}
+
+/** Feedback rows one job run retries, at most. */
+export const RETRY_BATCH = 50;
+
+export interface FeedbackRetryResult { due: number; mailed: number; error: number; failed: number }
+
+/**
+ * Retries feedback whose mail did not go out (job POST /api/jobs/kalender). The contextless function only
+ * lists due rows; each retry reads and updates the row under RLS as a current member of the family.
+ * Without FEEDBACK_MAIL_TO nothing is attempted. Counts only, never content or addresses.
+ */
+export async function retryFeedbackMails(deps: FeedbackDeps & { client?: PrismaClient } = {}): Promise<FeedbackRetryResult> {
+  const result: FeedbackRetryResult = { due: 0, mailed: 0, error: 0, failed: 0 };
+  const to = "mailTo" in deps ? deps.mailTo : process.env.FEEDBACK_MAIL_TO;
+  if (!to) return result;
+  const now = deps.now ?? new Date();
+  const client = deps.client ?? prisma;
+  const rows = await client.$queryRaw<{ feedback_id: string; family_id: string; user_id: string; reply_to: string | null }[]>`
+    SELECT * FROM app_feedback_retry_due((${now.toISOString()}::timestamptz AT TIME ZONE 'UTC'), ${RETRY_BATCH}::int)`;
+  result.due = rows.length;
+  for (const r of rows) {
+    const row = await withFamily(r.user_id, r.family_id, async ({ tx }) => {
+      const f = await tx.feedback.findFirst({ where: { id: r.feedback_id, mailedAt: null, mailFailedAt: null } });
+      if (!f) return null;
+      const m = await tx.familyMembership.findUnique({ where: { familyId_userId: { familyId: r.family_id, userId: f.userId } }, select: { role: true } });
+      return { ...f, role: m?.role ?? "ausgetreten" };
+    }, client);
+    if (!row) continue;
+    const mailed = await deliver(row.id, to, r.reply_to, { ...row, image: row.image ? Buffer.from(row.image) : null }, deps.send);
+    const data = attemptResult(row.mailAttempts, mailed, deps.now ?? new Date());
+    await withFamily(r.user_id, r.family_id, ({ tx }) =>
+      tx.feedback.updateMany({ where: { id: row.id, mailedAt: null, mailAttempts: row.mailAttempts }, data }), client);
+    if (mailed) result.mailed++;
+    else if ("mailFailedAt" in data) result.failed++;
+    else result.error++;
+  }
+  return result;
+}
+
+export interface UndeliveredFeedback { id: string; kind: string; message: string; createdAt: Date; mailAttempts: number; mailNextAt: Date | null; mailFailedAt: Date | null }
+
+/** "Meldungen, die nicht zugestellt wurden": owners of the active family only. */
+export async function listUndeliveredFeedback(userId: string, familyId: string, client?: PrismaClient): Promise<UndeliveredFeedback[]> {
+  return withFamily(userId, familyId, async ({ tx, role }) => {
+    if (role !== "OWNER") throw new ForbiddenError("Owners only");
+    return tx.feedback.findMany({
+      where: { familyId, mailedAt: null },
+      select: { id: true, kind: true, message: true, createdAt: true, mailAttempts: true, mailNextAt: true, mailFailedAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+  }, client);
 }

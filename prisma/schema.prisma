@@ -269,21 +269,25 @@ enum FeedbackKind {
 
 // Feedback from the test phase. Stored first, then mailed (mailedAt set on success).
 model Feedback {
-  id          String       @id @default(cuid())
-  familyId    String
-  userId      String
-  kind        FeedbackKind
-  message     String
-  authorName  String?
-  pagePath    String
-  appVersion  String
-  device      String
-  screenWidth Int?
-  imageType   String?
-  image       Bytes?
-  mailedAt    DateTime?
-  createdAt   DateTime     @default(now())
-  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  id           String       @id @default(cuid())
+  familyId     String
+  userId       String
+  kind         FeedbackKind
+  message      String
+  authorName   String?
+  pagePath     String
+  appVersion   String
+  device       String
+  screenWidth  Int?
+  imageType    String?
+  image        Bytes?
+  mailedAt     DateTime?
+  /// Delivery attempts so far; the job retries with backoff, after 5 mailFailedAt is set.
+  mailAttempts Int          @default(0)
+  mailNextAt   DateTime?
+  mailFailedAt DateTime?
+  createdAt    DateTime     @default(now())
+  family       Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, createdAt])
   @@map("feedback")
@@ -469,25 +473,25 @@ model CalendarEventException {
 // An imported file or a subscription. `urlEnc` is the encrypted subscription address (a secret): it is
 // never selected for the UI, never logged and never returned.
 model ExternalCalendar {
-  id            String       @id @default(cuid())
-  familyId      String
-  name          String
-  colorIndex    Int          @default(0)
-  kind          CalendarKind
-  enabled       Boolean      @default(true)
-  urlEnc        String?
-  lastAttemptAt DateTime?
-  lastSuccessAt DateTime?
-  lastError     String? // fixed code, e.g. "status-404", never an address
-  eventCount    Int          @default(0)
-  truncated     Boolean      @default(false)
-  refreshMinutes Int         @default(60) // 15, 60, 360 or 1440 (check constraint)
-  failCount     Int          @default(0) // consecutive failed fetches
-  pausedAt      DateTime? // set after MAX_FAILURES failures; only a manual fetch resumes
-  createdById   String
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  family        Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  id             String       @id @default(cuid())
+  familyId       String
+  name           String
+  colorIndex     Int          @default(0)
+  kind           CalendarKind
+  enabled        Boolean      @default(true)
+  urlEnc         String?
+  lastAttemptAt  DateTime?
+  lastSuccessAt  DateTime?
+  lastError      String? // fixed code, e.g. "status-404", never an address
+  eventCount     Int          @default(0)
+  truncated      Boolean      @default(false)
+  refreshMinutes Int          @default(60) // 15, 60, 360 or 1440 (check constraint)
+  failCount      Int          @default(0) // consecutive failed fetches
+  pausedAt       DateTime? // set after MAX_FAILURES failures; only a manual fetch resumes
+  createdById    String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  family         Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   events ExternalCalendarEvent[]
 

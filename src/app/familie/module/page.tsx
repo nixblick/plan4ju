@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { errorMessages, okMessages, one } from "@/lib/messages";
 import { MODULE_KEYS, MODULES } from "@/lib/modules";
 import { atLeast } from "@/server/permissions";
@@ -53,6 +54,11 @@ export default async function Module({ searchParams }: { searchParams: Promise<R
         </ul>
         {isAdmin ? null : <p className="mt-2 text-sm text-stone-600">Module schalten nur Admins der Familie.</p>}
       </Card>
+      {role === "OWNER" ? (
+        <p className="text-sm">
+          <Link href="/familie/meldungen" className="text-terracotta-dark underline">Meldungen, die nicht zugestellt wurden</Link>
+        </p>
+      ) : null}
     </div>
   );
 }
