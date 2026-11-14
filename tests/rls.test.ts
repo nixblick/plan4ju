@@ -408,3 +408,28 @@ describe("calendar tables", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("wish reservations and the wishing person", () => {
+  it("without surprise mode the wishing person sees no reservation row (no reservedById), only the taken flag via the function", async () => {
+    const l = await admin.wishlist.create({ data: { familyId: f.familyA, profileId: f.profileA, title: "Offen RLS", surprise: false, createdById: f.userA } });
+    const w = await admin.wish.create({ data: { familyId: f.familyA, listId: l.id, title: "Ball", createdById: f.userA } });
+    const free = await admin.wish.create({ data: { familyId: f.familyA, listId: l.id, title: "Buch", createdById: f.userA } });
+    await admin.wishReservation.create({ data: { familyId: f.familyA, wishId: w.id, reservedById: f.userBoth } });
+    try {
+      expect(await raw(f.familyA, f.userA, (tx) => tx.wishReservation.findMany({ where: { wishId: w.id } }))).toEqual([]);
+      expect(await raw(f.familyA, f.userA, (tx) => tx.$queryRaw<{ c: bigint }[]>`SELECT count(*) AS c FROM "wish_reservation"`)).toEqual([{ c: 0n }]);
+      const taken = await raw(f.familyA, f.userA, (tx) => tx.$queryRaw<{ id: string }[]>`SELECT app_wish_reserved_for_wisher(${[w.id, free.id]}::text[]) AS id`);
+      expect(taken).toEqual([{ id: w.id }]);
+      // givers still see the row; the function tells them nothing, they are not the wishing person
+      expect(await raw(f.familyA, f.userBoth, (tx) => tx.wishReservation.findMany({ where: { wishId: w.id } }))).toHaveLength(1);
+      expect(await raw(f.familyA, f.userBoth, (tx) => tx.$queryRaw`SELECT app_wish_reserved_for_wisher(${[w.id]}::text[]) AS id`)).toEqual([]);
+      // the other family learns nothing
+      expect(await raw(f.familyB, f.userB, (tx) => tx.$queryRaw`SELECT app_wish_reserved_for_wisher(${[w.id]}::text[]) AS id`)).toEqual([]);
+      // in surprise mode the function is silent for the wishing person too
+      await admin.wishlist.update({ where: { id: l.id }, data: { surprise: true } });
+      expect(await raw(f.familyA, f.userA, (tx) => tx.$queryRaw`SELECT app_wish_reserved_for_wisher(${[w.id]}::text[]) AS id`)).toEqual([]);
+    } finally {
+      await admin.wishlist.delete({ where: { id: l.id } });
+    }
+  });
+});

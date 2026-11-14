@@ -37,7 +37,9 @@ kein Abruf fremder Server beim Anzeigen, keine Änderung der Content-Security-Po
 - Die beschenkte Person kann den Überraschungsmodus nicht ausschalten und die Liste keinem anderen Profil oder
   Namen zuordnen (sonst sähe sie die Reservierungen); das darf nur, wer die Liste angelegt hat bzw. bei Kindern
   ohne Login Admin oder Owner. Einschalten darf sie ihn jederzeit.
-- **Ohne Überraschungsmodus** sieht die beschenkte Person „Schon reserviert“, aber nie von wem.
+- **Ohne Überraschungsmodus** sieht die beschenkte Person „Schon reserviert“, aber nie von wem. Auch hier blendet
+  die Datenbank ihr die Reservierungszeilen (mit `reservedById`) aus; nur die Funktion
+  `app_wish_reserved_for_wisher` nennt ihr die reservierten Wunsch-IDs, ohne Person.
 - **Erhalten** markiert die beschenkte Person (oder wer die Liste bearbeitet); das sehen alle.
 
 Getestet in `tests/wishes.test.ts` (Dienst und Datenbank) und `tests-e2e/wuensche.spec.ts`.

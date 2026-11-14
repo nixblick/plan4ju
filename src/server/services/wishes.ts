@@ -135,11 +135,17 @@ async function viewLists(ctx: FamilyContext, where: { id?: string }) {
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   const wishIds = lists.flatMap((l) => l.wishes.map((w) => w.id));
-  // RLS already removes the rows the wishing person must not see; the view logic below does not rely on it.
   const res = wishIds.length
     ? await ctx.tx.wishReservation.findMany({ where: { familyId: ctx.familyId, wishId: { in: wishIds } }, select: { wishId: true, reservedById: true, given: true } })
     : [];
   const byWish = new Map(res.map((r) => [r.wishId, r]));
+  // RLS hides every reservation row from the wishing person; outside surprise mode they only learn which wishes are taken.
+  const wisherIds = lists.filter((l) => !l.surprise && isWisher(ctx, l)).flatMap((l) => l.wishes.map((w) => w.id));
+  const takenForWisher = new Set(
+    wisherIds.length
+      ? (await ctx.tx.$queryRaw<{ id: string }[]>`SELECT app_wish_reserved_for_wisher(${wisherIds}::text[]) AS id`).map((r) => r.id)
+      : [],
+  );
   const names = await namesOf(ctx, [...new Set(res.map((r) => r.reservedById))]);
   return lists.map<WishlistView>((l) => {
     const wisher = isWisher(ctx, l);
@@ -158,7 +164,7 @@ async function viewLists(ctx: FamilyContext, where: { id?: string }) {
       wishes: l.wishes.map((w) => {
         const r = byWish.get(w.id);
         let reservation: ReservationView | null;
-        if (wisher) reservation = l.surprise ? null : r ? { state: "reserved-anonymous" } : { state: "free" };
+        if (wisher) reservation = l.surprise ? null : takenForWisher.has(w.id) ? { state: "reserved-anonymous" } : { state: "free" };
         else reservation = r ? { state: "reserved", byMe: r.reservedById === ctx.userId, byName: names.get(r.reservedById) ?? null, given: r.given } : { state: "free" };
         return {
           id: w.id, title: w.title, description: w.description, url: w.url, imageUrl: w.imageUrl, priceCents: w.priceCents,

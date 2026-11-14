@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.6 (14.11.2026)
+
+- Wunschzettel: the wishing person no longer sees reservation rows (and `reservedById`) at database level, also outside surprise mode. Migration `wish_reservation_wisher` (appended) narrows the `wish_reservation` policy; the taken flag comes from the SECURITY DEFINER function `app_wish_reserved_for_wisher` (wish ids only). New case in `tests/rls.test.ts`.
+
 ## 0.5.5 (14.11.2026)
 
 Release 0.5 vollständig abgenommen (v0.5.0 war schon getaggt und live, daher als 0.5.5): umfasst die Kernmodule-Schalter (0.5.2), Benachrichtigungen und das private Kalender-Abo (0.5.3, 0.5.4).
