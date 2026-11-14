@@ -202,6 +202,21 @@ describe("stored pictures", () => {
     await expect(setImage(f.userA, f.familyB, { kind: "recipe", id: f.recipeB }, png(), app)).rejects.toThrow();
   });
 
+  it("the picture of a wish on a private list stays with its creator", async () => {
+    const list = await admin.wishlist.create({ data: { familyId: f.familyA, title: "Privat Muster", createdById: f.userA, visibility: "PRIVATE" } });
+    const wish = (await admin.wish.create({ data: { familyId: f.familyA, listId: list.id, title: "Geheim", createdById: f.userA } })).id;
+    const { id } = await setImage(f.userA, f.familyA, { kind: "wish", id: wish }, png(), app);
+    expect((await readImage(f.userA, f.familyA, id, app))?.mime).toBe("image/png");
+    expect(await readImage(f.userBoth, f.familyA, id, app)).toBeNull();
+    session.user = { id: f.userBoth };
+    session.family = f.familyA;
+    expect((await get(id)).status).toBe(404);
+    await expect(setImage(f.userBoth, f.familyA, { kind: "wish", id: wish }, png(), app)).rejects.toThrow();
+    await expect(removeImage(f.userBoth, f.familyA, { kind: "wish", id: wish }, app)).rejects.toThrow();
+    expect(await admin.image.count({ where: { wishId: wish } })).toBe(1);
+    await admin.wishlist.delete({ where: { id: list.id } });
+  });
+
   it("replaces, removes, and goes away with its wish; module off hides it", async () => {
     const a = await setImage(f.userA, f.familyA, { kind: "wish", id: wishA }, png(), app);
     const b = await setImage(f.userA, f.familyA, { kind: "wish", id: wishA }, webp(), app);
