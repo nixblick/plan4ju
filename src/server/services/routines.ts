@@ -119,8 +119,22 @@ async function materialize(ctx: FamilyContext, routineId: string, today: string,
       );
       const fresh = dates.filter((d) => !existing.has(d));
       if (fresh.length) {
+        // Rotation position: continue after the highest stored position of any earlier occurrence
+        // (kept ones count with their own position).
+        const kept = (
+          await ctx.tx.routineOccurrence.findMany({
+            where: { routineId, date: { lt: day(fresh.at(-1)!) } },
+            select: { date: true, rotationIndex: true },
+          })
+        ).map((o) => ({ d: iso(o.date), idx: o.rotationIndex }));
+        const position = new Map<string, number>();
+        for (const d of fresh) {
+          const before = kept.filter((k) => k.d < d).reduce((m, k) => Math.max(m, k.idx), -1);
+          position.set(d, before + 1);
+          kept.push({ d, idx: before + 1 });
+        }
         await ctx.tx.routineOccurrence.createMany({
-          data: fresh.map((d) => ({ familyId: ctx.familyId, routineId, date: day(d), timeOfDay: routine.timeOfDay })),
+          data: fresh.map((d) => ({ familyId: ctx.familyId, routineId, date: day(d), timeOfDay: routine.timeOfDay, rotationIndex: position.get(d)! })),
           skipDuplicates: true,
         });
         const created = await ctx.tx.routineOccurrence.findMany({
@@ -128,13 +142,12 @@ async function materialize(ctx: FamilyContext, routineId: string, today: string,
           select: { id: true, date: true },
         });
         const ids = routine.assignments.map((a) => a.profileId);
-        const base = await ctx.tx.routineOccurrence.count({ where: { routineId, date: { lt: day(fresh[0]!) } } });
         const byDate = new Map(created.map((o) => [iso(o.date), o.id]));
         const rows: Prisma.RoutineOccurrenceAssignmentCreateManyInput[] = [];
-        fresh.forEach((d, i) => {
+        fresh.forEach((d) => {
           const occurrenceId = byDate.get(d);
           if (!occurrenceId || ids.length === 0) return;
-          const who = routine.assignMode === "FIXED" ? ids : routine.assignMode === "ROTATING" ? [ids[(base + i) % ids.length]!] : [];
+          const who = routine.assignMode === "FIXED" ? ids : routine.assignMode === "ROTATING" ? [ids[position.get(d)! % ids.length]!] : [];
           for (const profileId of who) rows.push({ occurrenceId, profileId, familyId: ctx.familyId });
         });
         if (rows.length) await ctx.tx.routineOccurrenceAssignment.createMany({ data: rows, skipDuplicates: true });

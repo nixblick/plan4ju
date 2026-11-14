@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.9.2 (16.11.2026)
+
+- Fix (#17): routines with rotating assignment keep their order after a rule change. Each occurrence stores its rotation position (`routine_occurrence.rotationIndex`, migration `20261216000100_routine_rotation_index` takes over the existing order by date); a rebuild continues after the highest earlier position, kept occurrences count. Test in `tests/routines.test.ts`.
+
 ## 0.9.1 (16.11.2026)
 
 Security fixes for the wish list share link (#21).

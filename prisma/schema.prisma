@@ -410,6 +410,8 @@ model RoutineOccurrence {
   customized Boolean          @default(false)
   // the rule day this occurrence was moved away from; that day is not generated again
   movedFrom  DateTime?        @db.Date
+  // position in the rotation of the routine (ROTATING picks the assignee at rotationIndex % n)
+  rotationIndex Int           @default(0)
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
   routine    Routine          @relation(fields: [routineId], references: [id], onDelete: Cascade)
