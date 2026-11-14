@@ -111,6 +111,16 @@ describe("calendar: single instances of a series", () => {
     expect(moved.map((i) => [i.startDate, i.endDate, i.moved])).toEqual([["2026-11-17", "2026-11-18", true]]);
   });
 
+  it("a long daily series with many old exceptions still hides today's cancellation", async () => {
+    const e = await createEvent(f.userA, f.familyA, { title: "Hund raus", allDay: true, startDate: "2024-01-01", freq: "DAILY" }, app);
+    // 600 cancelled days long before the window, then one cancellation inside it.
+    const data = Array.from({ length: 600 }, (_, i) => ({ familyId: f.familyA, eventId: e.id, date: new Date(Date.UTC(2024, 0, 1 + i)), cancelled: true }));
+    await admin.calendarEventException.createMany({ data });
+    await setEventInstance(f.userA, f.familyA, e.id, { date: "2026-11-11", cancelled: true }, app);
+    const days = (await listItems(f.userA, f.familyA, "2026-11-10", "2026-11-12", app)).filter((i) => i.id === e.id).map((i) => i.startDate);
+    expect(days).toEqual(["2026-11-10", "2026-11-12"]);
+  });
+
   it("shows an instance moved behind the end of the series", async () => {
     const e = await createEvent(f.userA, f.familyA, { title: "Kurzkurs", startDate: "2026-10-19", startTime: "09:00", endTime: "10:00", freq: "WEEKLY", weekdays: [0], repeatUntil: "2026-10-26" }, app);
     await setEventInstance(f.userA, f.familyA, e.id, { date: "2026-10-26", startDate: "2026-11-11" }, app);

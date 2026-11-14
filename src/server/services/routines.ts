@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { DayTakenError, NotFoundError } from "../errors";
-import { withFamily, type FamilyContext } from "../tenant";
+import { withFamily, withFamilyChange, type FamilyContext } from "../tenant";
 import { occurrencesBetween, type RecurrenceRule } from "../../lib/recurrence";
 import { addDays, todayIn } from "../../lib/week";
 
@@ -205,7 +205,7 @@ export function getRoutine(userId: string, familyId: string, id: string, client?
 
 export async function createRoutine(userId: string, familyId: string, raw: RoutineInput, client?: PrismaClient, now: Date = new Date()) {
   const data = routineInput.parse(raw);
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -236,7 +236,7 @@ export async function createRoutine(userId: string, familyId: string, raw: Routi
 
 export async function updateRoutine(userId: string, familyId: string, id: string, raw: RoutineInput, client?: PrismaClient, now: Date = new Date()) {
   const data = routineInput.parse(raw);
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -275,7 +275,7 @@ export function setRoutineStatus(
   client?: PrismaClient,
   now: Date = new Date(),
 ) {
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -345,7 +345,7 @@ export function setOccurrenceStatus(
   status: "OPEN" | "DONE" | "SKIPPED",
   client?: PrismaClient,
 ) {
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -367,7 +367,7 @@ export function setOccurrenceAssignees(
   assigneeIds: string[],
   client?: PrismaClient,
 ) {
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -400,7 +400,7 @@ export function moveOccurrence(
   client?: PrismaClient,
 ) {
   const d = moveInput.parse(raw);
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {

@@ -2,7 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import type { RecipeDraft } from "../../lib/recipe-extract";
 import { RECIPE_LIMITS as L } from "../../lib/recipes";
-import { rateLimit } from "../ratelimit";
+import { assertBelowLimit, rateLimit } from "../ratelimit";
 import { recipeInput } from "../services/recipes";
 import { withModule } from "../services/modules";
 
@@ -40,17 +40,48 @@ export class AiProviderError extends Error {
   }
 }
 
-export const DEFAULT_AI_MODEL = "claude-sonnet-5-5";
+/** A small model is enough for one recipe as JSON; AI_MODEL can pick another. */
+export const DEFAULT_AI_MODEL = "claude-haiku-4-5";
+/** A recipe as JSON stays well below this; it caps the cost of one call. */
+export const MAX_OUTPUT_TOKENS = 1200;
 export const IDEA_LIMIT = { max: 20, windowMs: 60 * 60_000 } as const;
+/** Per family and day, on top of the hourly limit. */
+export const IDEA_DAY_LIMIT = { max: 30, windowMs: 24 * 60 * 60_000 } as const;
+/** All families together per day: a ceiling for the bill. In memory like the other limits (one instance). */
+export const IDEA_GLOBAL_DAY_LIMIT = { max: 300, windowMs: 24 * 60 * 60_000 } as const;
 
 const SYSTEM = [
-  "Du bist ein Kochassistent für Familien. Antworte nur mit einem JSON-Objekt, ohne weiteren Text.",
-  'Schema: {"title": string, "description": string, "servings": number, "prepMinutes": number,',
-  '"ingredients": [{"quantity": number|null, "unit": string|null, "name": string}], "steps": [string],',
-  '"tags": [string], "allergens": string}.',
+  "Du bist ein Kochassistent für Familien. Gib genau ein Rezept über das Werkzeug rezept zurück.",
   "Sprache Deutsch, metrische Einheiten. Verwende keine ausgeschlossenen Zutaten. Nenne in allergens die",
   "enthaltenen Hauptallergene. Keine Links, keine Bilder.",
 ].join(" ");
+
+/** Forced tool call: the API returns the recipe as a JSON object, no guessing in free text. */
+const RECIPE_TOOL = {
+  name: "rezept",
+  description: "Ein Rezeptvorschlag.",
+  input_schema: {
+    type: "object",
+    properties: {
+      title: { type: "string" },
+      description: { type: "string" },
+      servings: { type: "integer" },
+      prepMinutes: { type: "integer" },
+      ingredients: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { quantity: { type: ["number", "null"] }, unit: { type: ["string", "null"] }, name: { type: "string" } },
+          required: ["name"],
+        },
+      },
+      steps: { type: "array", items: { type: "string" } },
+      tags: { type: "array", items: { type: "string" } },
+      allergens: { type: "string" },
+    },
+    required: ["title", "ingredients", "steps"],
+  },
+} as const;
 
 export function ideaPrompt(w: IdeaWishes): string {
   const lines = [`Wünsche oder vorhandene Zutaten: ${w.wishes}`];
@@ -76,14 +107,24 @@ export class AnthropicProvider implements RecipeIdeaProvider {
       res = await this.fetchFn("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "content-type": "application/json", "x-api-key": this.apiKey, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: this.model, max_tokens: 2000, system: SYSTEM, messages: [{ role: "user", content: ideaPrompt(w) }] }),
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: MAX_OUTPUT_TOKENS,
+          system: SYSTEM,
+          tools: [RECIPE_TOOL],
+          tool_choice: { type: "tool", name: RECIPE_TOOL.name },
+          messages: [{ role: "user", content: ideaPrompt(w) }],
+        }),
         signal: AbortSignal.timeout(60_000),
       });
     } catch {
       throw new AiProviderError("AI request failed");
     }
     if (!res.ok) throw new AiProviderError(`AI provider status ${res.status}`);
-    const body = (await res.json().catch(() => null)) as { content?: { type: string; text?: string }[] } | null;
+    const body = (await res.json().catch(() => null)) as { content?: { type: string; text?: string; name?: string; input?: unknown }[] } | null;
+    const tool = body?.content?.find((c) => c.type === "tool_use" && c.name === RECIPE_TOOL.name);
+    if (tool && tool.input && typeof tool.input === "object") return tool.input;
+    // Fallback: a plain text answer with a JSON object in it.
     const textOut = body?.content?.filter((c) => c.type === "text").map((c) => c.text ?? "").join("") ?? "";
     return parseJsonObject(textOut);
   }
@@ -147,16 +188,26 @@ export function toDraft(raw: unknown): IdeaDraft {
   return { title: d.title, description: d.description, servings: d.servings, prepMinutes: d.prepMinutes, ingredients: d.ingredients, steps: d.steps, tags: d.tags, imageUrl: null, sourceUrl: null, allergens: d.allergens };
 }
 
+const GLOBAL_KEY = "recipe-idea:global";
+
 /**
- * Asks the configured provider for a recipe idea. Membership first, then input, then the per-family
- * limit (failed provider calls count too). Nothing is stored: the result is a draft for the form.
+ * Asks the configured provider for a recipe idea. Membership first, then input, then the limits per family
+ * (hour and day) and for all families (day); failed provider calls count too. Nothing is stored: the result is a draft for the form.
  */
 export async function suggestRecipe(userId: string, familyId: string, raw: IdeaRequest, client?: PrismaClient): Promise<IdeaDraft> {
   await withModule("meals", userId, familyId, async () => undefined, client);
   const provider = recipeIdeaProvider();
   if (!provider) throw new AiNotConfiguredError();
   const wishes = ideaRequest.parse(raw);
-  rateLimit(`recipe-idea:family:${familyId}`, IDEA_LIMIT.max, IDEA_LIMIT.windowMs);
+  const familyKey = `recipe-idea:family:${familyId}`;
+  const dayKey = `recipe-idea:day:${familyId}`;
+  // Check every limit before counting any, so a refused call does not use up the others.
+  assertBelowLimit(familyKey, IDEA_LIMIT.max);
+  assertBelowLimit(dayKey, IDEA_DAY_LIMIT.max);
+  assertBelowLimit(GLOBAL_KEY, IDEA_GLOBAL_DAY_LIMIT.max);
+  rateLimit(familyKey, IDEA_LIMIT.max, IDEA_LIMIT.windowMs);
+  rateLimit(dayKey, IDEA_DAY_LIMIT.max, IDEA_DAY_LIMIT.windowMs);
+  rateLimit(GLOBAL_KEY, IDEA_GLOBAL_DAY_LIMIT.max, IDEA_GLOBAL_DAY_LIMIT.windowMs);
   let out: unknown;
   try {
     out = await provider.suggest(wishes);

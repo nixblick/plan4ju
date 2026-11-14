@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { errorMessages, okMessages, one } from "@/lib/messages";
 import { requireFamily } from "@/server/session";
-import { listNotifications } from "@/server/services/notifications";
+import { listNotifications, syncAndCount } from "@/server/services/notifications";
 import { markAllReadAction, openNotificationAction } from "../benachrichtigung-actions";
 import { ghostButtonCls, Notice } from "../ui";
 
@@ -14,6 +14,8 @@ export default async function Benachrichtigungen({ searchParams }: { searchParam
   const sp = await searchParams;
   const fehler = one(sp.fehler);
   const ok = one(sp.ok);
+  // The bell syncs at most every few minutes; this page always shows what is due now.
+  await syncAndCount(user.id, familyId).catch(() => 0);
   const rows = await listNotifications(user.id, familyId);
   const unread = rows.filter((r) => !r.readAt).length;
   return (

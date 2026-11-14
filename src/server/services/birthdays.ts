@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { NotFoundError } from "../errors";
-import { withFamily } from "../tenant";
+import { withFamily, withFamilyChange } from "../tenant";
 import type { PrismaClient } from "@prisma/client";
 
 const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -31,7 +31,7 @@ export function listBirthdays(userId: string, familyId: string, client?: PrismaC
 
 export async function createBirthday(userId: string, familyId: string, raw: BirthdayInput, client?: PrismaClient) {
   const d = birthdayInput.parse(raw);
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     (ctx) =>
@@ -58,7 +58,7 @@ export async function updateBirthday(
   client?: PrismaClient,
 ) {
   const d = birthdayInput.parse(raw);
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -73,7 +73,7 @@ export async function updateBirthday(
 }
 
 export function deleteBirthday(userId: string, familyId: string, id: string, client?: PrismaClient) {
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {

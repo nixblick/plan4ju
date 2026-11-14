@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { admin, app, cleanup, seed, type Fixture } from "./helpers";
 import {
-  AiNotConfiguredError, AiProviderError, AnthropicProvider, DEFAULT_AI_MODEL, IDEA_LIMIT, ideaRequest, recipeIdeaProvider,
+  AiNotConfiguredError, AiProviderError, AnthropicProvider, DEFAULT_AI_MODEL, IDEA_DAY_LIMIT, IDEA_LIMIT, MAX_OUTPUT_TOKENS, ideaRequest, recipeIdeaProvider,
   setRecipeIdeaProvider, suggestRecipe, toDraft, type IdeaWishes, type RecipeIdeaProvider,
 } from "../src/server/ai/recipe-ideas";
 import { ForbiddenError, RateLimitError } from "../src/server/errors";
@@ -88,6 +88,24 @@ describe("recipe ideas", () => {
     await expect(suggestRecipe(f.userB, f.familyB, { wishes: "Nudeln" }, app)).resolves.toBeTruthy();
   });
 
+  it("a family also has a daily limit across hours", async () => {
+    mock();
+    const t0 = Date.now();
+    try {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      let made = 0;
+      for (let h = 0; made < IDEA_DAY_LIMIT.max; h++) {
+        vi.setSystemTime(t0 + h * (IDEA_LIMIT.windowMs + 1000));
+        for (let i = 0; i < IDEA_LIMIT.max && made < IDEA_DAY_LIMIT.max; i++, made++) await suggestRecipe(f.userA, f.familyA, { wishes: "Nudeln" }, app);
+      }
+      vi.setSystemTime(t0 + 3 * (IDEA_LIMIT.windowMs + 1000));
+      await expect(suggestRecipe(f.userA, f.familyA, { wishes: "Nudeln" }, app)).rejects.toBeInstanceOf(RateLimitError);
+      await expect(suggestRecipe(f.userB, f.familyB, { wishes: "Nudeln" }, app)).resolves.toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("invalid wishes and unusable answers are refused", async () => {
     mock({ title: "" });
     await expect(suggestRecipe(f.userA, f.familyA, { wishes: "x" }, app)).rejects.toThrow();
@@ -112,6 +130,10 @@ describe("Anthropic adapter (fetch stubbed)", () => {
     expect(h["anthropic-version"]).toBe("2023-06-01");
     const body = JSON.parse(String(init.body));
     expect(body.model).toBe(DEFAULT_AI_MODEL);
+    expect(DEFAULT_AI_MODEL).toMatch(/haiku/);
+    expect(body.max_tokens).toBe(MAX_OUTPUT_TOKENS);
+    expect(body.tool_choice).toEqual({ type: "tool", name: "rezept" });
+    expect(body.tools[0].input_schema.required).toContain("title");
     expect(body.metadata).toBeUndefined();
     expect(body.messages).toHaveLength(1);
     expect(body.messages[0].content).toContain("Reis, Gemüse");
@@ -122,6 +144,12 @@ describe("Anthropic adapter (fetch stubbed)", () => {
     vi.stubEnv("AI_MODEL", "anderes-modell");
     const p = recipeIdeaProvider() as AnthropicProvider;
     expect((p as unknown as { model: string }).model).toBe("anderes-modell");
+  });
+
+  it("reads the recipe from the forced tool call", async () => {
+    const fetchFn = vi.fn(async () => new Response(JSON.stringify({ content: [{ type: "tool_use", name: "rezept", input: IDEA }] }), { status: 200 }));
+    const out = await new AnthropicProvider("k", "m", fetchFn as unknown as typeof fetch).suggest(wishes);
+    expect(toDraft(out).title).toBe(IDEA.title);
   });
 
   it("maps HTTP errors, network errors and non-JSON answers to AiProviderError", async () => {

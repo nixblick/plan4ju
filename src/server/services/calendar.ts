@@ -12,6 +12,8 @@ import { prisma } from "../db";
 import { withFamily, type FamilyContext, type Tx } from "../tenant";
 import { isoDate } from "./routines";
 
+/** Longest single event (and series instance) in days. */
+export const MAX_EVENT_DAYS = 366;
 export const MAX_CALENDARS = 10;
 export const MAX_FILE_BYTES = 2 * 1024 * 1024;
 /** A subscription is fetched again when its data is older than this (lazily, when the calendar is opened). */
@@ -50,7 +52,7 @@ export const eventInput = z
   .superRefine((e, ctx) => {
     const endDate = e.endDate ?? e.startDate;
     if (endDate < e.startDate) ctx.addIssue({ code: "custom", path: ["endDate"], message: "End before start" });
-    if (daysBetween(e.startDate, endDate) > 366) ctx.addIssue({ code: "custom", path: ["endDate"], message: "Too long" });
+    if (daysBetween(e.startDate, endDate) > MAX_EVENT_DAYS) ctx.addIssue({ code: "custom", path: ["endDate"], message: "Too long" });
     if (!e.allDay) {
       if (!e.startTime) ctx.addIssue({ code: "custom", path: ["startTime"], message: "Time required" });
       else if (`${endDate}T${e.endTime ?? e.startTime}` < `${e.startDate}T${e.startTime}`) {
@@ -213,7 +215,7 @@ export const instanceInput = z
     if (e.cancelled) return;
     if (!e.startDate) return ctx.addIssue({ code: "custom", path: ["startDate"], message: "Date required" });
     const endDate = e.endDate ?? e.startDate;
-    if (endDate < e.startDate || daysBetween(e.startDate, endDate) > 366) ctx.addIssue({ code: "custom", path: ["endDate"], message: "Bad end" });
+    if (endDate < e.startDate || daysBetween(e.startDate, endDate) > MAX_EVENT_DAYS) ctx.addIssue({ code: "custom", path: ["endDate"], message: "Bad end" });
     if (e.startTime && `${endDate}T${e.endTime ?? e.startTime}` < `${e.startDate}T${e.startTime}`) {
       ctx.addIssue({ code: "custom", path: ["endTime"], message: "End before start" });
     }
@@ -351,7 +353,26 @@ export async function itemsBetween(ctx: FamilyContext, from: string, to: string)
       },
       include: {
         participants: { select: { profileId: true } },
-        exceptions: { select: { date: true, cancelled: true, startsAt: true, endsAt: true, startDate: true, endDate: true }, take: 500 },
+        // Only exceptions that can matter in the window: their rule day lies in it (an event lasts at most
+        // 367 days, so its rule day can be that far before `from`), or they were moved into it. Never an
+        // arbitrary subset of a long series: a lost cancellation would show the event again.
+        exceptions: {
+          where: {
+            OR: [
+              { date: { gte: day(addDays(from, -(MAX_EVENT_DAYS + 1))), lte: day(to) } },
+              {
+                cancelled: false,
+                OR: [
+                  { startsAt: { lte: hi }, endsAt: { gte: lo } },
+                  { startDate: { lte: day(to) }, endDate: { gte: day(from) } },
+                ],
+              },
+            ],
+          },
+          select: { date: true, cancelled: true, startsAt: true, endsAt: true, startDate: true, endDate: true },
+          orderBy: { date: "asc" },
+          take: 2000,
+        },
       },
       take: 2000,
     }),

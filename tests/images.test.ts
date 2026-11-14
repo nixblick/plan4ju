@@ -1,3 +1,4 @@
+import { NotFoundError } from "../src/server/errors";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const session = vi.hoisted(() => ({ user: null as null | { id: string }, family: null as null | string }));
@@ -224,6 +225,8 @@ describe("stored pictures", () => {
     expect(await admin.image.findUnique({ where: { id: a.id } })).toBeNull();
     await admin.family.update({ where: { id: f.familyA }, data: { moduleWishes: false } });
     expect(await readImage(f.userA, f.familyA, b.id, app)).toBeNull();
+    await expect(removeImage(f.userA, f.familyA, { kind: "wish", id: wishA }, app)).rejects.toBeInstanceOf(NotFoundError);
+    expect(await admin.image.count({ where: { wishId: wishA } })).toBe(1);
     await admin.family.update({ where: { id: f.familyA }, data: { moduleWishes: true } });
     expect((await readImage(f.userA, f.familyA, b.id, app))?.mime).toBe("image/webp");
     await removeImage(f.userA, f.familyA, { kind: "wish", id: wishA }, app);
@@ -231,5 +234,17 @@ describe("stored pictures", () => {
     await setImage(f.userA, f.familyA, { kind: "wish", id: wishA }, jpeg(), app);
     await admin.wish.delete({ where: { id: wishA } });
     expect(await admin.image.count({ where: { familyId: f.familyA } })).toBe(0);
+  });
+
+  it("a recipe picture cannot be removed while the meals module is off", async () => {
+    const recipe = await admin.recipe.create({ data: { familyId: f.familyA, title: "Suppe Muster", createdById: f.userA } });
+    await setImage(f.userA, f.familyA, { kind: "recipe", id: recipe.id }, png(), app);
+    await admin.family.update({ where: { id: f.familyA }, data: { moduleMeals: false } });
+    await expect(removeImage(f.userA, f.familyA, { kind: "recipe", id: recipe.id }, app)).rejects.toBeInstanceOf(NotFoundError);
+    expect(await admin.image.count({ where: { recipeId: recipe.id } })).toBe(1);
+    await admin.family.update({ where: { id: f.familyA }, data: { moduleMeals: true } });
+    await removeImage(f.userA, f.familyA, { kind: "recipe", id: recipe.id }, app);
+    expect(await admin.image.count({ where: { recipeId: recipe.id } })).toBe(0);
+    await admin.recipe.delete({ where: { id: recipe.id } });
   });
 });

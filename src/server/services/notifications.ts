@@ -4,7 +4,7 @@ import { addDays, birthdayIn, parseIso, todayIn } from "../../lib/week";
 import { prisma } from "../db";
 import { NotFoundError } from "../errors";
 import { generateToken, hashToken } from "../tokens";
-import { withFamily, type FamilyContext } from "../tenant";
+import { withFamily, withFamilyChange, type FamilyContext } from "../tenant";
 import type { CalendarItem } from "../../lib/calendar-items";
 import { itemsBetween } from "./calendar";
 import { ensureOccurrences } from "./routines";
@@ -37,8 +37,8 @@ async function readPrefs(ctx: FamilyContext): Promise<Prefs> {
   return p ? { tasks: p.tasks, routines: p.routines, birthdays: p.birthdays, assignments: p.assignments, emailDigest: p.emailDigest } : { ...DEFAULT_PREFS };
 }
 
-/** Creates the notifications that are due now for the context user. Idempotent (dedupe key). */
-export async function generateFor(ctx: FamilyContext, now: Date = new Date()): Promise<void> {
+/** Creates the notifications that are due now for the context user. Idempotent (dedupe key). Returns what is due now. */
+export async function generateFor(ctx: FamilyContext, now: Date = new Date()): Promise<Draft[]> {
   const prefs = await readPrefs(ctx);
   const family = await ctx.tx.family.findFirstOrThrow({ where: { id: ctx.familyId }, select: { timezone: true } });
   const today = todayIn(family.timezone, now);
@@ -155,6 +155,7 @@ export async function generateFor(ctx: FamilyContext, now: Date = new Date()): P
       ],
     },
   });
+  return drafts;
 }
 
 /** Generates what is due and returns the unread count, for the bell. */
@@ -168,6 +169,11 @@ export function syncAndCount(userId: string, familyId: string, now: Date = new D
     },
     client,
   );
+}
+
+/** Unread count only (index familyId, userId, readAt), without generating anything. */
+export function countUnread(userId: string, familyId: string, client?: PrismaClient): Promise<number> {
+  return withFamily(userId, familyId, (ctx) => ctx.tx.notification.count({ where: { familyId, userId, readAt: null } }), client);
 }
 
 export function listNotifications(userId: string, familyId: string, client?: PrismaClient) {
@@ -217,7 +223,7 @@ export const prefsInput = z.object(Object.fromEntries(PREF_KEYS.map((k) => [k, z
 
 export function savePrefs(userId: string, familyId: string, input: Prefs, client?: PrismaClient): Promise<void> {
   const data = prefsInput.parse(input);
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -282,6 +288,11 @@ export async function claimDigests(dayIso: string, client: PrismaClient = prisma
   return rows.map((r) => ({ userId: r.user_id, familyId: r.family_id }));
 }
 
+/** Contextless: gives a claimed digest back after its mail failed, so a later run that day retries. */
+export async function unclaimDigest(userId: string, familyId: string, dayIso: string, client: PrismaClient = prisma): Promise<void> {
+  await client.$executeRaw`SELECT app_digest_unclaim(${userId}, ${familyId}, ${day(dayIso)}::date)`;
+}
+
 // ---- Feed content and daily digest ----
 
 /** Feed window: 30 days back, one year ahead (family time zone). */
@@ -326,27 +337,31 @@ export interface DigestContent {
   titles: string[];
 }
 
-/** Generates and collects the unread notifications of the last two days for one user's digest. */
+/**
+ * What is due today and still unread, for one user's digest. Titles come from today's generation, never from
+ * the stored row: a row from yesterday may say "Morgen hat X Geburtstag" or "Heute fällig" and be stale now.
+ * Stored rows only decide what is unread (read ones stay out), within the last two days.
+ */
 export function digestFor(userId: string, familyId: string, now: Date = new Date(), client?: PrismaClient): Promise<DigestContent | null> {
   return withFamily(
     userId,
     familyId,
     async (ctx) => {
-      await generateFor(ctx, now);
+      const drafts = await generateFor(ctx, now);
       const prefs = await readPrefs(ctx);
-      if (!prefs.emailDigest) return null;
-      const rows = await ctx.tx.notification.findMany({
-        where: { familyId, userId, readAt: null, createdAt: { gte: new Date(now.getTime() - 2 * DAY_MS) } },
-        orderBy: { createdAt: "asc" },
-        take: 50,
-        select: { title: true },
+      if (!prefs.emailDigest || !drafts.length) return null;
+      const unread = await ctx.tx.notification.findMany({
+        where: { familyId, userId, readAt: null, createdAt: { gte: new Date(now.getTime() - 2 * DAY_MS) }, dedupeKey: { in: drafts.map((d) => d.dedupeKey) } },
+        select: { dedupeKey: true },
       });
-      if (!rows.length) return null;
+      const open = new Set(unread.map((r) => r.dedupeKey));
+      const titles = drafts.filter((d) => open.has(d.dedupeKey)).slice(0, 50).map((d) => d.title.slice(0, 300));
+      if (!titles.length) return null;
       const [user, family] = await Promise.all([
         ctx.tx.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } }),
         ctx.tx.family.findFirstOrThrow({ where: { id: familyId }, select: { name: true } }),
       ]);
-      return { email: user.email, familyName: family.name, titles: rows.map((r) => r.title) };
+      return { email: user.email, familyName: family.name, titles };
     },
     client,
   );

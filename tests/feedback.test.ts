@@ -124,7 +124,9 @@ describe("submitFeedback (database and mail)", () => {
     expect(m!.Attachments[0]).toMatchObject({ ContentType: "image/png", Size: PNG.length });
     const row = await admin.feedback.findUniqueOrThrow({ where: { id: r.id } });
     expect(row.mailedAt).not.toBeNull();
-    expect(row.imageType).toBe("image/png");
+    // Delivered: the screenshot went out as the attachment and is not kept in the database.
+    expect(row.imageType).toBeNull();
+    expect(row.image).toBeNull();
   });
 
   it("keeps the feedback when delivery fails and logs no content", async () => {

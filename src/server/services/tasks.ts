@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ForbiddenError, NotFoundError } from "../errors";
-import { withFamily, type FamilyContext } from "../tenant";
+import { withFamily, withFamilyChange, type FamilyContext } from "../tenant";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { compareByDue, DEFAULT_PRIORITY, PRIORITIES } from "../../lib/priority";
 
@@ -141,7 +141,7 @@ export function getTask(userId: string, familyId: string, id: string, client?: P
 
 export async function createTask(userId: string, familyId: string, raw: TaskInput, client?: PrismaClient) {
   const data = taskInput.parse(raw);
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -176,7 +176,7 @@ export async function updateTask(
   client?: PrismaClient,
 ) {
   const data = taskInput.parse(raw);
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -218,7 +218,7 @@ export function setTaskStatus(
   status: "OPEN" | "IN_PROGRESS" | "DONE",
   client?: PrismaClient,
 ) {
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -239,7 +239,7 @@ export function setTaskDone(userId: string, familyId: string, id: string, done: 
 
 /** Archive keeps the task (and its history) but removes it from lists and the dashboard. */
 export function setTaskArchived(userId: string, familyId: string, id: string, archived: boolean, client?: PrismaClient) {
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -254,7 +254,7 @@ export function setTaskArchived(userId: string, familyId: string, id: string, ar
 }
 
 export function deleteTask(userId: string, familyId: string, id: string, client?: PrismaClient) {
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -267,7 +267,7 @@ export function deleteTask(userId: string, familyId: string, id: string, client?
 
 /** The assigned person accepts a new assignment. Only the own profile; anything else is NotFound. */
 export function acceptAssignment(userId: string, familyId: string, taskId: string, client?: PrismaClient) {
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {
@@ -288,7 +288,7 @@ export function acceptAssignment(userId: string, familyId: string, taskId: strin
  * one to tell; declining one just removes it.
  */
 export function declineAssignment(userId: string, familyId: string, taskId: string, client?: PrismaClient) {
-  return withFamily(
+  return withFamilyChange(
     userId,
     familyId,
     async (ctx) => {

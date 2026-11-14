@@ -39,11 +39,15 @@ export async function removeImage(userId: string, familyId: string, owner: Image
     userId,
     familyId,
     async (ctx) => {
+      // Like setImage and readImage: a switched-off module is not there (404), not even for deleting.
+      const mods = await modulesOf(ctx);
       if (owner.kind === "recipe") {
+        if (!mods.meals) throw new NotFoundError("Module off");
         const r = await ctx.tx.recipe.findFirst({ where: { id: owner.id, familyId: ctx.familyId }, select: { id: true } });
         if (!r) throw new NotFoundError("Recipe not found");
         await ctx.tx.image.deleteMany({ where: { recipeId: owner.id, familyId: ctx.familyId } });
       } else {
+        if (!mods.wishes) throw new NotFoundError("Module off");
         if (!(await canEditWish(ctx, owner.id))) throw new ForbiddenError("Not your wishlist");
         await ctx.tx.image.deleteMany({ where: { wishId: owner.id, familyId: ctx.familyId } });
       }

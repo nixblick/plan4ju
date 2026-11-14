@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { baseUrl } from "./env";
 import { sendMail } from "./mail";
-import { claimDigests, digestFor } from "./services/notifications";
+import { claimDigests, digestFor, unclaimDigest } from "./services/notifications";
 
 /** Runs the daily e-mail digest once (docs/benachrichtigungen.md). Safe to call repeatedly per day. */
 export async function runDigest(now: Date = new Date(), client?: PrismaClient, send: typeof sendMail = sendMail) {
@@ -29,6 +29,8 @@ export async function runDigest(now: Date = new Date(), client?: PrismaClient, s
     } catch (e) {
       failed++;
       console.error("digest failed", e instanceof Error ? e.name : "error");
+      // Give the day back, so the next run retries instead of losing today's mail.
+      await unclaimDigest(c.userId, c.familyId, day, client).catch(() => undefined);
     }
   }
   return { claimed: claimed.length, sent, failed };

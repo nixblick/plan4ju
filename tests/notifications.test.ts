@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { admin, app, cleanup, seed, type Fixture } from "./helpers";
 import { ForbiddenError, NotFoundError } from "../src/server/errors";
 import { buildIcs, escapeText, fold } from "../src/lib/ics-export";
@@ -213,6 +213,38 @@ describe("daily digest", () => {
     expect(sent.filter((m) => m.to.startsWith("both-"))).toHaveLength(1);
     expect(sent.some((m) => m.to.startsWith("a-"))).toBe(false);
     expect((await claimDigests("2026-11-17", app)).some((c) => c.userId === f.userBoth)).toBe(false);
+  });
+
+  it("a failed mail gives the day back: the next run that day sends it", async () => {
+    const day3 = new Date("2026-11-18T05:00:00Z");
+    await admin.birthday.create({ data: { familyId: f.familyA, name: "Cousine Muster", month: 11, day: 18, createdById: f.userA } });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const r1 = await runDigest(day3, app, async (m) => { if (m.to.startsWith("both-")) throw new Error("SMTP down"); });
+    expect(r1.failed).toBeGreaterThanOrEqual(1);
+    vi.restoreAllMocks();
+    const sent: { to: string; text: string }[] = [];
+    await runDigest(day3, app, async (m) => { sent.push(m); });
+    expect(sent.filter((m) => m.to.startsWith("both-"))).toHaveLength(1);
+    expect(sent.find((m) => m.to.startsWith("both-"))!.text).toContain("Heute hat Cousine Muster Geburtstag");
+    await runDigest(day3, app, async (m) => { sent.push(m); });
+    expect(sent.filter((m) => m.to.startsWith("both-"))).toHaveLength(1);
+  });
+
+  it("titles are today's: no stale 'Morgen' from yesterday, an overdue task reads overdue", async () => {
+    // Yesterday (19.11.) left an unread "Morgen hat ... Geburtstag" and "Heute fällig"; today is 20.11.
+    const b = await admin.birthday.create({ data: { familyId: f.familyA, name: "Neffe Muster", month: 11, day: 20, createdById: f.userA } });
+    const t = await admin.task.create({
+      data: { familyId: f.familyA, title: "Rasen mähen", dueDate: new Date("2026-11-19"), createdById: f.userBoth, assignments: { create: { profileId: profileBoth, familyId: f.familyA, assignedById: f.userBoth, state: "ACCEPTED" } } },
+    });
+    await syncAndCount(f.userBoth, f.familyA, new Date("2026-11-19T08:00:00Z"), app);
+    const d = await digestFor(f.userBoth, f.familyA, new Date("2026-11-20T05:00:00Z"), app);
+    expect(d).not.toBeNull();
+    expect(d!.titles).toContain("Heute hat Neffe Muster Geburtstag");
+    expect(d!.titles).not.toContain("Morgen hat Neffe Muster Geburtstag");
+    expect(d!.titles).toContain("Überfällig: Rasen mähen");
+    expect(d!.titles).not.toContain("Heute fällig: Rasen mähen");
+    await admin.task.delete({ where: { id: t.id } });
+    await admin.birthday.delete({ where: { id: b.id } });
   });
 
   it("job endpoint needs the configured token", () => {

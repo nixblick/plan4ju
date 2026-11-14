@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { FamilyRole } from "@prisma/client";
@@ -14,10 +15,15 @@ export interface SessionUser {
   email: string;
 }
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+// Layout and page both ask for the session and the family; cache() makes that one lookup per request.
+// No Better Auth cookie cache on purpose: it would delay "sign out everywhere" by its max age.
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const s = await auth.api.getSession({ headers: await headers() });
   return s ? { id: s.user.id, name: s.user.name, email: s.user.email } : null;
-}
+});
+
+/** Role of the user in the family, read once per request; ForbiddenError without a membership. */
+const membershipRole = cache((userId: string, familyId: string): Promise<FamilyRole> => withFamily(userId, familyId, async (ctx) => ctx.role));
 
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser();
@@ -58,7 +64,7 @@ export async function requireFamily(): Promise<ActiveFamily> {
   const familyId = readFamilyChoice(user.id, (await cookies()).get(FAMILY_COOKIE)?.value);
   if (!familyId) redirect("/familie-waehlen");
   try {
-    const role = await withFamily(user.id, familyId, async (ctx) => ctx.role);
+    const role = await membershipRole(user.id, familyId);
     return { user, familyId, role };
   } catch (e) {
     if (e instanceof ForbiddenError) redirect("/familie-waehlen");
@@ -71,7 +77,7 @@ export async function activeFamilyId(user: SessionUser): Promise<string | null> 
   const familyId = readFamilyChoice(user.id, (await cookies()).get(FAMILY_COOKIE)?.value);
   if (!familyId) return null;
   try {
-    await withFamily(user.id, familyId, async () => null);
+    await membershipRole(user.id, familyId);
     return familyId;
   } catch (e) {
     if (e instanceof ForbiddenError) return null;

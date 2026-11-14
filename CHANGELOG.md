@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.2 (14.11.2026)
+
+Code review: errors, load and token costs.
+
+- Daily digest: a failed mail no longer loses the day. The new SECURITY DEFINER function `app_digest_unclaim` gives the claim back, so the next run that day retries. The mail lists only what is due today and still unread, with today's titles: no stale "Morgen hat … Geburtstag" from yesterday, and no doubled lines. A task that was due yesterday now reads "Überfällig".
+- Bell: notifications are generated at most every 5 minutes per user and family. They are generated at once after a change to tasks, assignments, birthdays, routines or preferences in the family (`withFamilyChange`), and always on `/benachrichtigungen`. In between the root layout only counts (one query instead of about a dozen plus writes per page). Session user and family membership are read once per request (`cache()`). The Better Auth cookie cache stays off on purpose, so "sign out everywhere" still takes effect at once.
+- Calendar: a series loads only the exceptions in the window: rule day in the window, at most `MAX_EVENT_DAYS` before it, or moved into it. They are ordered and no longer cut to an arbitrary 500, so cancellations in long series cannot reappear.
+- ICS feed: the rate limit counts per feed link (hashed), not per address. Calendar services that fetch from shared addresses are no longer locked out. Only unknown links count per address (30 per hour), against guessing.
+- Pictures: removing a recipe or wish picture needs the module to be on, as setting and reading already did.
+- Feedback: after a successful delivery the screenshot (`image`, `imageType`) is cleared, because it went out as the attachment. Existing rows are unchanged.
+- AI recipe idea: the default model is now `claude-haiku-4-5` (`AI_MODEL` still overrides it). `max_tokens` drops from 2000 to 1200. The recipe comes back through a forced tool call with a schema instead of free-text JSON; text is kept as a fallback. New limits on top of 20 per family and hour: 30 per family and day, and 300 per day for all families together.
+- Open: routine rotation after a rule change (#17).
+- Tests: `tests/feed-route.test.ts`, `tests/notification-sync.test.ts`, plus new cases for the digest retry, digest titles, exceptions of a long series, pictures with a module off, feedback screenshot removal, AI tool call and daily limit.
+
 ## 0.7.1 (14.11.2026)
 
 - New logo "Wochenhaus" (terracotta square, white house, seven pastel dots for the week; small variant without dots) and the wordmark "plan4ju" (Outfit 700, outlined, the 4 in terracotta). Sources in `assets/`, all PNGs, `favicon.ico` and the `public/` copies are rendered reproducibly by `scripts/render-assets.sh`; `scripts/wordmark.py` outlines the wordmark.

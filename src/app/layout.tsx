@@ -6,7 +6,7 @@ import { analyticsConfig } from "@/server/analytics";
 import { activeFamilyId, getSessionUser } from "@/server/session";
 import { DEFAULT_MODULES } from "@/server/active-modules";
 import { getModules } from "@/server/services/modules";
-import { syncAndCount } from "@/server/services/notifications";
+import { bellCount } from "@/server/notification-sync";
 import { logoutAction } from "./actions";
 import { Bell } from "./bell";
 import { Logo, Wortmarke } from "./brand";
@@ -65,8 +65,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const hasFamily = Boolean(familyId);
   // Switched-off modules leave the navigation; their pages answer 404 anyway.
   const modules = user && familyId ? await getModules(user.id, familyId) : DEFAULT_MODULES;
-  // Notifications are generated lazily here; a failure must never break the page.
-  const unread = user && familyId ? await syncAndCount(user.id, familyId).catch(() => 0) : 0;
+  // Notifications are generated lazily here, throttled (notification-sync.ts); a failure must never break the page.
+  const unread = user && familyId ? await bellCount(user.id, familyId).catch(() => 0) : 0;
   return (
     <html lang="de" className={outfit.variable}>
       <body className="min-h-screen antialiased">

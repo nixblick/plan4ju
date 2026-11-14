@@ -17,7 +17,10 @@ Stand 0.5.3. Umsetzung von Masterprompt Abschnitt 21 und dem ICS-Export aus Absc
     Die Ablehnung steht in `task_decline` (lesen nur die beiden Beteiligten, schreiben nur wer ablehnt);
     die Benachrichtigung entsteht beim nächsten Seitenaufruf der zuweisenden Person.
 - „Heute“ ist der Tag in der Zeitzone der Familie.
-- Erzeugt wird **ohne eigenen Dienst**: beim Laden jeder Seite für den angemeldeten Nutzer (und im E-Mail-Job).
+- Erzeugt wird **ohne eigenen Dienst**: für den angemeldeten Nutzer beim Seitenaufruf (und im E-Mail-Job).
+  Seit 0.7.2 höchstens alle 5 Minuten je Nutzer und Familie, sofort nach einer Änderung an Aufgaben,
+  Zuweisungen, Geburtstagen, Routinen oder Einstellungen in der Familie und immer auf `/benachrichtigungen`.
+  Dazwischen zählt die Glocke nur (`src/server/notification-sync.ts`, im Speicher, eine Instanz).
   Jede Benachrichtigung hat einen Schlüssel, sie entsteht also nur einmal. Gelesene verschwinden nach 30 Tagen,
   alle nach spätestens 60 Tagen.
 - Einstellungen je Nutzer und Familie unter `/benachrichtigungen/einstellungen`: jede Art einzeln, Standard an;
@@ -58,7 +61,10 @@ Stand 0.5.3. Umsetzung von Masterprompt Abschnitt 21 und dem ICS-Export aus Absc
 - `NOTIFY_JOB_TOKEN` (mindestens 32 Zeichen, zufällig) steht nur in der Server-Umgebung. Fehlt er oder ist er zu kurz,
   antwortet der Endpunkt mit 404. Er wird nicht von der App erzeugt.
 - Je Nutzer und Tag (UTC-Datum des Laufs) höchstens eine Mail: `app_digest_claim` markiert vor dem Versand.
-  Scheitert der Versand, wird an diesem Tag nicht erneut versucht.
+  Scheitert der Versand, gibt `app_digest_unclaim` den Tag zurück (seit 0.7.2): der nächste Lauf am selben Tag
+  versucht es erneut. Der Job sollte deshalb morgens mehrmals laufen (zum Beispiel 6, 7 und 8 Uhr).
+- Die Mail enthält, was heute fällig und noch ungelesen ist, mit dem Titel von heute: eine ungelesene
+  „Morgen hat … Geburtstag“ von gestern erscheint nicht mehr, eine gestern fällige Aufgabe heißt „Überfällig“.
 
 ## Web-Push
 

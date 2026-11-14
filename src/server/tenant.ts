@@ -1,6 +1,7 @@
 import type { FamilyRole, Prisma, PrismaClient } from "@prisma/client";
 import { prisma as defaultClient } from "./db";
 import { ForbiddenError } from "./errors";
+import { markFamilyChanged } from "./family-changes";
 
 export type Tx = Prisma.TransactionClient;
 
@@ -38,6 +39,18 @@ export async function withFamily<T>(
     if (!membership) throw new ForbiddenError("Not a member of this family");
     return fn({ tx, userId, familyId, role: membership.role });
   });
+}
+
+/** withFamily for writes that can create notifications: marks the family as changed once committed. */
+export async function withFamilyChange<T>(
+  userId: string,
+  familyId: string,
+  fn: (ctx: FamilyContext) => Promise<T>,
+  client?: PrismaClient,
+): Promise<T> {
+  const out = await withFamily(userId, familyId, fn, client);
+  markFamilyChanged(familyId);
+  return out;
 }
 
 /** User-level context without an active family, e.g. for the family picker after login. */
