@@ -3,6 +3,7 @@
 ## 0.5.17 (14.11.2026)
 
 - Single instances of a series. Calendar: one instance of a repeated event can be moved (other day and/or time) or cancelled on its own page `/kalender/termin/<id>/<rule day>` and put back with "Wie in der Serie"; the series stays as it is. New table `calendar_event_exception` (familyId, composite FK to the event, ENABLE+FORCE RLS, policy, grants), unique per event and rule day; timed moves are stored as UTC instants from the family zone, so DST is handled; exceptions on days that are no longer rule days are ignored. Moved instances show "verschoben vom TT.MM.". Routines: besides "Überspringen" an occurrence can now be moved to another day and time ("Verschieben"); the new column `routine_occurrence.movedFrom` keeps the rule day, so it is not generated again, also after a routine change; a day that already has the routine is refused. Tests: new `tests/series-exceptions.test.ts` (expansion over the autumn DST change, service, isolation, routines), `tests/rls.test.ts` counts 35 tables, new `tests-e2e/serie-einzeln.spec.ts` at 375 px.
+- Routine occurrences assigned by hand keep the label "einzeln zugewiesen" (E2E `dashboard.spec.ts` was red after the first commit).
 
 ## 0.5.16 (14.11.2026)
 

@@ -39,7 +39,7 @@ export function OccurrenceRow({ o, profiles, back, today }: { o: OccurrenceView;
               · {fmtDay(o.date)}{o.time ? `, ${o.time} Uhr` : ""}{late ? " (überfällig)" : ""}
             </span>
             {o.movedFrom ? <span className="font-medium text-amber-800" data-testid="occurrence-moved">· verschoben vom {fmtDay(o.movedFrom)}</span> : null}
-            {o.customized && !o.movedFrom ? <span>· einzeln geändert</span> : null}
+            {o.customized && !o.movedFrom ? <span>· einzeln zugewiesen</span> : null}
           </span>
         </span>
         {!done ? (
