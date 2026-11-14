@@ -33,10 +33,31 @@ in die Zukunft verlegt, holt den Ort zurück.
   nur den Ursprung der Instanz. Die Orte selbst verlassen Plan4JU nicht. Die Seite weist darauf hin.
 - Die OSM-Standardkacheln sind für geringe Last gedacht ([Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/)).
   Für eine größere Instanz einen eigenen oder kommerziellen Kachel-Server eintragen. Es gibt keine API-Schlüssel im Code.
-- **Geocoding** (Adresse → Koordinaten) ist nicht eingebaut; die Adresse ist reiner Text. Kein Dienst wird angefragt.
+- **Adresssuche (seit 0.8)**: über den öffentlichen Nominatim-Dienst der OpenStreetMap Foundation, nur vom Server
+  (`/api/karte/suche`, `src/server/geocode.ts`, über `safe-fetch`). Der Browser spricht nie mit Nominatim.
+- **„Mein Standort“ (seit 0.8)**: fragt die Geolocation des Browsers, nur auf Klick; die Position wird nur in die Felder
+  Breite/Länge geschrieben und erst mit dem Ort gespeichert, sonst nirgends. `Permissions-Policy: geolocation=(self)`;
+  die CSP bleibt unverändert (die Suche geht an den eigenen Ursprung).
+
+## Nominatim: Nutzungsbedingungen und Quellenangabe
+
+Grundlage ist die [Nominatim Usage Policy](https://operations.osmfoundation.org/policies/nominatim/) der OSMF. Umgesetzt:
+
+| Vorgabe | Umsetzung |
+|---|---|
+| höchstens 1 Anfrage pro Sekunde | Abstand ≥ 1 s für den ganzen Server-Prozess (Warteschlange, ab 4 s Wartezeit „beschäftigt“, HTTP 429) |
+| Anwendung erkennbar (User-Agent oder Referer) | User-Agent `Plan4JU`, ohne Kontaktdaten oder persönliche Angaben |
+| Ergebnisse cachen | Cache im Prozess, 500 Suchtexte, 24 Stunden, auch leere Ergebnisse |
+| keine Autovervollständigung | Suche nur auf Knopf oder Enter, ab 3 Zeichen, zweiter Klick innerhalb 1 s wird verworfen |
+| Quellenangabe | unter dem Suchfeld: „Suche: Nominatim, Daten © OpenStreetMap-Mitwirkende (ODbL)“ mit Link auf openstreetmap.org/copyright |
+| keine Massenabfragen | nur angemeldet, aktive Familie mit eingeschaltetem POI-Modul, 20 Suchen je Nutzer und Minute, Suchtext 3–120 Zeichen |
+
+Der Suchtext wird nicht protokolliert. Für eine größere Instanz einen eigenen Nominatim oder einen kommerziellen Dienst
+eintragen (eigene Adresse in `NOMINATIM_URL` in `src/server/geocode.ts`); mehrere Server-Prozesse teilen sich das Limit nicht.
 
 ## Technik
 
 Tabellen `map_category` und `poi` mit erzwungener RLS (Familien-Scope), zusammengesetzter Fremdschlüssel
 `(categoryId, familyId)`, Checks für Koordinaten, Bewertung, Zeitraum und Farbe. Tests: `tests/map.test.ts`,
-`tests/rls.test.ts`, E2E `tests-e2e/karte.spec.ts` (Kacheln werden dort abgebrochen).
+`tests/rls.test.ts`, E2E `tests-e2e/karte.spec.ts` (Kacheln werden dort abgebrochen). Adresssuche: `tests/release-0.8.test.ts`
+(ohne Netz, Transport ersetzt), `tests-e2e/abnahme-0.8.spec.ts` (Endpunkt im Browser ersetzt).

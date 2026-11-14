@@ -61,8 +61,8 @@ test.describe.serial("Karte", () => {
 
   test("Anna adds a playground by tapping the map", async () => {
     await a.goto("/karte");
-    await expect(a.getByRole("heading", { name: "Karte" })).toBeVisible();
-    await expect(a.getByRole("navigation", { name: "Unterseiten" }).getByRole("link", { name: "Karte" })).toHaveAttribute("aria-current", "page");
+    await expect(a.getByRole("heading", { name: "POI" })).toBeVisible();
+    await expect(a.getByRole("navigation", { name: "Bereiche von Reminder" }).getByRole("link", { name: "POI" })).toHaveAttribute("aria-current", "page");
     await expect(a.getByText(`Fremder Ort ${run}`)).toHaveCount(0);
     await noOverflow(a);
     const map = a.getByTestId("karte");

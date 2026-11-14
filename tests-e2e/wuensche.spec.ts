@@ -62,8 +62,8 @@ test.describe.serial("Wunschzettel", () => {
   });
 
   test("Anna legt einen Wunschzettel mit Geburtstag und Wünschen an (375 px)", async () => {
-    await a.goto("/geburtstage");
-    await a.getByRole("link", { name: "Wunschzettel" }).first().click();
+    await a.goto("/");
+    await a.getByRole("link", { name: "Reminder" }).click();
     await expect(a.getByRole("heading", { name: "Wunschzettel", exact: true })).toBeVisible();
     const form = a.locator("form").filter({ has: a.getByRole("button", { name: "Wunschzettel anlegen" }) });
     await form.getByLabel("Name des Wunschzettels").fill(LIST);

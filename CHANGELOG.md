@@ -7,7 +7,9 @@
 - Start page: the three task tiles sit in one group tile. "Schule heute" and "Sterne" are modules now, off for new families; existing families keep them on and can switch them off. Each user chooses the elements of the start page (Einstellungen → Module → "Meine Startseite", table `dashboard_pref`, own row only); default is everything the family's modules allow. Birthdays: the last 2 and the next 3 days.
 - Shopping list: optional category (Fleisch, Wurst, Fisch, Käse, Gemüse, Obst, Getränke, Gewürz, Tiefkühl, Süßigkeiten, Konserven, Sonstiges). Without a choice it comes from a local word list (plural, umlauts, compounds such as "Rinderhack"; no AI, no external service). A manual choice wins and is remembered per family and name (table `shopping_category_memo`). The open list is sorted by category, then as before.
 - POI: address search through the public Nominatim instance of OpenStreetMap, from the server only (`/api/karte/suche`, safe-fetch, User-Agent "Plan4JU", at most 1 request per second for the whole server, cache, 20 searches per user and minute, search on button or Enter from 3 characters, no autocomplete as the usage policy requires). "Mein Standort" asks the browser on click; the position is only written into the form. Permissions-Policy `geolocation=(self)`.
-- Bell: unread notifications get a red frame (red-700) and the count stays in the label.
+- Bell: unread notifications get a red frame (#b91c1c, 6.5:1 on white) and the count stays in the label.
+- Data export contains the own start page setting. Docs: Nominatim usage policy and attribution (`docs/karte.md`), address search and location (`docs/datenschutz.md`), modules and "Meine Startseite" (`docs/module.md`).
+- Tests: `tests/shopping-categories.test.ts` (word list, 100 examples), `tests/release-0.8.test.ts` (modules, start page setting, birthday window, categories and memory, redirects, Permissions-Policy, address search without network), RLS for both new tables. Playwright: `abnahme-0.8.spec.ts`; existing specs follow the new navigation.
 
 ## 0.7.2 (14.11.2026)
 

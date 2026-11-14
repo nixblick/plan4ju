@@ -33,7 +33,8 @@ async function signIn(browser: Browser, who: { email: string; phrase: string }):
   await expect(p.getByRole("button", { name: /Feedback/ })).toHaveCount(0);
   await p.getByRole("button", { name: "Öffnen" }).click();
   await expect(p.getByTestId("week")).toBeVisible();
-  await expect(p.getByRole("button", { name: /Feedback/ }).first()).toBeVisible();
+  await expect(p.getByRole("button", { name: /Feedback/ })).toHaveCount(0); // 0.8: feedback is a tab under Einstellungen
+  await expect(p.getByRole("link", { name: "Optionen" })).toBeVisible();
   return p;
 }
 

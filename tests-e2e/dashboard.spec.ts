@@ -113,7 +113,7 @@ test.describe.serial("Familienwoche", () => {
       await expect(todayCard).toContainText(BIRTHDAY);
       await expect(p.getByRole("heading", { name: /Familie Muster/ })).toBeVisible();
       await expect(p.getByTestId("clock")).toHaveText(/^\d{2}:\d{2}$/);
-      await expect(p.getByTestId("tile-soon").first()).toContainText("kommt bald");
+      await expect(p.getByTestId("tile-soon")).toHaveCount(0); // Schule/Sterne: off for new families (0.8)
     }
     // Only Anna has the task assigned to herself.
     await expect(sessions.anna!.getByRole("region", { name: "Meine Aufgaben" })).toContainText(TASK);
@@ -257,7 +257,7 @@ test.describe.serial("Familienwoche", () => {
       storageState: await sessions.anna!.context().storageState(),
     });
     const p = await ctx.newPage();
-    for (const path of ["/", "/aufgaben", "/aufgaben?tab=neu", "/aufgaben?filter=alle", "/routinen", "/routinen?tab=neu", "/routinen?tab=alle", "/routinen?tab=woche", "/routinen/neu", "/geburtstage", "/familie/mitglieder", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", "/kalender/termin/neu", "/rezepte", "/rezepte/neu", "/essen", "/essen/idee", "/einkauf", "/einkauf/geschaefte", "/konto"]) {
+    for (const path of ["/", "/aufgaben", "/aufgaben?tab=neu", "/aufgaben?filter=alle", "/routinen", "/routinen?tab=neu", "/routinen?tab=alle", "/routinen?tab=woche", "/routinen/neu", "/kalender/geburtstage", "/einstellungen/mitglieder", "/einstellungen/module", "/einstellungen/feedback", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", "/kalender/termin/neu", "/rezepte", "/rezepte/neu", "/essen", "/essen/idee", "/einkauf", "/einkauf/geschaefte", "/konto"]) {
       await p.goto(path);
       await expect(p.locator("main")).toBeVisible();
       const { scroll, client } = await p.evaluate(() => ({

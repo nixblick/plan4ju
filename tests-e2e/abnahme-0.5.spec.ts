@@ -28,7 +28,7 @@ const TASK = `Fahrrad flicken ${run}`;
 const BDAY = `Opa Muster ${run}`;
 const EVENT_A = `Laternenumzug ${run}`;
 const EVENT_B = `Elternabend Beispiel ${run}`;
-const CORE = ["Karte", "Wunschzettel", "Achtsamkeit", "Essen und Rezepte"];
+const CORE = ["POI", "Wunschzettel", "Achtsamkeit", "Essen und Rezepte"];
 const pages: Record<string, Page> = {};
 const families: string[] = [];
 const profiles: Record<string, string> = {};
@@ -75,7 +75,7 @@ async function signIn(browser: Browser, key: keyof typeof people): Promise<Page>
 }
 
 async function toggle(p: Page, label: string, on: boolean) {
-  await p.goto("/familie/module");
+  await p.goto("/einstellungen/module");
   await p.getByRole("button", { name: `${label} ${on ? "einschalten" : "ausschalten"}` }).click();
   await expect(p.getByRole("status")).toHaveText(on ? "Modul eingeschaltet." : "Modul ausgeschaltet.");
 }
@@ -106,10 +106,10 @@ test.describe.serial("Abnahme Release 0.5", () => {
 
   test("Zunächst ist alles aus; ein Mitglied kann nichts schalten", async () => {
     const b = pages.ben!;
-    await b.goto("/familie/module");
-    await expect(b.getByTestId("module-row")).toHaveCount(6);
+    await b.goto("/einstellungen/module");
+    await expect(b.getByTestId("module-row")).toHaveCount(8);
     await expect(b.getByTestId("module-row").filter({ hasText: "Prospekte" })).toContainText("aus");
-    await expect(b.getByTestId("module-row").filter({ hasText: "Abfallkalender" })).toContainText("aus");
+    await expect(b.getByTestId("module-row").filter({ hasText: "FES" })).toContainText("aus");
     await expect(b.getByRole("button", { name: /einschalten/ })).toHaveCount(0);
     await expect(b.getByText("Module schalten nur Admins der Familie.")).toBeVisible();
     await noOverflow(b);
@@ -117,7 +117,7 @@ test.describe.serial("Abnahme Release 0.5", () => {
     await gone(b, "/einkauf/prospekte");
     await gone(b, "/kalender/abfall");
     await b.goto("/");
-    await expect(b.getByRole("region", { name: "Abfuhr" })).toHaveCount(0);
+    await expect(b.getByRole("region", { name: "FES" })).toHaveCount(0);
   });
 
   test("Prospekte an: Händler-Links, Anna pflegt, Ben sieht nur Eingeblendete; Abfall bleibt aus", async () => {
@@ -153,7 +153,7 @@ test.describe.serial("Abnahme Release 0.5", () => {
 
   test("Abfallkalender an: ICS-Datei als Quelle, Termine auf der Seite und in der Kachel", async () => {
     const a = pages.anna!;
-    await toggle(a, "Abfallkalender", true);
+    await toggle(a, "FES", true);
     await a.goto("/kalender/quellen");
     await a.getByLabel("ICS-Datei", { exact: true }).first().setInputFiles({ name: "abfall.ics", mimeType: "text/calendar", buffer: Buffer.from(ics) });
     await a.getByLabel("Name (leer = Dateiname)").fill("Abfall");
@@ -171,7 +171,7 @@ test.describe.serial("Abnahme Release 0.5", () => {
 
     const b = pages.ben!;
     await b.goto("/");
-    const tile = b.getByRole("region", { name: "Abfuhr" });
+    const tile = b.getByRole("region", { name: "FES" });
     await expect(tile).toContainText(BIO);
     await expect(tile).toContainText(REST);
     await noOverflow(b);
@@ -202,14 +202,14 @@ test.describe.serial("Abnahme Release 0.5", () => {
       await expect(b.getByTestId(ready)).toBeVisible();
       expect(Date.now() - t, path).toBeLessThan(8_000);
     }
-    await expect(b.getByRole("region", { name: "Abfuhr" })).toHaveCount(0); // tile only on the start page
+    await expect(b.getByRole("region", { name: "FES" })).toHaveCount(0); // tile only on the start page
     for (const path of ["/einkauf", "/aufgaben", "/essen"]) {
       const r = await b.goto(path);
       expect(r?.status(), path).toBe(200);
       await expect(b.locator("main")).toBeVisible();
     }
     await b.goto("/");
-    await expect(b.getByRole("region", { name: "Abfuhr" })).toContainText("keine Abfuhr");
+    await expect(b.getByRole("region", { name: "FES" })).toContainText("keine Abfuhr");
   });
 
   test("Prospekte aus: weg für alle, Abfall bleibt an (unabhängig)", async () => {
@@ -230,7 +230,7 @@ test.describe.serial("Abnahme Release 0.5", () => {
 
   test("Andere Familie: eigene Schalter aus, nichts von Familie Muster", async ({ browser }) => {
     const d = await signIn(browser, "dora");
-    await d.goto("/familie/module");
+    await d.goto("/einstellungen/module");
     await expect(d.getByTestId("module-row").filter({ hasText: "Prospekte" })).toContainText("aus");
     await expect(d.getByRole("button", { name: "Prospekte einschalten" })).toBeVisible();
     await gone(d, "/einkauf/prospekte");
@@ -244,7 +244,7 @@ test.describe.serial("Abnahme Release 0.5", () => {
 
   test("Kernmodule schaltbar: Karte, Wunschzettel, Achtsamkeit, Essen aus; Kern läuft, andere Familie unberührt", async ({ browser }) => {
     const a = pages.anna!;
-    await a.goto("/familie/module");
+    await a.goto("/einstellungen/module");
     for (const label of CORE) {
       await a.getByRole("button", { name: `${label} ausschalten` }).click();
       await expect(a.getByRole("status")).toHaveText("Modul ausgeschaltet.");
@@ -264,7 +264,7 @@ test.describe.serial("Abnahme Release 0.5", () => {
     // Familie Beispiel keeps its modules.
     const d = pages.dora ?? (await signIn(browser, "dora"));
     expect((await d.goto("/karte"))?.status()).toBe(200);
-    await a.goto("/familie/module");
+    await a.goto("/einstellungen/module");
     for (const label of CORE) {
       await a.getByRole("button", { name: `${label} einschalten` }).click();
       await expect(a.getByRole("status")).toHaveText("Modul eingeschaltet.");
@@ -328,7 +328,7 @@ test.describe.serial("Abnahme Release 0.5", () => {
 
   test("375 px ohne Überlauf", async () => {
     const p = pages.anna!;
-    for (const path of ["/", "/familie/module", "/einkauf", "/einkauf/prospekte", "/kalender", "/kalender/abfall", "/kalender/quellen", "/benachrichtigungen", "/benachrichtigungen/einstellungen"]) {
+    for (const path of ["/", "/einstellungen/module", "/einkauf", "/einkauf/prospekte", "/kalender", "/kalender/abfall", "/kalender/quellen", "/benachrichtigungen", "/benachrichtigungen/einstellungen"]) {
       await p.goto(path);
       await expect(p.locator("main")).toBeVisible();
       await noOverflow(p);

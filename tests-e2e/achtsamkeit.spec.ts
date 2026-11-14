@@ -76,8 +76,8 @@ test.describe.serial("Achtsamkeit", () => {
 
   test("Anna bewertet privat, für die Familie und nur für Ben (375 px)", async ({ browser }) => {
     const a = await signIn(browser, anna);
-    await a.goto("/familie/mitglieder");
-    await a.getByRole("navigation", { name: "Bereiche der Familie" }).getByRole("link", { name: "Achtsamkeit" }).click();
+    await a.goto("/wuensche");
+    await a.getByRole("navigation", { name: "Bereiche von Reminder" }).getByRole("link", { name: "Achtsamkeit" }).click();
     await expect(a.getByRole("heading", { name: "Achtsamkeit" })).toBeVisible();
     await noOverflow(a);
     await rate(a, { topic: "Stimmung", rating: 2, note: PRIVATE_NOTE, visibility: "Nur ich" });

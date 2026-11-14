@@ -81,6 +81,7 @@ export async function exportOwnData(userId: string, client?: PrismaClient) {
               select: { kind: true, title: true, link: true, createdAt: true, readAt: true },
             }),
             notificationPrefs: await tx.notificationPref.findMany({ where: { userId } }),
+            dashboardPrefs: await tx.dashboardPref.findMany({ where: { userId }, select: { hidden: true, updatedAt: true } }),
           };
         },
         client,

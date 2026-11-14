@@ -64,6 +64,15 @@ zusammengesetzt wird; die Bildpunkte selbst werden nicht neu kodiert (keine nati
 Die Drehinformation fehlt, Hochkant-Fotos vom Handy können gedreht erscheinen. Ein Bild verschwindet mit
 seinem Rezept, seinem Wunsch oder der Familie. Bilder sind nicht Teil des JSON-Datenexports.
 
+## Adresssuche und Standort (POI, seit 0.8)
+
+- Die Adresssuche schickt den eingegebenen Suchtext über den Server von Plan4JU an Nominatim (OpenStreetMap Foundation,
+  Vereinigtes Königreich). Mit übertragen werden die IP-Adresse des Servers und der User-Agent `Plan4JU`, keine Daten der
+  Person oder Familie. Plan4JU protokolliert den Suchtext nicht und hält Ergebnisse höchstens 24 Stunden im Arbeitsspeicher.
+- „Mein Standort“ fragt den Browser nur auf Klick (der Browser fragt seinerseits um Erlaubnis). Die Position landet nur in
+  den Formularfeldern und wird erst mit dem Ort gespeichert, wie eine von Hand eingegebene Koordinate.
+- Die Einstellung „Meine Startseite“ (`dashboard_pref`) gehört zum Datenexport und verschwindet mit der Mitgliedschaft.
+
 ## Aufbewahrung
 
 | Daten | Dauer |

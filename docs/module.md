@@ -4,16 +4,31 @@ Stand 0.4.x. Dieses Dokument sagt, was gebaut ist und was bewusst nicht.
 
 ## Schalter
 
-- Je Familie, unter **Familie → Module** (`/familie/module`). Schaltbar sind sechs Module, jedes unabhängig von den anderen:
-  Essen und Rezepte, Wunschzettel, Karte und Achtsamkeit (zu Beginn **an**, damit bestehende Familien nichts verlieren) sowie
-  Prospekte und Abfallkalender (zu Beginn **aus**). Immer an bleiben die Kernfunktionen: Startseite, Kalender, Aufgaben,
+- Je Familie, unter **Einstellungen → Module** (`/einstellungen/module`, bis 0.7 `/familie/module`, leitet um). Schaltbar
+  sind acht Module, jedes unabhängig von den anderen: Essen und Rezepte, Wunschzettel, POI (bis 0.7 „Karte“) und Achtsamkeit
+  (zu Beginn **an**, damit bestehende Familien nichts verlieren) sowie Prospekte, FES (Abfallkalender, bis 0.7 „Abfuhr“),
+  Schule heute und Sterne (zu Beginn **aus**). „Schule heute“ und „Sterne“ sind seit 0.8 Module: Familien, die es vorher schon
+  gab, behalten beide an (Migration `release_0_8`), neue Familien starten ohne. Immer an bleiben die Kernfunktionen: Startseite, Kalender, Aufgaben,
   Routinen, Geburtstage, Einkaufsliste und Familie. Schalten dürfen nur Owner und Admins; die Datenbank prüft das zusätzlich (Trigger auf der
   Tabelle `family`), auch wenn ein Mitglied die Zeile sonst ändern dürfte.
 - Ausgeschaltet heißt serverseitig aus: Seiten des Moduls antworten mit „nicht gefunden“, Aktionen werden abgelehnt,
   Kachel und Links verschwinden. Durchgesetzt wird das in den Services (`withModule`), nicht nur in der Oberfläche.
   Ausschalten **löscht nichts**: Einträge und Einstellungen bleiben gespeichert und sind beim Wiedereinschalten zurück.
 - Ohne „Essen und Rezepte“ führt der Haupt-Tab „Essen“ als „Einkauf“ direkt zur Einkaufsliste; Rezeptzutaten lassen sich dann
-  nicht übertragen. Ohne Wunschzettel und Karte fällt die Unter-Navigation bei Geburtstage weg, ohne Achtsamkeit deren Reiter.
+  nicht übertragen. „Reminder“ zeigt die Reiter Wunschzettel, POI und Achtsamkeit, soweit an; sind alle drei aus, verschwindet
+  der Haupt-Tab.
+
+## Meine Startseite (0.8)
+
+- Je Nutzer und Familie unter **Einstellungen → Module → Meine Startseite**: welche Elemente „Heute“ zeigt (Als Nächstes,
+  Heute im Überblick, Diese Woche, Essen heute, FES, Schule heute, Sterne, Termine, Routinen, Aufgaben, Geburtstage,
+  Achtsamkeit). Standard: alles, was die Module der Familie erlauben. Ein ausgeschaltetes Modul blendet sein Element für
+  alle aus, egal was der Nutzer gewählt hat.
+- Gespeichert wird nur die Liste der **ausgeblendeten** Elemente (Tabelle `dashboard_pref`, RLS: nur die eigene Zeile,
+  auch Owner sehen fremde Einstellungen nicht). Neue Elemente sind damit automatisch sichtbar; unbekannte Schlüssel werden
+  ignoriert. Elemente eines gerade ausgeschalteten Moduls behalten beim Speichern ihre frühere Einstellung.
+- Geburtstage auf der Startseite: die letzten 2 und die nächsten 3 Tage („vorgestern“ bis „in 3 Tagen“), auch über den
+  Jahreswechsel; die volle Liste steht unter Kalender → Geburtstage.
 - Kein Modul ist Voraussetzung für eine Kernfunktion. Startseite, Kalender, Aufgaben und Einkauf lesen nur gespeicherte Daten;
   kein Seitenaufruf wartet auf einen fremden Dienst.
 

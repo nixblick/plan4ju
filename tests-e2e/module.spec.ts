@@ -52,14 +52,14 @@ test.describe.serial("Zusatzmodule", () => {
   test("Anna schaltet Prospekte ein und aus, Ben sieht keine Schalter", async ({ browser }) => {
     const b = await signIn(browser, ben);
     expect((await b.goto("/einkauf/prospekte"))?.status()).toBe(404);
-    await b.goto("/familie/mitglieder");
-    await b.getByRole("navigation", { name: "Bereiche der Familie" }).getByRole("link", { name: "Module" }).click();
+    await b.goto("/einstellungen/mitglieder");
+    await b.getByRole("navigation", { name: "Bereiche der Einstellungen" }).getByRole("link", { name: "Module" }).click();
     await expect(b.getByRole("heading", { name: "Module", exact: true })).toBeVisible();
     await expect(b.getByRole("button", { name: /einschalten/ })).toHaveCount(0);
     await noOverflow(b);
 
     const a = await signIn(browser, anna);
-    await a.goto("/familie/module");
+    await a.goto("/einstellungen/module");
     await a.getByRole("button", { name: "Prospekte einschalten" }).click();
     await expect(a.getByRole("status")).toHaveText("Modul eingeschaltet.");
     await noOverflow(a);
@@ -74,10 +74,10 @@ test.describe.serial("Zusatzmodule", () => {
     await b.context().close();
   });
 
-  test("Navigation 375 px: 7 Tabs ohne Umbruch, Feste führt zur Karte, Achtsamkeit auf der Startseite", async ({ browser }) => {
+  test("Navigation 375 px: 7 Tabs ohne Umbruch, Reminder führt zu POI, Achtsamkeit auf der Startseite", async ({ browser }) => {
     const a = await signIn(browser, anna);
-    await a.goto("/familie/module");
-    for (const label of ["Karte", "Wunschzettel", "Achtsamkeit"]) {
+    await a.goto("/einstellungen/module");
+    for (const label of ["POI", "Wunschzettel", "Achtsamkeit"]) {
       const on = a.getByRole("button", { name: `${label} einschalten` });
       if (await on.count()) {
         await on.click();
@@ -92,7 +92,7 @@ test.describe.serial("Zusatzmodule", () => {
         const span = e.querySelector("span")!;
         return { label: span.textContent, h: r.height, w: r.width, lineH: span.getBoundingClientRect().height, scroll: span.scrollWidth, client: span.clientWidth };
       }));
-    expect(bar.map((x) => x.label)).toEqual(["Heute", "Kalender", "Aufgaben", "Routinen", "Essen", "Feste", "Familie"]);
+    expect(bar.map((x) => x.label)).toEqual(["Heute", "Kalender", "Aufgaben", "Routinen", "Essen", "Reminder", "Optionen"]);
     for (const x of bar) {
       expect(x.h, `${x.label} Höhe`).toBeGreaterThanOrEqual(44);
       expect(x.w, `${x.label} Breite`).toBeGreaterThanOrEqual(44);
@@ -107,21 +107,21 @@ test.describe.serial("Zusatzmodule", () => {
     await cta.click();
     await expect(a.getByRole("heading", { name: "Achtsamkeit", level: 1 })).toBeVisible();
 
-    await a.getByRole("link", { name: "Feste" }).click();
-    const sub = a.getByRole("navigation", { name: "Unterseiten" });
-    await expect(sub.getByRole("link")).toHaveText(["Geburtstage", "Wunschzettel", "Karte"]);
+    await a.getByRole("link", { name: "Reminder" }).click();
+    const sub = a.getByRole("navigation", { name: "Bereiche von Reminder" });
+    await expect(sub.getByRole("link")).toHaveText(["Wunschzettel", "POI", "Achtsamkeit"]);
     for (const box of await sub.getByRole("link").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) expect(box).toBeGreaterThanOrEqual(44);
-    await sub.getByRole("link", { name: "Karte" }).click();
+    await sub.getByRole("link", { name: "POI" }).click();
     await expect(a).toHaveURL(/\/karte$/);
-    await expect(a.getByRole("link", { name: "Feste" })).toHaveAttribute("aria-current", "page");
+    await expect(a.getByRole("link", { name: "Reminder" })).toHaveAttribute("aria-current", "page");
     await noOverflow(a);
     await a.context().close();
   });
 
   test("Anna schaltet Karte, Wunschzettel, Achtsamkeit und Essen aus: weg aus Navigation und Startseite, Einkauf bleibt", async ({ browser }) => {
     const a = await signIn(browser, anna);
-    await a.goto("/familie/module");
-    for (const label of ["Karte", "Wunschzettel", "Achtsamkeit", "Essen und Rezepte"]) {
+    await a.goto("/einstellungen/module");
+    for (const label of ["POI", "Wunschzettel", "Achtsamkeit", "Essen und Rezepte"]) {
       await a.getByRole("button", { name: `${label} ausschalten` }).click();
       await expect(a.getByRole("status")).toHaveText("Modul ausgeschaltet.");
     }
@@ -129,16 +129,17 @@ test.describe.serial("Zusatzmodule", () => {
     await a.goto("/");
     await expect(a.getByRole("region", { name: "Essen heute" })).toHaveCount(0);
     await expect(a.getByRole("region", { name: "Achtsamkeit" })).toHaveCount(0);
+    await expect(a.getByRole("link", { name: "Reminder" })).toHaveCount(0); // all three Reminder modules off
     await a.goto("/geburtstage");
-    await expect(a.getByRole("navigation", { name: "Unterseiten" })).toHaveCount(0);
+    await expect(a).toHaveURL(/\/kalender\/geburtstage$/);
     await a.goto("/einkauf");
     await expect(a.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(a.getByRole("link", { name: "Einkauf" }).first()).toBeVisible();
     await expect(a.getByRole("navigation", { name: "Essen" })).toHaveCount(0);
     await noOverflow(a);
 
-    await a.goto("/familie/module");
-    for (const label of ["Karte", "Wunschzettel", "Achtsamkeit", "Essen und Rezepte"]) {
+    await a.goto("/einstellungen/module");
+    for (const label of ["POI", "Wunschzettel", "Achtsamkeit", "Essen und Rezepte"]) {
       await a.getByRole("button", { name: `${label} einschalten` }).click();
       await expect(a.getByRole("status")).toHaveText("Modul eingeschaltet.");
     }

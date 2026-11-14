@@ -8,6 +8,8 @@ const email = `fb-${run}@example.test`;
 const admin = new PrismaClient({ datasourceUrl: process.env.DATABASE_ADMIN_URL });
 let familyId = "";
 let page: Page;
+// 1 x 1 pixel PNG
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 
 test.describe.serial("Feedback", () => {
   test.beforeAll(async ({ browser }) => {
@@ -29,43 +31,33 @@ test.describe.serial("Feedback", () => {
     await admin.$disconnect();
   });
 
-  test("Knopf ist bei 375 px sichtbar und liegt über der Tab-Leiste", async () => {
+  test("0.8: kein schwebender Knopf und keine Kachel mehr, Feedback ist ein Tab unter Einstellungen (375 px)", async () => {
     for (const path of ["/", "/aufgaben"]) {
       await page.goto(path);
-      const button = page.getByTestId("feedback-button");
-      await expect(button).toBeVisible();
-      const b = (await button.boundingBox())!;
-      const nav = (await page.locator("nav[aria-label='Hauptmenü']:visible").boundingBox())!;
-      expect(b.y + b.height).toBeLessThanOrEqual(nav.y);
-      expect(b.x + b.width).toBeLessThanOrEqual(375);
-      // Nothing covers the button: the topmost element at its centre belongs to it.
-      const onTop = await page.evaluate(({ x, y }) => {
-        const el = document.elementFromPoint(x, y);
-        return !!el?.closest("[data-testid='feedback-button']");
-      }, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
-      expect(onTop).toBe(true);
+      await expect(page.getByTestId("feedback-button")).toHaveCount(0);
+      await expect(page.getByTestId("feedback-tile")).toHaveCount(0);
     }
-    await expect(page.getByTestId("feedback-tile")).toBeHidden(); // only on the dashboard
-    await page.goto("/");
-    await expect(page.getByTestId("feedback-tile")).toBeVisible();
+    await page.getByRole("navigation", { name: "Hauptmenü" }).getByRole("link", { name: "Optionen" }).click();
+    await page.getByRole("navigation", { name: "Bereiche der Einstellungen" }).getByRole("link", { name: "Feedback" }).click();
+    await expect(page).toHaveURL(/\/einstellungen\/feedback$/);
+    await expect(page.getByTestId("feedback-form")).toBeVisible();
+    const { scroll, client } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+    expect(scroll).toBeLessThanOrEqual(client);
   });
 
-  test("Knopf → Formular → Mail mit Text, Name und Bild in Mailpit", async () => {
-    await page.goto("/aufgaben?geheim=1");
-    await page.getByTestId("feedback-button").click();
-    const dialog = page.getByRole("dialog", { name: "Feedback geben" });
-    await expect(dialog).toBeVisible();
-    await dialog.getByLabel("Idee").check();
-    await dialog.getByLabel("Was möchtest du uns sagen?").fill(`Bitte eine Einkaufsliste ${run}`);
-    await dialog.getByLabel("Dein Name (optional)").fill("Udo Muster");
-    await dialog.getByRole("button", { name: "Diese Seite aufnehmen" }).click();
-    await expect(dialog.getByText(/Aufnahme angehängt/)).toBeVisible({ timeout: 20_000 });
-    await dialog.getByRole("button", { name: "Absenden" }).click();
+  test("Tab → Formular → Mail mit Text, Name, Seite und Bild in Mailpit", async ({ baseURL }) => {
+    // the page the person came from is sent along (referrer, same origin only)
+    await page.goto("/einstellungen/feedback", { referer: `${baseURL}/aufgaben?geheim=1` });
+    const form = page.getByTestId("feedback-form");
+    await form.getByLabel("Idee").check();
+    await form.getByLabel("Was möchtest du uns sagen?").fill(`Bitte eine Einkaufsliste ${run}`);
+    await form.getByLabel("Dein Name (optional)").fill("Udo Muster");
+    await form.getByLabel(/Bild \(optional/).setInputFiles({ name: "bild.png", mimeType: "image/png", buffer: PNG });
+    await form.getByRole("button", { name: "Absenden" }).click();
     await expect(page.getByText("Danke, ist angekommen!")).toBeVisible();
-    await expect(dialog).toBeHidden();
 
     const row = await admin.feedback.findFirstOrThrow({ where: { familyId, message: `Bitte eine Einkaufsliste ${run}` } });
-    // Delivered: the screenshot is in the mail (checked below), not kept in the database (0.7.2).
+    // Delivered: the picture is in the mail (checked below), not kept in the database (0.7.2).
     expect(row).toMatchObject({ kind: "IDEA", pagePath: "/aufgaben", screenWidth: 375, imageType: null, image: null });
     expect(row.authorName).toBe("Udo Muster");
     expect(row.mailedAt).not.toBeNull();
@@ -88,12 +80,14 @@ test.describe.serial("Feedback", () => {
     await fetch(`${api}/search?query=${q}`, { method: "DELETE" });
   });
 
-  test("Menü-Eintrag öffnet das Formular auf dem Computer", async ({ browser }) => {
+  test("Einstellungen auf dem Computer: Tab Feedback in der Seitenleiste erreichbar", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, storageState: await page.context().storageState() });
     const p = await ctx.newPage();
-    await p.goto("/geburtstage");
-    await p.getByRole("button", { name: "Feedback geben" }).click();
-    await expect(p.getByRole("dialog", { name: "Feedback geben" })).toBeVisible();
+    await p.goto("/kalender/geburtstage");
+    await expect(p.getByRole("button", { name: "Feedback geben" })).toHaveCount(0);
+    await p.getByRole("link", { name: "Einstellungen" }).click();
+    await p.getByRole("link", { name: "Feedback", exact: true }).click();
+    await expect(p.getByRole("heading", { name: "Feedback geben" })).toBeVisible();
     await ctx.close();
   });
 
@@ -105,7 +99,7 @@ test.describe.serial("Feedback", () => {
       const base = { familyId, kind: "BUG" as const, pagePath: "/", appVersion: "test", device: "Test", mailAttempts: 2, mailNextAt: new Date(Date.now() + 3_600_000) };
       await admin.feedback.create({ data: { ...base, userId: owner.id, message: "Eigener Text sichtbar" } });
       await admin.feedback.create({ data: { ...base, kind: "IDEA", userId: other.id, message: "Fremder Text geheim" } });
-      await page.goto("/familie/meldungen");
+      await page.goto("/einstellungen/meldungen");
       await expect(page.getByText("Eigener Text sichtbar")).toBeVisible();
       await expect(page.getByTestId("meldung-row").filter({ hasText: "Idee" }).first()).toContainText("2 von 5 Versuchen");
       expect(await page.content()).not.toContain("Fremder Text geheim");
