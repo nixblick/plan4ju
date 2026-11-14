@@ -20,10 +20,10 @@ beforeAll(async () => {
   f = await seed();
   profileBoth = (await admin.familyProfile.create({ data: { familyId: f.familyA, displayName: "Bodo Muster", userId: f.userBoth } })).id;
   taskDue = (await admin.task.create({
-    data: { familyId: f.familyA, title: "Fenster putzen", dueDate: new Date("2026-11-16"), createdById: f.userA, assignments: { create: { profileId: profileBoth, familyId: f.familyA, createdAt: new Date("2026-11-15T10:00:00Z") } } },
+    data: { familyId: f.familyA, title: "Fenster putzen", dueDate: new Date("2026-11-16"), createdById: f.userA, assignments: { create: { profileId: profileBoth, familyId: f.familyA, assignedById: f.userA, createdAt: new Date("2026-11-15T10:00:00Z") } } },
   })).id;
   taskOwn = (await admin.task.create({
-    data: { familyId: f.familyA, title: "Eigene Notiz", dueDate: new Date("2026-11-10"), createdById: f.userBoth, assignments: { create: { profileId: profileBoth, familyId: f.familyA, createdAt: new Date("2026-11-15T10:00:00Z") } } },
+    data: { familyId: f.familyA, title: "Eigene Notiz", dueDate: new Date("2026-11-10"), createdById: f.userBoth, assignments: { create: { profileId: profileBoth, familyId: f.familyA, assignedById: f.userBoth, state: "ACCEPTED", createdAt: new Date("2026-11-15T10:00:00Z") } } },
   })).id;
   await admin.task.create({ data: { familyId: f.familyA, title: "Erledigt", dueDate: new Date("2026-11-16"), status: "DONE", createdById: f.userA, assignments: { create: { profileId: profileBoth, familyId: f.familyA } } } });
   await admin.birthday.create({ data: { familyId: f.familyA, name: "Opa Muster", month: 11, day: 17, createdById: f.userA } });
@@ -56,7 +56,7 @@ describe("generation", () => {
     expect(n).toBe(6);
   });
 
-  it("old assignments do not count as new, own tasks never", async () => {
+  it("a pending assignment stays new until answered, own tasks never", async () => {
     const later = new Date("2026-11-25T08:00:00Z");
     await syncAndCount(f.userBoth, f.familyA, later, app);
     const titles = (await listNotifications(f.userBoth, f.familyA, app)).map((x) => x.title);
@@ -64,9 +64,9 @@ describe("generation", () => {
     expect(titles).not.toContain("Neu für dich: Eigene Notiz");
   });
 
-  it("an assignment older than 7 days is not new", async () => {
+  it("an accepted or legacy assignment is not new", async () => {
     const old = await admin.task.create({
-      data: { familyId: f.familyA, title: "Alte Zuweisung", createdById: f.userA, assignments: { create: { profileId: profileBoth, familyId: f.familyA, createdAt: new Date("2026-11-08T08:00:00Z") } } },
+      data: { familyId: f.familyA, title: "Alte Zuweisung", createdById: f.userA, assignments: { create: { profileId: profileBoth, familyId: f.familyA, state: "ACCEPTED", createdAt: new Date("2026-11-15T08:00:00Z") } } },
     });
     await syncAndCount(f.userBoth, f.familyA, NOW, app);
     expect((await listNotifications(f.userBoth, f.familyA, app)).map((x) => x.title)).not.toContain("Neu für dich: Alte Zuweisung");

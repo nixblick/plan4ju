@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { NotFoundError } from "../errors";
+import { ForbiddenError, NotFoundError } from "../errors";
 import { withFamily, type FamilyContext } from "../tenant";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { compareByDue, DEFAULT_PRIORITY, PRIORITIES } from "../../lib/priority";
@@ -35,7 +35,33 @@ export interface TaskQuery {
   to?: string;
 }
 
-const include = { assignments: { select: { profileId: true } } } as const;
+const include = { assignments: { select: { profileId: true, state: true, assignedById: true } } } as const;
+
+/**
+ * Initial state of a new assignment (issue 16): the own profile and child profiles without login are
+ * accepted right away; everyone else is asked first (PENDING).
+ */
+async function newAssignments(ctx: FamilyContext, taskId: string | null, ids: string[]) {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return [];
+  const profiles = await ctx.tx.familyProfile.findMany({
+    where: { id: { in: unique }, familyId: ctx.familyId },
+    select: { id: true, userId: true, isChild: true },
+  });
+  return profiles.map((p) => ({
+    ...(taskId ? { taskId } : {}),
+    profileId: p.id,
+    familyId: ctx.familyId,
+    assignedById: ctx.userId,
+    state: (p.userId === ctx.userId || (p.isChild && p.userId === null) ? "ACCEPTED" : "PENDING") as "ACCEPTED" | "PENDING",
+  }));
+}
+
+/** Profile of the signed-in user in the active family, or null. */
+async function myProfileId(ctx: FamilyContext): Promise<string | null> {
+  const me = await ctx.tx.familyProfile.findFirst({ where: { familyId: ctx.familyId, userId: ctx.userId }, select: { id: true } });
+  return me?.id ?? null;
+}
 
 async function assertProfiles(ctx: FamilyContext, ids: string[]) {
   if (ids.length === 0) return;
@@ -68,9 +94,9 @@ export function findTasks(userId: string, familyId: string, query: TaskQuery = {
           where.assignments = { none: {} };
           break;
         case "meine": {
-          const me = await ctx.tx.familyProfile.findFirst({ where: { familyId: ctx.familyId, userId: ctx.userId }, select: { id: true } });
+          const me = await myProfileId(ctx);
           where.status = { not: "DONE" };
-          where.assignments = { some: { profileId: me?.id ?? "-" } };
+          where.assignments = { some: { profileId: me ?? "-" } };
           break;
         }
         case "archiv":
@@ -120,6 +146,7 @@ export async function createTask(userId: string, familyId: string, raw: TaskInpu
     familyId,
     async (ctx) => {
       await assertProfiles(ctx, data.assigneeIds);
+      const assignments = await newAssignments(ctx, null, data.assigneeIds);
       return ctx.tx.task.create({
         data: {
           familyId: ctx.familyId,
@@ -132,9 +159,7 @@ export async function createTask(userId: string, familyId: string, raw: TaskInpu
           status: data.status ?? "OPEN",
           doneAt: data.status === "DONE" ? new Date() : null,
           createdById: ctx.userId,
-          assignments: {
-            create: [...new Set(data.assigneeIds)].map((profileId) => ({ profileId, familyId: ctx.familyId })),
-          },
+          assignments: { create: assignments },
         },
         include,
       });
@@ -174,10 +199,12 @@ export async function updateTask(
         },
       });
       if (res.count === 0) throw new NotFoundError("Task not found");
-      await ctx.tx.taskAssignment.deleteMany({ where: { taskId: id, familyId: ctx.familyId } });
-      await ctx.tx.taskAssignment.createMany({
-        data: [...new Set(data.assigneeIds)].map((profileId) => ({ taskId: id, profileId, familyId: ctx.familyId })),
-      });
+      // Diff, not replace: unchanged assignees keep their state (an edit does not ask again).
+      const wanted = [...new Set(data.assigneeIds)];
+      const existing = (await ctx.tx.taskAssignment.findMany({ where: { taskId: id, familyId: ctx.familyId }, select: { profileId: true } })).map((a) => a.profileId);
+      await ctx.tx.taskAssignment.deleteMany({ where: { taskId: id, familyId: ctx.familyId, profileId: { notIn: wanted } } });
+      const added = await newAssignments(ctx, id, wanted.filter((p) => !existing.includes(p)));
+      if (added.length) await ctx.tx.taskAssignment.createMany({ data: added as Prisma.TaskAssignmentCreateManyInput[] });
       return ctx.tx.task.findFirstOrThrow({ where: { id, familyId: ctx.familyId }, include });
     },
     client,
@@ -233,6 +260,54 @@ export function deleteTask(userId: string, familyId: string, id: string, client?
     async (ctx) => {
       const res = await ctx.tx.task.deleteMany({ where: { id, familyId: ctx.familyId } });
       if (res.count === 0) throw new NotFoundError("Task not found");
+    },
+    client,
+  );
+}
+
+/** The assigned person accepts a new assignment. Only the own profile; anything else is NotFound. */
+export function acceptAssignment(userId: string, familyId: string, taskId: string, client?: PrismaClient) {
+  return withFamily(
+    userId,
+    familyId,
+    async (ctx) => {
+      const me = await myProfileId(ctx);
+      const res = await ctx.tx.taskAssignment.updateMany({
+        where: { taskId, familyId: ctx.familyId, profileId: me ?? "-", state: "PENDING" },
+        data: { state: "ACCEPTED" },
+      });
+      if (res.count === 0) throw new NotFoundError("Assignment not found");
+    },
+    client,
+  );
+}
+
+/**
+ * The assigned person declines: the assignment goes (the task is unassigned again unless others are
+ * assigned) and the assigning person gets a notification via task_decline. Self-assignments have no
+ * one to tell; declining one just removes it.
+ */
+export function declineAssignment(userId: string, familyId: string, taskId: string, client?: PrismaClient) {
+  return withFamily(
+    userId,
+    familyId,
+    async (ctx) => {
+      const me = await myProfileId(ctx);
+      if (!me) throw new ForbiddenError("No profile");
+      const a = await ctx.tx.taskAssignment.findFirst({
+        where: { taskId, familyId: ctx.familyId, profileId: me, state: "PENDING" },
+        select: { assignedById: true },
+      });
+      if (!a) throw new NotFoundError("Assignment not found");
+      await ctx.tx.taskAssignment.deleteMany({ where: { taskId, familyId: ctx.familyId, profileId: me } });
+      if (a.assignedById && a.assignedById !== ctx.userId) {
+        const still = await ctx.tx.familyMembership.findUnique({ where: { familyId_userId: { familyId: ctx.familyId, userId: a.assignedById } } });
+        if (still) {
+          await ctx.tx.taskDecline.create({
+            data: { familyId: ctx.familyId, taskId, profileId: me, declinedById: ctx.userId, assignedById: a.assignedById },
+          });
+        }
+      }
     },
     client,
   );

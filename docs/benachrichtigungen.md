@@ -10,7 +10,12 @@ Stand 0.5.3. Umsetzung von Masterprompt Abschnitt 21 und dem ICS-Export aus Absc
   - **Fällige Aufgaben**: mir zugewiesen, nicht erledigt, heute fällig („Heute fällig“) oder überfällig.
   - **Routinen**: meine offenen Routinen-Termine von heute.
   - **Geburtstage**: am Vortag („Morgen hat … Geburtstag“) und am Tag selbst, für alle Mitglieder.
-  - **Neue Zuweisungen**: jemand anderes hat mir in den letzten 7 Tagen eine Aufgabe zugewiesen.
+  - **Neue Zuweisungen**: jemand anderes hat mir eine Aufgabe zugewiesen, und ich habe sie noch nicht
+    angenommen oder abgelehnt (Status „neu zugewiesen“, seit 0.7.0). Wer sich selbst zuweist, nimmt
+    automatisch an; Kinderprofile ohne Login ebenso.
+  - **Abgelehnte Zuweisungen**: jemand hat eine Aufgabe abgelehnt, die ich ihm zugewiesen habe (letzte 7 Tage).
+    Die Ablehnung steht in `task_decline` (lesen nur die beiden Beteiligten, schreiben nur wer ablehnt);
+    die Benachrichtigung entsteht beim nächsten Seitenaufruf der zuweisenden Person.
 - „Heute“ ist der Tag in der Zeitzone der Familie.
 - Erzeugt wird **ohne eigenen Dienst**: beim Laden jeder Seite für den angemeldeten Nutzer (und im E-Mail-Job).
   Jede Benachrichtigung hat einen Schlüssel, sie entsteht also nur einmal. Gelesene verschwinden nach 30 Tagen,

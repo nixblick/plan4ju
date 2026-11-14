@@ -1,7 +1,7 @@
 "use server";
 
 import { TOPICS, VISIBILITIES, type Topic, type Visibility } from "@/lib/achtsamkeit";
-import { deleteEntry, saveEntry } from "@/server/services/mindfulness";
+import { deleteCheckin, deleteEntry, saveCheckin, saveEntry, savePref } from "@/server/services/mindfulness";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireFamily } from "@/server/session";
@@ -49,5 +49,38 @@ export async function saveEntryAction(form: FormData) {
 export async function deleteEntryAction(form: FormData) {
   await run(form, "achtsamkeit-geloescht", async ({ user, familyId }) => {
     await deleteEntry(user.id, familyId, id(form, "entryId"));
+  });
+}
+
+/** One submitted questionnaire: every ticked topic with a rating becomes part of one entry. */
+export async function saveCheckinAction(form: FormData) {
+  await run(form, "achtsamkeit-gespeichert", async ({ user, familyId }) => {
+    const ratings = TOPICS.flatMap((t) => {
+      if (form.get(`use-${t}`) !== "on") return [];
+      const r = Number(text(form, `rating-${t}`));
+      return r >= 1 && r <= 5 ? [{ topic: t, rating: r }] : [];
+    });
+    await saveCheckin(user.id, familyId, {
+      profileId: id(form, "profileId"),
+      date: text(form, "date"),
+      note: text(form, "note"),
+      ratings,
+    });
+  });
+}
+
+export async function savePrefAction(form: FormData) {
+  const visibility = text(form, "visibility");
+  await run(form, "achtsamkeit-sichtbarkeit", async ({ user, familyId }) => {
+    await savePref(user.id, familyId, {
+      visibility: ((VISIBILITIES as readonly string[]).includes(visibility) ? visibility : "PRIVATE") as Visibility,
+      viewerIds: form.getAll("viewer").map(String).filter((v) => /^[A-Za-z0-9_-]{1,100}$/.test(v)),
+    });
+  });
+}
+
+export async function deleteCheckinAction(form: FormData) {
+  await run(form, "achtsamkeit-geloescht", async ({ user, familyId }) => {
+    await deleteCheckin(user.id, familyId, text(form, "checkinId").slice(0, 100));
   });
 }

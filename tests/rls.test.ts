@@ -35,8 +35,8 @@ describe("database role", () => {
   it("every family-scoped table has forced row level security", async () => {
     const rows = await admin.$queryRaw<{ relname: string; relrowsecurity: boolean; relforcerowsecurity: boolean }[]>`
       SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
-      WHERE relname IN ('family','family_membership','family_profile','family_invitation','task','task_assignment','birthday','routine','routine_assignment','routine_occurrence','routine_occurrence_assignment','feedback','calendar_event','calendar_event_participant','external_calendar','external_calendar_event','recipe','recipe_ingredient','meal_slot','meal','meal_cook','shop','shopping_item','shopping_item_shop','wishlist','wish','wish_reservation','map_category','poi','mindfulness_entry','mindfulness_share','notification','notification_pref','calendar_feed','calendar_event_exception','image')`;
-    expect(rows).toHaveLength(36);
+      WHERE relname IN ('family','family_membership','family_profile','family_invitation','task','task_assignment','birthday','routine','routine_assignment','routine_occurrence','routine_occurrence_assignment','feedback','calendar_event','calendar_event_participant','external_calendar','external_calendar_event','recipe','recipe_ingredient','meal_slot','meal','meal_cook','shop','shopping_item','shopping_item_shop','wishlist','wish','wish_reservation','map_category','poi','mindfulness_entry','mindfulness_share','notification','notification_pref','calendar_feed','calendar_event_exception','image','task_decline','mindfulness_pref')`;
+    expect(rows).toHaveLength(38);
     for (const r of rows) expect([r.relname, r.relrowsecurity, r.relforcerowsecurity]).toEqual([r.relname, true, true]);
   });
 });
@@ -430,6 +430,59 @@ describe("wish reservations and the wishing person", () => {
       expect(await raw(f.familyA, f.userA, (tx) => tx.$queryRaw`SELECT app_wish_reserved_for_wisher(${[w.id]}::text[]) AS id`)).toEqual([]);
     } finally {
       await admin.wishlist.delete({ where: { id: l.id } });
+    }
+  });
+});
+
+describe("assignment acceptance (0.7.0)", () => {
+  it("only the assigned person accepts; nobody accepts for another member; INSERT records the real assigner", async () => {
+    const pBoth = await admin.familyProfile.create({ data: { familyId: f.familyA, displayName: "Bodo RLS", userId: f.userBoth } });
+    const t = await admin.task.create({ data: { familyId: f.familyA, title: "Zuweisung RLS", createdById: f.userA } });
+    try {
+      // userA may not create an already accepted assignment for userBoth
+      await expect(raw(f.familyA, f.userA, (tx) => tx.taskAssignment.create({ data: { taskId: t.id, profileId: pBoth.id, familyId: f.familyA, assignedById: f.userA, state: "ACCEPTED" } }))).rejects.toThrow();
+      // nor pretend that someone else assigned
+      await expect(raw(f.familyA, f.userA, (tx) => tx.taskAssignment.create({ data: { taskId: t.id, profileId: pBoth.id, familyId: f.familyA, assignedById: f.userBoth } }))).rejects.toThrow();
+      await raw(f.familyA, f.userA, (tx) => tx.taskAssignment.create({ data: { taskId: t.id, profileId: pBoth.id, familyId: f.familyA, assignedById: f.userA } }));
+      // userA cannot accept on behalf of userBoth (row filtered out: zero rows)
+      const byA = await raw(f.familyA, f.userA, (tx) => tx.taskAssignment.updateMany({ where: { taskId: t.id }, data: { state: "ACCEPTED" } }));
+      expect(byA.count).toBe(0);
+      // another family sees nothing
+      expect(await raw(f.familyB, f.userBoth, (tx) => tx.taskAssignment.updateMany({ where: { taskId: t.id }, data: { state: "ACCEPTED" } }))).toEqual({ count: 0 });
+      const byBoth = await raw(f.familyA, f.userBoth, (tx) => tx.taskAssignment.updateMany({ where: { taskId: t.id }, data: { state: "ACCEPTED" } }));
+      expect(byBoth.count).toBe(1);
+    } finally {
+      await admin.task.delete({ where: { id: t.id } });
+      await admin.familyProfile.delete({ where: { id: pBoth.id } });
+    }
+  });
+
+  it("task_decline: only the decliner writes, only the two people involved read", async () => {
+    const pBoth = await admin.familyProfile.create({ data: { familyId: f.familyA, displayName: "Bodo RLS2", userId: f.userBoth } });
+    const t = await admin.task.create({ data: { familyId: f.familyA, title: "Ablehnen RLS", createdById: f.userA } });
+    try {
+      // userA cannot fake a decline in userBoth's name
+      await expect(raw(f.familyA, f.userA, (tx) => tx.taskDecline.create({ data: { familyId: f.familyA, taskId: t.id, profileId: pBoth.id, declinedById: f.userBoth, assignedById: f.userA } }))).rejects.toThrow();
+      await raw(f.familyA, f.userBoth, (tx) => tx.taskDecline.create({ data: { familyId: f.familyA, taskId: t.id, profileId: pBoth.id, declinedById: f.userBoth, assignedById: f.userA } }));
+      expect(await raw(f.familyA, f.userA, (tx) => tx.taskDecline.count({ where: { taskId: t.id } }))).toBe(1);
+      expect(await raw(f.familyA, f.userBoth, (tx) => tx.taskDecline.count({ where: { taskId: t.id } }))).toBe(1);
+      expect(await raw(f.familyB, f.userB, (tx) => tx.taskDecline.count())).toBe(0);
+    } finally {
+      await admin.task.delete({ where: { id: t.id } });
+      await admin.familyProfile.delete({ where: { id: pBoth.id } });
+    }
+  });
+
+  it("mindfulness_pref: own row only, not even the owner reads another member's setting", async () => {
+    await raw(f.familyA, f.userBoth, (tx) => tx.mindfulnessPref.create({ data: { familyId: f.familyA, userId: f.userBoth, visibility: "FAMILY" } }));
+    try {
+      expect(await raw(f.familyA, f.userA, (tx) => tx.mindfulnessPref.count())).toBe(0);
+      await expect(raw(f.familyA, f.userA, (tx) => tx.mindfulnessPref.create({ data: { familyId: f.familyA, userId: f.userBoth } }))).rejects.toThrow();
+      expect(await raw(f.familyA, f.userA, (tx) => tx.mindfulnessPref.updateMany({ data: { visibility: "PRIVATE" } }))).toEqual({ count: 0 });
+      expect(await raw(f.familyA, f.userBoth, (tx) => tx.mindfulnessPref.count())).toBe(1);
+      expect(await raw(f.familyB, f.userBoth, (tx) => tx.mindfulnessPref.count())).toBe(0);
+    } finally {
+      await admin.mindfulnessPref.deleteMany({ where: { familyId: f.familyA } });
     }
   });
 });

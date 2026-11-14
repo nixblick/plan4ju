@@ -1,7 +1,8 @@
 import type { DashProfile } from "@/server/services/dashboard";
 import { Dots } from "../people";
 import { DEFAULT_PRIORITY, PRIORITIES, PRIORITY_BADGE, PRIORITY_LABEL, type Priority } from "@/lib/priority";
-import { Field, inputCls } from "../ui";
+import { buttonCls, Field, ghostButtonCls, inputCls } from "../ui";
+import { acceptAssignmentAction, declineAssignmentAction } from "../planung-actions";
 
 export { PRIORITY_LABEL };
 
@@ -80,5 +81,23 @@ export function PriorityBadge({ p }: { p: Priority }) {
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${PRIORITY_BADGE[p]}`} data-testid="priority-badge" data-priority={p}>
       {PRIORITY_LABEL[p]}
     </span>
+  );
+}
+
+/** Accept or decline a new assignment (issue 16); both buttons are full touch targets. */
+export function AcceptDecline({ taskId, title, back }: { taskId: string; title: string; back?: "aufgabe" }) {
+  return (
+    <div className="flex w-full gap-2" data-testid="accept-decline">
+      <form action={acceptAssignmentAction} className="flex-1">
+        <input type="hidden" name="taskId" value={taskId} />
+        {back ? <input type="hidden" name="zurueck" value={back} /> : null}
+        <button className={`${buttonCls} w-full`} aria-label={`„${title}“ annehmen`}>Annehmen</button>
+      </form>
+      <form action={declineAssignmentAction} className="flex-1">
+        <input type="hidden" name="taskId" value={taskId} />
+        {back ? <input type="hidden" name="zurueck" value={back} /> : null}
+        <button className={`${ghostButtonCls} w-full`} aria-label={`„${title}“ ablehnen`}>Ablehnen</button>
+      </form>
+    </div>
   );
 }

@@ -34,16 +34,25 @@ async function signIn(browser: Browser, who: { email: string; phrase: string }):
 }
 
 async function rate(p: Page, o: { topic: string; rating: number; note: string; visibility: string; viewer?: string }) {
-  const form = p.getByRole("form", { name: "Bewertung erfassen" });
-  await form.getByRole("combobox", { name: "Thema", exact: true }).selectOption({ label: o.topic });
-  await form.locator("label").filter({ has: p.locator(`input[name=rating][value="${o.rating}"]`) }).click();
-  await expect(form.getByLabel(new RegExp(`^\\S+ ${o.rating} von 5`))).toBeChecked();
-  await form.getByLabel("Notiz (optional)").fill(o.note);
-  await form.getByLabel(o.visibility, { exact: false }).check();
-  if (o.viewer) await form.getByLabel(o.viewer).check();
-  await form.getByRole("button", { name: "Speichern" }).click();
-  await expect(p.getByText(o.note)).toBeVisible();
+  // 0.7: visibility is a setting of the user (applies to new entries), the questionnaire is one form.
+  const setting = p.getByTestId("visibility-setting");
+  await setting.locator("summary").click();
+  await setting.getByLabel(o.visibility, { exact: true }).check();
+  if (o.viewer) await setting.getByLabel(o.viewer).check();
+  await setting.getByRole("button", { name: "Sichtbarkeit speichern" }).click();
+  await expect(p.getByRole("status")).toHaveText("Sichtbarkeit gespeichert. Sie gilt für neue Einträge.");
+  const form = p.getByRole("form", { name: "Fragebogen ausfüllen" });
+  for (const t of ["Essen", "Schlaf", "Stimmung", "Arbeit", "Freizeit", "Gesundheit"]) {
+    if (t !== o.topic) await form.getByLabel(`${t} bewerten`).uncheck();
+  }
+  const radio = form.getByLabel(new RegExp(`^${o.topic}: \\S+ ${o.rating} von 5`));
+  await radio.locator("xpath=..").click();
+  await expect(radio).toBeChecked();
+  await form.getByText("Notiz hinzufügen (optional)").click();
+  await form.getByLabel("Notiz", { exact: true }).fill(o.note);
+  await form.getByRole("button", { name: "Absenden" }).click();
   await expect(p.getByRole("status")).toHaveText("Eintrag gespeichert.");
+  await expect(p.getByText(o.note)).toBeVisible();
 }
 
 test.describe.serial("Achtsamkeit", () => {
@@ -79,7 +88,7 @@ test.describe.serial("Achtsamkeit", () => {
     await expect(a.locator("[data-feedback-ignore='true']").getByText(PRIVATE_NOTE)).toBeVisible();
     await noOverflow(a);
     // Delete needs a second step.
-    const shared = a.locator("li").filter({ hasText: SHARED_NOTE });
+    const shared = a.getByTestId("checkin").filter({ hasText: SHARED_NOTE });
     await shared.getByText("Löschen …").click();
     await shared.getByRole("button", { name: /endgültig löschen/ }).click();
     await expect(a.getByText("Eintrag gelöscht.")).toBeVisible();
@@ -102,7 +111,7 @@ test.describe.serial("Achtsamkeit", () => {
     await expect(b.locator("body")).not.toContainText("Stimmung: 2 von 5");
     await expect(b.getByText("Löschen …")).toHaveCount(0);
     await b.getByRole("link", { name: "Monat" }).click();
-    await expect(b.locator("li").filter({ hasText: "Stimmung" })).toContainText("–");
+    await expect(b.locator("li:not([data-testid=topic-row])").filter({ hasText: "Stimmung" })).toContainText("–");
     await noOverflow(b);
     await b.goto("/");
     await expect(b.locator("body")).not.toContainText(FAMILY_NOTE);

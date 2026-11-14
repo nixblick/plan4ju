@@ -73,7 +73,7 @@ test.describe.serial("Abnahme Release 0.2", () => {
 
   test("Aufgaben: zwei Zuständige und eine ohne Zuständige", async () => {
     const p = sessions.anna!;
-    await p.goto("/aufgaben");
+    await p.goto("/aufgaben?tab=neu");
     await p.getByLabel("Was ist zu tun?").fill(TASK_BOTH);
     await p.getByLabel("Fällig am (optional)").fill(today);
     await p.getByLabel("Anna Muster").check();
@@ -83,6 +83,7 @@ test.describe.serial("Abnahme Release 0.2", () => {
     const both = p.getByTestId("task-row").filter({ hasText: TASK_BOTH });
     await expect(both).toContainText("Anna Muster");
     await expect(both).toContainText("Ben Muster");
+    await p.goto("/aufgaben?tab=neu");
     await p.getByLabel("Was ist zu tun?").fill(TASK_NOBODY);
     await p.getByRole("button", { name: "Aufgabe anlegen" }).click();
     await expect(p.getByTestId("task-row").filter({ hasText: TASK_NOBODY })).toContainText("Niemand zugewiesen");
@@ -93,6 +94,9 @@ test.describe.serial("Abnahme Release 0.2", () => {
     await b.goto("/");
     await expect(b.getByRole("region", { name: "Meine Aufgaben" })).toContainText(TASK_BOTH);
     await b.goto("/aufgaben");
+    await expect(b.getByTestId("task-row").filter({ hasText: TASK_BOTH })).toBeVisible();
+    // 0.7: "Meine" shows open tasks only; tick it off under "Alle" to see it done
+    await b.goto("/aufgaben?filter=alle");
     await b.getByRole("button", { name: `${q(TASK_BOTH)} abhaken` }).click();
     await expect(b.getByRole("button", { name: `${q(TASK_BOTH)} wieder öffnen` })).toBeVisible();
     await b.goto("/aufgaben?filter=unzugewiesen");

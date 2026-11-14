@@ -86,13 +86,23 @@ async function filter(p: Page, o: { category?: string; creator?: string }) {
 }
 
 async function rate(p: Page, o: { topic: string; rating: number; note: string; visibility: string; viewer?: string }) {
-  const form = p.getByRole("form", { name: "Bewertung erfassen" });
-  await form.getByRole("combobox", { name: "Thema", exact: true }).selectOption({ label: o.topic });
-  await form.locator("label").filter({ has: p.locator(`input[name=rating][value="${o.rating}"]`) }).click();
-  await form.getByLabel("Notiz (optional)").fill(o.note);
-  await form.getByLabel(o.visibility, { exact: false }).check();
-  if (o.viewer) await form.getByLabel(o.viewer).check();
-  await form.getByRole("button", { name: "Speichern" }).click();
+  // 0.7: visibility is a setting of the user (applies to new entries), the questionnaire is one form.
+  const setting = p.getByTestId("visibility-setting");
+  await setting.locator("summary").click();
+  await setting.getByLabel(o.visibility, { exact: true }).check();
+  if (o.viewer) await setting.getByLabel(o.viewer).check();
+  await setting.getByRole("button", { name: "Sichtbarkeit speichern" }).click();
+  await expect(p.getByRole("status")).toHaveText("Sichtbarkeit gespeichert. Sie gilt für neue Einträge.");
+  const form = p.getByRole("form", { name: "Fragebogen ausfüllen" });
+  for (const t of ["Essen", "Schlaf", "Stimmung", "Arbeit", "Freizeit", "Gesundheit"]) {
+    if (t !== o.topic) await form.getByLabel(`${t} bewerten`).uncheck();
+  }
+  const radio = form.getByLabel(new RegExp(`^${o.topic}: \\S+ ${o.rating} von 5`));
+  await radio.locator("xpath=..").click();
+  await expect(radio).toBeChecked();
+  await form.getByText("Notiz hinzufügen (optional)").click();
+  await form.getByLabel("Notiz", { exact: true }).fill(o.note);
+  await form.getByRole("button", { name: "Absenden" }).click();
   await expect(p.getByRole("status")).toHaveText("Eintrag gespeichert.");
   await expect(p.getByText(o.note)).toBeVisible();
 }

@@ -140,6 +140,9 @@ model FamilyMembership {
   notifications      Notification[]
   notificationPrefs  NotificationPref[]
   calendarFeeds      CalendarFeed[]
+  mindfulnessPrefs   MindfulnessPref[]
+  declinesMade       TaskDecline[]      @relation("declinedBy")
+  declinesReceived   TaskDecline[]      @relation("assignedBy")
 
   @@unique([familyId, userId])
   @@index([userId])
@@ -222,6 +225,7 @@ model Task {
   family          Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   assignments TaskAssignment[]
+  declines    TaskDecline[]
 
   @@index([familyId, dueDate])
   @@map("task")
@@ -233,12 +237,38 @@ model TaskAssignment {
   profileId String
   familyId  String
   createdAt DateTime      @default(now())
+  /// PENDING until the assigned person accepts; self-assignments and child profiles start ACCEPTED (issue 16).
+  state        AssignmentState @default(PENDING)
+  /// Who assigned; null for assignments from before 0.7.0.
+  assignedById String?
   task      Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
   profile   FamilyProfile @relation(fields: [profileId, familyId], references: [id, familyId], onDelete: Cascade)
 
   @@id([taskId, profileId])
   @@index([familyId])
   @@map("task_assignment")
+}
+
+enum AssignmentState {
+  PENDING
+  ACCEPTED
+}
+
+/// A declined assignment; tells the assigning person (lazy notification). RLS: only the two people involved.
+model TaskDecline {
+  id           String           @id @default(cuid())
+  familyId     String
+  taskId       String
+  profileId    String
+  declinedById String
+  assignedById String
+  createdAt    DateTime         @default(now())
+  task         Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  decliner     FamilyMembership @relation("declinedBy", fields: [familyId, declinedById], references: [familyId, userId], onDelete: Cascade, map: "task_decline_declined_membership_fkey")
+  assigner     FamilyMembership @relation("assignedBy", fields: [familyId, assignedById], references: [familyId, userId], onDelete: Cascade, map: "task_decline_assigned_membership_fkey")
+
+  @@index([familyId, assignedById, createdAt])
+  @@map("task_decline")
 }
 
 // Birthday is a local date, not a UTC instant. birthYear null = year unknown.
@@ -827,6 +857,8 @@ model MindfulnessEntry {
   rating      Int
   note        String?
   visibility  MindfulnessVisibility @default(PRIVATE)
+  /// Groups the rows of one submitted questionnaire (issue 15); older rows are their own check-in.
+  checkinId   String                @default(cuid())
   createdById String
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
@@ -840,6 +872,7 @@ model MindfulnessEntry {
   @@unique([id, familyId, createdById])
   @@unique([profileId, topic, date, createdById])
   @@index([familyId, profileId, date])
+  @@index([familyId, checkinId])
   @@map("mindfulness_entry")
 }
 
@@ -861,11 +894,25 @@ model MindfulnessShare {
   @@map("mindfulness_share")
 }
 
+/// Who sees new mindfulness check-ins of this user; copied into each row on submit (issue 15).
+model MindfulnessPref {
+  familyId   String
+  userId     String
+  visibility MindfulnessVisibility @default(PRIVATE)
+  viewerIds  String[]              @default([])
+  updatedAt  DateTime              @default(now()) @updatedAt
+  membership FamilyMembership      @relation(fields: [familyId, userId], references: [familyId, userId], onDelete: Cascade, map: "mindfulness_pref_membership_fkey")
+
+  @@id([familyId, userId])
+  @@map("mindfulness_pref")
+}
+
 enum NotificationKind {
   TASK_DUE
   ROUTINE_DUE
   BIRTHDAY
   ASSIGNED
+  DECLINED
 }
 
 /// In-app notification of one user in one family (RLS: own rows only). docs/benachrichtigungen.md

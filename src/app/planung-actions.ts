@@ -13,7 +13,7 @@ import {
   updateRoutine,
   type RoutineInput,
 } from "@/server/services/routines";
-import { createTask, deleteTask, setTaskArchived, setTaskDone, updateTask, type TaskInput } from "@/server/services/tasks";
+import { acceptAssignment, createTask, declineAssignment, deleteTask, setTaskArchived, setTaskDone, updateTask, type TaskInput } from "@/server/services/tasks";
 import { requireFamily } from "@/server/session";
 import { toPriority } from "@/lib/priority";
 
@@ -86,13 +86,30 @@ export async function archiveTaskAction(form: FormData) {
 }
 
 export async function toggleTaskAction(form: FormData) {
-  await run("/aufgaben", "gespeichert", (a) =>
+  // Back to the same list view (filter, person, dates), only ever under /aufgaben.
+  const list = text(form, "liste");
+  const back = /^\/aufgaben(\?[A-Za-z0-9=&_-]{0,200})?$/.test(list) ? list : "/aufgaben";
+  await run(back, "gespeichert", (a) =>
     setTaskDone(a.user.id, a.familyId, text(form, "taskId"), text(form, "done") === "1"),
   );
 }
 
 export async function deleteTaskAction(form: FormData) {
   await run("/aufgaben", "aufgabe-weg", (a) => deleteTask(a.user.id, a.familyId, text(form, "taskId")));
+}
+
+/** Back to the list or to the task page, never anywhere else. */
+function taskBack(form: FormData): string {
+  const id = text(form, "taskId");
+  return text(form, "zurueck") === "aufgabe" && /^[A-Za-z0-9_-]{1,60}$/.test(id) ? `/aufgaben/${id}` : "/aufgaben";
+}
+
+export async function acceptAssignmentAction(form: FormData) {
+  await run(taskBack(form), "zuweisung-angenommen", (a) => acceptAssignment(a.user.id, a.familyId, text(form, "taskId")));
+}
+
+export async function declineAssignmentAction(form: FormData) {
+  await run(taskBack(form), "zuweisung-abgelehnt", (a) => declineAssignment(a.user.id, a.familyId, text(form, "taskId")));
 }
 
 // ---- Routines -------------------------------------------------------------------------

@@ -11,7 +11,11 @@ Freizeit, Gesundheit. Skala 1 bis 5 mit festen Emojis und Worten:
 | 4 | 🙂 | gut |
 | 5 | 😄 | super |
 
-Dazu Datum (lokaler Tag der Familie) und eine optionale Notiz. Ansichten: Woche (Thema × Tag),
+Seit 0.7.0 ein kompakter Fragebogen: oben Person und Datum, darunter alle sechs Themen mit der
+Emoji-Skala, unten „Absenden“. Alle Themen sind vorausgewählt, keins ist Pflicht: abgehakte oder
+unbewertete Themen werden nicht gespeichert, mindestens eins muss bewertet sein. Ein Absenden ist ein
+Eintrag (`checkinId` gruppiert die Zeilen je Thema); ein Thema, das dieselbe Person am selben Tag schon
+bewertet hat, wird überschrieben. Dazu Datum (lokaler Tag der Familie) und eine optionale Notiz. Ansichten: Woche (Thema × Tag),
 Monat (Durchschnitt je Thema), Verlauf je Person, filterbar nach Thema. Keine Diagnose, keine
 automatische Bewertung.
 
@@ -21,12 +25,15 @@ Seite: `/achtsamkeit`, Unter-Tab „Achtsamkeit“ im Bereich Familie (die Tab-L
 
 - **Autor** ist, wer den Eintrag speichert. Erwachsene schreiben nur für ihr eigenes Profil, Eltern
   zusätzlich für Kinderprofile ohne Login. Nur der Autor ändert oder löscht.
-- **Sichtbarkeit je Eintrag**, Voreinstellung „Nur ich“:
+- **Sichtbarkeit als Einstellung je Person** (seit 0.7.0, Schalter „Sichtbar für“ oben auf der Seite,
+  Tabelle `mindfulness_pref`, nur die eigene Zeile lesbar). Sie wird beim Absenden in jede Zeile
+  kopiert; eine Änderung gilt nur für neue Einträge, bisherige behalten ihre Sichtbarkeit.
+  Voreinstellung „Nur ich“:
   - *Nur ich*: nur der Autor.
   - *Ausgewählte Personen*: der Autor und die angehakten Mitglieder.
   - *Ganze Familie*: alle Mitglieder der Familie.
 - **Gesundheit** ist besonders geschützt: nie „Ganze Familie“, höchstens ausgewählte Personen
-  (auch als Datenbank-Check).
+  (auch als Datenbank-Check). Steht die Einstellung auf „Ganze Familie“, bleibt Gesundheit „Nur ich“.
 - **Rollen geben keine Einsicht.** Owner und Admin sehen genau das, was jedes Mitglied sieht.
 - **Kinderprofile:** Ein Elternteil, der für ein Kind ohne Login schreibt, ist Autor und entscheidet
   die Sichtbarkeit. Zwei Eltern können dasselbe Kind am selben Tag bewerten; jeder sieht vom anderen
@@ -34,6 +41,9 @@ Seite: `/achtsamkeit`, Unter-Tab „Achtsamkeit“ im Bereich Familie (die Tab-L
   den Eltern als Autoren.
 - **Austritt:** Verlässt der Autor die Familie, werden seine Einträge gelöscht; verlässt ein
   ausgewähltes Mitglied die Familie, verliert es die Freigabe.
+
+- **Migration 0.7.0:** bestehende Zeilen bleiben unverändert (Bewertung, Notiz, Sichtbarkeit,
+  Freigaben); jede wird ihr eigener Eintrag (`checkinId` = bisherige ID).
 
 ## Durchsetzung
 

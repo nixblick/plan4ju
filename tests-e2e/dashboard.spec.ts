@@ -62,7 +62,7 @@ test.describe.serial("Familienwoche", () => {
 
   test("Anna legt eine Aufgabe und einen Geburtstag an", async () => {
     const p = sessions.anna!;
-    await p.goto("/aufgaben");
+    await p.goto("/aufgaben?tab=neu");
     await p.getByLabel("Was ist zu tun?").fill(TASK);
     await p.getByLabel("Fällig am (optional)").fill(today);
     await p.getByLabel("Anna Muster").check();
@@ -76,6 +76,7 @@ test.describe.serial("Familienwoche", () => {
     await expect(p.getByTestId("task-row").filter({ hasText: TASK })).toContainText("Anna Muster");
 
     // A second task without a due date and without an assignee is allowed.
+    await p.goto("/aufgaben?tab=neu");
     await p.getByLabel("Was ist zu tun?").fill(`Ohne Datum ${run}`);
     await p.getByRole("button", { name: "Aufgabe anlegen" }).click();
     await expect(p.getByTestId("task-row").filter({ hasText: `Ohne Datum ${run}` })).toContainText("Niemand zugewiesen");
@@ -122,7 +123,10 @@ test.describe.serial("Familienwoche", () => {
 
   test("Ben hakt die Aufgabe ab", async () => {
     const p = sessions.ben!;
+    // Not assigned to Ben: only under the filter "Alle".
     await p.goto("/aufgaben");
+    await expect(p.locator("body")).not.toContainText(TASK);
+    await p.goto("/aufgaben?filter=alle");
     await p.getByRole("button", { name: `„${TASK}“ abhaken` }).click();
     await expect(p.getByRole("button", { name: `„${TASK}“ wieder öffnen` })).toBeVisible();
     await p.goto("/");
@@ -133,12 +137,16 @@ test.describe.serial("Familienwoche", () => {
     const p = sessions.anna!;
     await p.goto("/aufgaben?filter=unzugewiesen");
     await expect(p.getByTestId("task-row").filter({ hasText: `Ohne Datum ${run}` })).toBeVisible();
-    await p.goto("/aufgaben?filter=meine");
-    await expect(p.locator("body")).not.toContainText(`Ohne Datum ${run}`);
+    // Default view: "Meine" first, the unassigned ones in their own block below.
+    await p.goto("/aufgaben");
+    const meine = p.locator("section").filter({ has: p.getByRole("heading", { name: /^Meine/ }) });
+    const frei = p.locator("section").filter({ has: p.getByRole("heading", { name: /^Nicht zugewiesen/ }) });
+    await expect(meine).not.toContainText(`Ohne Datum ${run}`);
+    await expect(frei).toContainText(`Ohne Datum ${run}`);
     await p.goto("/aufgaben?filter=erledigt");
     await expect(p.getByTestId("task-row").filter({ hasText: TASK })).toBeVisible();
 
-    await p.goto("/aufgaben");
+    await p.goto("/aufgaben?tab=neu");
     await p.getByLabel("Was ist zu tun?").fill(EDIT_TASK);
     await p.getByLabel("Fällig am (optional)").fill(today);
     await p.getByLabel("Priorität").selectOption("SOFORT");
@@ -225,7 +233,7 @@ test.describe.serial("Familienwoche", () => {
   test("Clara (andere Familie) sieht nichts davon", async () => {
     const p = sessions.clara!;
     // Her own data exists, so that "sees nothing" cannot be an empty-page accident.
-    await p.goto("/aufgaben");
+    await p.goto("/aufgaben?tab=neu");
     await p.getByLabel("Was ist zu tun?").fill(FOREIGN_TASK);
     await p.getByRole("button", { name: "Aufgabe anlegen" }).click();
     for (const path of ["/", "/aufgaben", "/geburtstage", "/routinen"]) {
@@ -249,7 +257,7 @@ test.describe.serial("Familienwoche", () => {
       storageState: await sessions.anna!.context().storageState(),
     });
     const p = await ctx.newPage();
-    for (const path of ["/", "/aufgaben", "/routinen", "/routinen?tab=neu", "/routinen?tab=alle", "/routinen?tab=woche", "/routinen/neu", "/geburtstage", "/familie/mitglieder", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", "/kalender/termin/neu", "/rezepte", "/rezepte/neu", "/essen", "/essen/idee", "/einkauf", "/einkauf/geschaefte", "/konto"]) {
+    for (const path of ["/", "/aufgaben", "/aufgaben?tab=neu", "/aufgaben?filter=alle", "/routinen", "/routinen?tab=neu", "/routinen?tab=alle", "/routinen?tab=woche", "/routinen/neu", "/geburtstage", "/familie/mitglieder", "/kalender", "/kalender?ansicht=monat", "/kalender/quellen", "/kalender/termin/neu", "/rezepte", "/rezepte/neu", "/essen", "/essen/idee", "/einkauf", "/einkauf/geschaefte", "/konto"]) {
       await p.goto(path);
       await expect(p.locator("main")).toBeVisible();
       const { scroll, client } = await p.evaluate(() => ({

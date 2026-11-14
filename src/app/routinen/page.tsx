@@ -10,6 +10,7 @@ import { createRoutineAction, routineStatusAction } from "../planung-actions";
 import { names } from "../people";
 import { buttonCls, Card, ghostButtonCls, Notice } from "../ui";
 import { RoutineFields } from "./form";
+import { SubTabs } from "../sub-tabs";
 import { fmtDay, OccurrenceRow } from "./occurrences";
 
 export const dynamic = "force-dynamic";
@@ -24,24 +25,6 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
-/** Tabs are plain links (?tab=…): reachable by URL, by keyboard (Tab, Enter) and with the back button. */
-function RoutinenTabs({ active }: { active: Tab }) {
-  return (
-    <nav aria-label="Routinen" className="flex gap-1 rounded-xl bg-stone-100 p-1 text-sm" data-testid="routine-tabs">
-      {TABS.map((t) => (
-        <Link
-          key={t.key}
-          href={`/routinen?tab=${t.key}`}
-          aria-current={t.key === active ? "page" : undefined}
-          className={`flex min-h-11 flex-1 items-center justify-center rounded-lg px-2 text-center font-medium ${t.key === active ? "bg-white text-terracotta-dark shadow-sm" : "text-stone-700"}`}
-        >
-          {t.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
 export default async function Routinen({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { user, familyId } = await requireFamily();
   const sp = await searchParams;
@@ -55,7 +38,7 @@ export default async function Routinen({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Routinen</h1>
-      <RoutinenTabs active={tab} />
+      <SubTabs label="Routinen" base="/routinen" tabs={TABS} active={tab} testId="routine-tabs" />
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
       {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}
       {tab === "neu" ? <NewTab today={dash.today} profiles={dash.profiles} vorlage={one(sp.vorlage)} /> : null}

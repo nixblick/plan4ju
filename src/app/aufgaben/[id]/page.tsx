@@ -7,7 +7,7 @@ import { getTask } from "@/server/services/tasks";
 import { requireFamily } from "@/server/session";
 import { archiveTaskAction, deleteTaskAction, updateTaskAction } from "../../planung-actions";
 import { buttonCls, Card, ghostButtonCls, Notice } from "../../ui";
-import { TaskFields } from "../task-fields";
+import { AcceptDecline, TaskFields } from "../task-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +41,12 @@ export default async function AufgabeBearbeiten({
       <h1 className="text-2xl font-bold">Aufgabe bearbeiten</h1>
       {fehler ? <Notice kind="error">{errorMessages[fehler] ?? "Das hat nicht geklappt."}</Notice> : null}
       {ok ? <Notice kind="ok">{okMessages[ok] ?? "Gespeichert."}</Notice> : null}
+      {!archived && task.assignments.some((a) => a.profileId === dash.myProfileId && a.state === "PENDING") ? (
+        <Card title="Neu zugewiesen">
+          <p className="mb-3 text-sm text-stone-700">Diese Aufgabe wurde dir zugewiesen. Nimmst du sie an?</p>
+          <AcceptDecline taskId={task.id} title={task.title} back="aufgabe" />
+        </Card>
+      ) : null}
       {archived ? <Notice kind="ok">Diese Aufgabe ist archiviert und erscheint nicht mehr in den Listen und auf der Startseite.</Notice> : null}
 
       <Card>

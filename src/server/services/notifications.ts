@@ -104,14 +104,37 @@ export async function generateFor(ctx: FamilyContext, now: Date = new Date()): P
   }
 
   if (me && prefs.assignments) {
-    const since = new Date(now.getTime() - ASSIGNMENT_DAYS * DAY_MS);
+    // New assignments by someone else wait for "Annehmen" or "Ablehnen" (issue 16). The assignment's
+    // creation time is part of the key, so assigning again after a decline notifies again.
     const rows = await ctx.tx.taskAssignment.findMany({
-      where: { familyId: ctx.familyId, profileId: me.id, createdAt: { gte: since }, task: { createdById: { not: ctx.userId }, archivedAt: null, status: { not: "DONE" } } },
-      select: { task: { select: { id: true, title: true } } },
+      where: { familyId: ctx.familyId, profileId: me.id, state: "PENDING", assignedById: { not: ctx.userId }, task: { archivedAt: null, status: { not: "DONE" } } },
+      select: { createdAt: true, task: { select: { id: true, title: true } } },
       take: 50,
     });
     for (const r of rows) {
-      drafts.push({ kind: "ASSIGNED", dedupeKey: `assigned:${r.task.id}`, title: `Neu für dich: ${r.task.title}`, link: `/aufgaben/${r.task.id}` });
+      drafts.push({
+        kind: "ASSIGNED",
+        dedupeKey: `assigned:${r.task.id}:${r.createdAt.getTime()}`,
+        title: `Neu für dich: ${r.task.title}`,
+        link: `/aufgaben/${r.task.id}`,
+      });
+    }
+  }
+
+  if (prefs.assignments) {
+    const since = new Date(now.getTime() - ASSIGNMENT_DAYS * DAY_MS);
+    const declines = await ctx.tx.taskDecline.findMany({
+      where: { familyId: ctx.familyId, assignedById: ctx.userId, createdAt: { gte: since } },
+      select: { id: true, task: { select: { id: true, title: true } }, decliner: { select: { user: { select: { name: true } } } } },
+      take: 50,
+    });
+    for (const d of declines) {
+      drafts.push({
+        kind: "DECLINED",
+        dedupeKey: `declined:${d.id}`,
+        title: `${d.decliner.user.name} hat abgelehnt: ${d.task.title}`,
+        link: `/aufgaben/${d.task.id}`,
+      });
     }
   }
 

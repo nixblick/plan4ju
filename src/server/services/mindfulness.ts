@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { allowedVisibilities, NOTE_MAX, TOPICS, VISIBILITIES, type Topic, type Visibility } from "../../lib/achtsamkeit";
 import { todayIn } from "../../lib/week";
@@ -32,6 +33,7 @@ export type EntryInput = z.input<typeof entryInput>;
 
 export interface EntryView {
   id: string;
+  checkinId: string;
   profileId: string;
   profileName: string;
   topic: Topic;
@@ -105,6 +107,109 @@ export async function saveEntry(userId: string, familyId: string, input: EntryIn
   }, client);
 }
 
+// ---- Questionnaire (issue 15) ---------------------------------------------------------------
+
+export interface MindfulnessPrefView {
+  visibility: Visibility;
+  viewerIds: string[];
+}
+
+async function readPref(ctx: FamilyContext): Promise<MindfulnessPrefView> {
+  const p = await ctx.tx.mindfulnessPref.findUnique({ where: { familyId_userId: { familyId: ctx.familyId, userId: ctx.userId } } });
+  return p ? { visibility: p.visibility, viewerIds: p.viewerIds } : { visibility: "PRIVATE", viewerIds: [] };
+}
+
+export function getPref(userId: string, familyId: string, client?: PrismaClient) {
+  return withModule("mindfulness", userId, familyId, readPref, client);
+}
+
+export const prefInput = z
+  .object({
+    visibility: z.enum(VISIBILITIES),
+    viewerIds: z.array(z.string().min(1).max(100)).max(20).default([]),
+  })
+  .refine((v) => v.visibility !== "SELECTED" || v.viewerIds.length > 0, { message: "Select viewers", path: ["viewerIds"] });
+
+/** Saves who sees the user's new check-ins. Existing entries keep their visibility. */
+export function savePref(userId: string, familyId: string, raw: z.input<typeof prefInput>, client?: PrismaClient) {
+  const v = prefInput.parse(raw);
+  return withModule("mindfulness", userId, familyId, async (ctx) => {
+    const ids = v.visibility === "SELECTED" ? [...new Set(v.viewerIds)].filter((x) => x !== userId) : [];
+    if (ids.length) {
+      const n = await ctx.tx.familyMembership.count({ where: { familyId, userId: { in: ids } } });
+      if (n !== ids.length) throw new NotFoundError("Unknown viewer");
+    }
+    if (v.visibility === "SELECTED" && ids.length === 0) throw new NotFoundError("Unknown viewer");
+    const data = { visibility: v.visibility, viewerIds: ids };
+    await ctx.tx.mindfulnessPref.upsert({
+      where: { familyId_userId: { familyId, userId } },
+      update: data,
+      create: { familyId, userId, ...data },
+    });
+  }, client);
+}
+
+/**
+ * Visibility of one topic under the user's setting. Health is never visible to the whole family:
+ * with "Ganze Familie" it stays private (also a DB check).
+ */
+export function visibilityFor(topic: Topic, pref: MindfulnessPrefView): Visibility {
+  return allowedVisibilities(topic).includes(pref.visibility) ? pref.visibility : "PRIVATE";
+}
+
+export const checkinInput = z.object({
+  profileId: z.string().min(1).max(100),
+  date: day,
+  ratings: z
+    .array(z.object({ topic: z.enum(TOPICS), rating: z.number().int().min(1).max(5) }))
+    .min(1)
+    .max(TOPICS.length)
+    .refine((rs) => new Set(rs.map((r) => r.topic)).size === rs.length, { message: "Duplicate topic" }),
+  note: z.string().trim().max(NOTE_MAX).nullish().transform((v) => (v ? v : null)),
+});
+export type CheckinInput = z.input<typeof checkinInput>;
+
+/**
+ * Saves one submitted questionnaire: all ratings in one transaction as one check-in, visibility from
+ * the user's setting. A topic already rated by the same author for the same person and day is
+ * updated and moves to the new check-in (one rating per topic and day, as before).
+ */
+export async function saveCheckin(userId: string, familyId: string, input: CheckinInput, client?: PrismaClient) {
+  const v = checkinInput.parse(input);
+  return withModule("mindfulness", userId, familyId, async (ctx) => {
+    const profiles = await writableProfiles(ctx);
+    if (!profiles.some((p) => p.id === v.profileId)) throw new ForbiddenError("Not your profile");
+    const pref = await readPref(ctx);
+    // Viewers who left the family in the meantime are dropped; with none left the check-in stays private.
+    const viewers = pref.viewerIds.length
+      ? (await ctx.tx.familyMembership.findMany({ where: { familyId, userId: { in: pref.viewerIds } }, select: { userId: true } })).map((m) => m.userId)
+      : [];
+    const effective: MindfulnessPrefView = pref.visibility === "SELECTED" && viewers.length === 0 ? { visibility: "PRIVATE", viewerIds: [] } : { visibility: pref.visibility, viewerIds: viewers };
+    const date = new Date(`${v.date}T00:00:00Z`);
+    const checkinId = randomUUID();
+    for (const r of v.ratings) {
+      const visibility = visibilityFor(r.topic, effective);
+      const data = { rating: r.rating, note: v.note, visibility, checkinId };
+      const entry = await ctx.tx.mindfulnessEntry.upsert({
+        where: { profileId_topic_date_createdById: { profileId: v.profileId, topic: r.topic, date, createdById: userId } },
+        update: data,
+        create: { ...data, familyId, profileId: v.profileId, topic: r.topic, date, createdById: userId },
+        select: { id: true },
+      });
+      await setViewers(ctx, entry.id, visibility, effective.viewerIds);
+    }
+    return checkinId;
+  }, client);
+}
+
+/** Deletes all ratings of one own check-in. */
+export function deleteCheckin(userId: string, familyId: string, checkinId: string, client?: PrismaClient) {
+  return withModule("mindfulness", userId, familyId, async ({ tx }) => {
+    const r = await tx.mindfulnessEntry.deleteMany({ where: { familyId, checkinId, createdById: userId } });
+    if (r.count === 0) throw new NotFoundError("Entry not found");
+  }, client);
+}
+
 export function deleteEntry(userId: string, familyId: string, entryId: string, client?: PrismaClient) {
   return withModule("mindfulness", userId, familyId, async ({ tx }) => {
     const r = await tx.mindfulnessEntry.deleteMany({ where: { id: entryId, createdById: userId } });
@@ -113,18 +218,18 @@ export function deleteEntry(userId: string, familyId: string, entryId: string, c
 }
 
 const entrySelect = {
-  id: true, profileId: true, topic: true, date: true, rating: true, note: true, visibility: true, createdById: true,
+  id: true, checkinId: true, profileId: true, topic: true, date: true, rating: true, note: true, visibility: true, createdById: true,
   profile: { select: { displayName: true } },
   shares: { select: { userId: true, viewer: { select: { user: { select: { name: true } } } } } },
 } as const;
 
 function toView(userId: string, e: {
-  id: string; profileId: string; topic: Topic; date: Date; rating: number; note: string | null; visibility: Visibility; createdById: string;
+  id: string; checkinId: string; profileId: string; topic: Topic; date: Date; rating: number; note: string | null; visibility: Visibility; createdById: string;
   profile: { displayName: string }; shares: { userId: string; viewer: { user: { name: string } } }[];
 }): EntryView {
   const mine = e.createdById === userId;
   return {
-    id: e.id, profileId: e.profileId, profileName: e.profile.displayName, topic: e.topic, date: iso(e.date),
+    id: e.id, checkinId: e.checkinId, profileId: e.profileId, profileName: e.profile.displayName, topic: e.topic, date: iso(e.date),
     rating: e.rating, note: e.note, visibility: e.visibility, mine,
     viewers: mine ? e.shares.map((s) => ({ userId: s.userId, name: s.viewer.user.name })) : [],
   };

@@ -47,7 +47,7 @@ test.describe.serial("Benachrichtigungen", () => {
     }
     const today = berlinDay(0);
     taskId = (await admin.task.create({
-      data: { familyId: familyA, title: "Fahrrad flicken", dueDate: new Date(`${today}T00:00:00Z`), createdById: `anna-nb-${run}`, assignments: { create: { profileId: profiles.ben!, familyId: familyA } } },
+      data: { familyId: familyA, title: "Fahrrad flicken", dueDate: new Date(`${today}T00:00:00Z`), createdById: `anna-nb-${run}`, assignments: { create: { profileId: profiles.ben!, familyId: familyA, assignedById: `anna-nb-${run}` } } },
     })).id;
     const [, m, d] = berlinDay(1).split("-").map(Number) as [number, number, number];
     await admin.birthday.create({ data: { familyId: familyA, name: "Opa Muster", month: m, day: d, createdById: `anna-nb-${run}` } });
