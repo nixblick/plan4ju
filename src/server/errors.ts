@@ -27,6 +27,14 @@ export class ConflictError extends Error {
   }
 }
 
+/** A routine occurrence cannot be moved onto a day that already has one of the same routine. */
+export class DayTakenError extends ConflictError {
+  constructor(message = "Day taken") {
+    super(message);
+    this.name = "DayTakenError";
+  }
+}
+
 /** Unknown, expired, revoked or already used invitation (not distinguished towards the client). */
 export class InvalidInvitationError extends Error {
   constructor(message = "Invalid invitation") {

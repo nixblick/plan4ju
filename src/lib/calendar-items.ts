@@ -24,6 +24,10 @@ export interface CalendarItem {
   endTime: string | null;
   participantIds: string[];
   repeats: boolean;
+  /** Rule day of a series instance (null for one-off and external events). */
+  seriesDate?: string | null;
+  /** This instance of a series was moved away from `seriesDate`. */
+  moved?: boolean;
   calendarId: string | null;
   calendarName: string | null;
   colorIndex: number | null;
@@ -45,6 +49,17 @@ export interface RawEvent {
   monthDay: number | null;
   repeatUntil: string | null;
   participantIds: string[];
+  exceptions?: RawException[];
+}
+
+/** One changed instance of a series; `date` is its rule day. */
+export interface RawException {
+  date: string;
+  cancelled: boolean;
+  startsAt: Date | null;
+  endsAt: Date | null;
+  startDate: string | null;
+  endDate: string | null;
 }
 
 export interface Span {
@@ -65,8 +80,8 @@ export function spanOf(e: Pick<RawEvent, "allDay" | "startsAt" | "endsAt" | "sta
   return { startDate: s.date, endDate: last.date, startTime: s.time, endTime: end.date === last.date ? end.time : null };
 }
 
-function item(base: Omit<CalendarItem, "key" | "startDate" | "endDate" | "startTime" | "endTime">, span: Span, key: string): CalendarItem {
-  return { ...base, ...span, key };
+function item(base: Omit<CalendarItem, "key" | "startDate" | "endDate" | "startTime" | "endTime" | "seriesDate" | "moved"> & Partial<Pick<CalendarItem, "seriesDate" | "moved">>, span: Span, key: string): CalendarItem {
+  return { seriesDate: null, moved: false, ...base, ...span, key };
 }
 
 /** All instances of an internal event that touch [from, to]. */
@@ -92,9 +107,20 @@ export function expandEvent(e: RawEvent, tz: string, from: string, to: string): 
   const lo = addDays(from, -length);
   const rule = { freq: e.freq, interval: e.interval, weekdays: e.weekdays, monthDay: e.monthDay, startDate: span.startDate, endDate: e.repeatUntil };
   const cappedTo = daysBetween(lo, to) > 790 ? addDays(lo, 790) : to;
-  return occurrencesBetween(rule, lo, cappedTo)
-    .map((d) => item(base, { ...span, startDate: d, endDate: addDays(d, length) }, `${e.id}:${d}`))
-    .filter((i) => i.endDate >= from && i.startDate <= to);
+  const changed = new Map((e.exceptions ?? []).map((x) => [x.date, x]));
+  const regular = occurrencesBetween(rule, lo, cappedTo)
+    .filter((d) => !changed.has(d))
+    .map((d) => item({ ...base, seriesDate: d }, { ...span, startDate: d, endDate: addDays(d, length) }, `${e.id}:${d}`));
+  // Moved instances are shown at their new time, wherever their rule day lies.
+  const moved = [...changed.values()]
+    .filter((x) => !x.cancelled && isRuleDay(rule, x.date))
+    .map((x) => item({ ...base, seriesDate: x.date, moved: true }, spanOf({ allDay: e.allDay, startsAt: x.startsAt, endsAt: x.endsAt, startDate: x.startDate, endDate: x.endDate }, tz), `${e.id}:${x.date}`));
+  return [...regular, ...moved].filter((i) => i.endDate >= from && i.startDate <= to);
+}
+
+/** True when `date` is a day of the rule (used to ignore exceptions left over after the series changed). */
+export function isRuleDay(rule: Parameters<typeof occurrencesBetween>[0], date: string): boolean {
+  return occurrencesBetween(rule, date, date).length === 1;
 }
 
 export interface RawExternal {
@@ -123,6 +149,8 @@ export function externalItem(e: RawExternal, tz: string): CalendarItem {
       allDay: e.allDay,
       participantIds: [],
       repeats: false,
+      seriesDate: null,
+      moved: false,
       calendarId: e.calendarId,
       calendarName: e.calendarName,
       colorIndex: e.colorIndex,

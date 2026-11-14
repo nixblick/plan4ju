@@ -2,7 +2,7 @@ import type { OccurrenceView } from "@/server/services/routines";
 import type { DashProfile } from "@/server/services/dashboard";
 import { parseIso, weekdayIndex } from "@/lib/week";
 import { Dots, names } from "../people";
-import { occurrenceAssigneesAction, occurrenceStatusAction } from "../planung-actions";
+import { moveOccurrenceAction, occurrenceAssigneesAction, occurrenceStatusAction } from "../planung-actions";
 import { ghostButtonCls } from "../ui";
 
 const WD = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -38,7 +38,8 @@ export function OccurrenceRow({ o, profiles, back, today }: { o: OccurrenceView;
             <span className={late ? "font-medium text-red-700" : ""}>
               · {fmtDay(o.date)}{o.time ? `, ${o.time} Uhr` : ""}{late ? " (überfällig)" : ""}
             </span>
-            {o.customized ? <span>· einzeln zugewiesen</span> : null}
+            {o.movedFrom ? <span className="font-medium text-amber-800" data-testid="occurrence-moved">· verschoben vom {fmtDay(o.movedFrom)}</span> : null}
+            {o.customized && !o.movedFrom ? <span>· einzeln geändert</span> : null}
           </span>
         </span>
         {!done ? (
@@ -50,6 +51,24 @@ export function OccurrenceRow({ o, profiles, back, today }: { o: OccurrenceView;
           </form>
         ) : null}
       </div>
+      {!done ? (
+        <details className="mt-1">
+          <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm text-stone-700 underline">Verschieben</summary>
+          <form action={moveOccurrenceAction} className="mt-2 flex flex-wrap items-end gap-2">
+            <input type="hidden" name="occurrenceId" value={o.id} />
+            <input type="hidden" name="back" value={back} />
+            <label className="flex flex-col text-sm">
+              Tag
+              <input type="date" name="date" required defaultValue={o.date} className="min-h-11 rounded-xl border border-stone-300 bg-white px-3" />
+            </label>
+            <label className="flex flex-col text-sm">
+              Uhrzeit
+              <input type="time" name="time" defaultValue={o.time ?? ""} className="min-h-11 rounded-xl border border-stone-300 bg-white px-3" />
+            </label>
+            <button className={ghostButtonCls}>Nur diesen verschieben</button>
+          </form>
+        </details>
+      ) : null}
       <details className="mt-1">
         <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm text-stone-700 underline">Zuständig ändern</summary>
         <form action={occurrenceAssigneesAction} className="mt-2 flex flex-wrap items-center gap-2">

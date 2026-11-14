@@ -2,10 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ConflictError, ForbiddenError, ModuleOffError, NotFoundError, RateLimitError } from "@/server/errors";
+import { ConflictError, DayTakenError, ForbiddenError, ModuleOffError, NotFoundError, RateLimitError } from "@/server/errors";
 import { createBirthday, deleteBirthday, updateBirthday } from "@/server/services/birthdays";
 import {
   createRoutine,
+  moveOccurrence,
   setOccurrenceAssignees,
   setOccurrenceStatus,
   setRoutineStatus,
@@ -25,6 +26,7 @@ const num = (f: FormData, k: string): number | null => {
 function codeFor(e: unknown): string {
   if (e instanceof RateLimitError) return "zu-viele";
   if (e instanceof ForbiddenError) return "verboten";
+  if (e instanceof DayTakenError) return "routine-belegt";
   if (e instanceof ConflictError) return "konflikt";
   if (e instanceof ModuleOffError) return "modul-aus";
   if (e instanceof NotFoundError) return "nicht-gefunden";
@@ -139,6 +141,14 @@ export async function occurrenceStatusAction(form: FormData) {
   const back = text(form, "back");
   await run(back.startsWith("/") && !back.startsWith("//") ? back : "/routinen", "gespeichert", (a) =>
     setOccurrenceStatus(a.user.id, a.familyId, text(form, "occurrenceId"), status),
+  );
+}
+
+/** Moves one occurrence to another day or time; the routine stays as it is. */
+export async function moveOccurrenceAction(form: FormData) {
+  const back = text(form, "back");
+  await run(back.startsWith("/") && !back.startsWith("//") ? back : "/routinen", "verschoben", (a) =>
+    moveOccurrence(a.user.id, a.familyId, text(form, "occurrenceId"), { date: text(form, "date"), time: text(form, "time").trim() || null }),
   );
 }
 

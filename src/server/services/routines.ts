@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { NotFoundError } from "../errors";
+import { DayTakenError, NotFoundError } from "../errors";
 import { withFamily, type FamilyContext } from "../tenant";
 import { occurrencesBetween, type RecurrenceRule } from "../../lib/recurrence";
 import { addDays, todayIn } from "../../lib/week";
@@ -51,6 +51,8 @@ export interface OccurrenceView {
   time: string | null;
   status: "OPEN" | "DONE" | "SKIPPED";
   customized: boolean;
+  /** Rule day this occurrence was moved away from. */
+  movedFrom: string | null;
   assigneeIds: string[];
 }
 
@@ -104,10 +106,16 @@ async function materialize(ctx: FamilyContext, routineId: string, today: string,
       const existing = new Set(
         (
           await ctx.tx.routineOccurrence.findMany({
-            where: { routineId, date: { gte: day(dates[0]!), lte: day(dates[dates.length - 1]!) } },
-            select: { date: true },
+            where: {
+              routineId,
+              OR: [
+                { date: { gte: day(dates[0]!), lte: day(dates[dates.length - 1]!) } },
+                { movedFrom: { gte: day(dates[0]!), lte: day(dates[dates.length - 1]!) } },
+              ],
+            },
+            select: { date: true, movedFrom: true },
           })
-        ).map((o) => iso(o.date)),
+        ).flatMap((o) => (o.movedFrom ? [iso(o.date), iso(o.movedFrom)] : [iso(o.date)])),
       );
       const fresh = dates.filter((d) => !existing.has(d));
       if (fresh.length) {
@@ -325,6 +333,7 @@ export async function occurrencesIn(ctx: FamilyContext, from: string, to: string
     time: o.timeOfDay,
     status: o.status,
     customized: o.customized,
+    movedFrom: o.movedFrom ? iso(o.movedFrom) : null,
     assigneeIds: o.assignments.map((a) => a.profileId),
   }));
 }
@@ -371,6 +380,40 @@ export function setOccurrenceAssignees(
       await ctx.tx.routineOccurrenceAssignment.deleteMany({ where: { occurrenceId, familyId: ctx.familyId } });
       await ctx.tx.routineOccurrenceAssignment.createMany({
         data: uniq(assigneeIds).map((profileId) => ({ occurrenceId, profileId, familyId: ctx.familyId })),
+      });
+    },
+    client,
+  );
+}
+
+export const moveInput = z.object({ date: isoDate, time: z.string().regex(HHMM).nullish() });
+
+/**
+ * Moves one occurrence to another day and/or time. The routine stays as it is; the rule day the
+ * occurrence came from is remembered, so it is not generated again, and later routine changes leave it alone.
+ */
+export function moveOccurrence(
+  userId: string,
+  familyId: string,
+  occurrenceId: string,
+  raw: z.input<typeof moveInput>,
+  client?: PrismaClient,
+) {
+  const d = moveInput.parse(raw);
+  return withFamily(
+    userId,
+    familyId,
+    async (ctx) => {
+      const o = await ctx.tx.routineOccurrence.findFirst({ where: { id: occurrenceId, familyId: ctx.familyId } });
+      if (!o) throw new NotFoundError("Occurrence not found");
+      const origin = o.movedFrom ? iso(o.movedFrom) : iso(o.date);
+      if (d.date !== iso(o.date)) {
+        const taken = await ctx.tx.routineOccurrence.findFirst({ where: { routineId: o.routineId, date: day(d.date), NOT: { id: o.id } }, select: { id: true } });
+        if (taken) throw new DayTakenError();
+      }
+      await ctx.tx.routineOccurrence.update({
+        where: { id: o.id },
+        data: { date: day(d.date), timeOfDay: d.time ?? null, movedFrom: d.date === origin ? null : day(origin), customized: true },
       });
     },
     client,

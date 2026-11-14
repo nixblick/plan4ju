@@ -34,11 +34,16 @@ export function ItemRow({ item, day, profiles }: { item: CalendarItem; day: stri
         {external ? (
           <span className="min-w-0 break-words font-medium">{item.title}</span>
         ) : (
-          <Link href={`/kalender/termin/${item.id}`} className="min-w-0 break-words font-medium underline decoration-stone-300 underline-offset-2">
+          <Link href={item.seriesDate ? `/kalender/termin/${item.id}/${item.seriesDate}` : `/kalender/termin/${item.id}`} className="min-w-0 break-words font-medium underline decoration-stone-300 underline-offset-2">
             {item.title}
           </Link>
         )}
         {item.repeats ? <span className="text-xs text-stone-600" title="Wiederholt sich">↻</span> : null}
+        {item.moved && item.seriesDate ? (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900" data-testid="cal-item-moved">
+            verschoben vom {dm(item.seriesDate)}
+          </span>
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-stone-600">
         {item.location ? <span className="break-words">📍 {item.location}</span> : null}
@@ -83,7 +88,7 @@ export function DayEntries({ iso, data }: { iso: string; data: CalendarViewData 
           <Link href="/routinen" className="underline decoration-stone-300 underline-offset-2">
             <span aria-hidden="true">↻</span> {o.time ? `${o.time} ` : ""}{o.title}
           </Link>
-          <span className="text-stone-600"> · Routine{o.assigneeIds.length ? `, ${names(data.profiles, o.assigneeIds)}` : ""}</span>
+          <span className="text-stone-600"> · Routine{o.assigneeIds.length ? `, ${names(data.profiles, o.assigneeIds)}` : ""}{o.movedFrom ? `, verschoben vom ${dm(o.movedFrom)}` : ""}</span>
         </li>
       ))}
       {tasks.map((t) => (

@@ -368,6 +368,8 @@ model RoutineOccurrence {
   doneById   String?
   // true once someone assigned this occurrence by hand: routine changes must not touch it
   customized Boolean          @default(false)
+  // the rule day this occurrence was moved away from; that day is not generated again
+  movedFrom  DateTime?        @db.Date
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
   routine    Routine          @relation(fields: [routineId], references: [id], onDelete: Cascade)
@@ -421,6 +423,7 @@ model CalendarEvent {
   family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   participants CalendarEventParticipant[]
+  exceptions   CalendarEventException[]
 
   @@unique([id, familyId])
   @@index([familyId, startsAt])
@@ -438,6 +441,28 @@ model CalendarEventParticipant {
   @@id([eventId, profileId])
   @@index([familyId])
   @@map("calendar_event_participant")
+}
+
+// One changed instance of a repeated event. `date` is the rule day (local) of the instance.
+// cancelled = the instance is dropped; otherwise it is shown at the new time (timed: startsAt/endsAt,
+// all day: startDate/endDate) and marked as moved.
+model CalendarEventException {
+  id        String        @id @default(cuid())
+  familyId  String
+  eventId   String
+  date      DateTime      @db.Date
+  cancelled Boolean       @default(false)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  startDate DateTime?     @db.Date
+  endDate   DateTime?     @db.Date
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  event     CalendarEvent @relation(fields: [eventId, familyId], references: [id, familyId], onDelete: Cascade)
+
+  @@unique([eventId, date])
+  @@index([familyId])
+  @@map("calendar_event_exception")
 }
 
 // An imported file or a subscription. `urlEnc` is the encrypted subscription address (a secret): it is

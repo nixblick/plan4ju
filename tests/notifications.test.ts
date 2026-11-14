@@ -189,7 +189,7 @@ describe("ics writer", () => {
   it("all-day events end exclusive", () => {
     const ics = buildIcs({
       name: "x", tz: "Europe/Berlin", host: "h", birthdays: [],
-      items: [{ key: "k", source: "event", id: "e", title: "Ferien", description: null, location: null, allDay: true, startDate: "2026-12-21", endDate: "2026-12-23", startTime: null, endTime: null, participantIds: [], repeats: false, calendarId: null, calendarName: null, colorIndex: null }],
+      items: [{ key: "k", source: "event", id: "e", title: "Ferien", description: null, location: null, allDay: true, startDate: "2026-12-21", endDate: "2026-12-23", startTime: null, endTime: null, participantIds: [], repeats: false, seriesDate: null, moved: false, calendarId: null, calendarName: null, colorIndex: null }],
     });
     expect(ics).toContain("DTSTART;VALUE=DATE:20261221");
     expect(ics).toContain("DTEND;VALUE=DATE:20261224");

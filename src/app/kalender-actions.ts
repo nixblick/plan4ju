@@ -1,6 +1,6 @@
 "use server";
 
-import { MAX_FILE_BYTES, addSubscription, createEvent, deleteCalendar, deleteEvent, importIcsFile, reimportIcsFile, syncCalendar, updateCalendar, updateEvent, type EventInput } from "@/server/services/calendar";
+import { MAX_FILE_BYTES, addSubscription, createEvent, deleteCalendar, deleteEvent, importIcsFile, reimportIcsFile, resetEventInstance, setEventInstance, syncCalendar, updateCalendar, updateEvent, type EventInput } from "@/server/services/calendar";
 import { FetchError } from "@/server/safe-fetch";
 import { localPath, runAction, text } from "./action-helpers";
 
@@ -40,6 +40,20 @@ export async function updateEventAction(form: FormData) {
 
 export async function deleteEventAction(form: FormData) {
   await runAction("/kalender", "termin-weg", (a) => deleteEvent(a.user.id, a.familyId, text(form, "eventId")));
+}
+
+/** Moves, cancels or resets one instance of a repeated event (`date` is its rule day). */
+export async function eventInstanceAction(form: FormData) {
+  const id = text(form, "eventId");
+  const date = text(form, "date");
+  const mode = text(form, "mode");
+  const opt = (k: string) => text(form, k).trim() || null;
+  await runAction(`/kalender/termin/${encodeURIComponent(id)}/${encodeURIComponent(date)}`, mode === "absagen" ? "abgesagt" : mode === "zuruecksetzen" ? "zurueckgesetzt" : "verschoben", async (a) => {
+    if (mode === "zuruecksetzen") return resetEventInstance(a.user.id, a.familyId, id, date);
+    await setEventInstance(a.user.id, a.familyId, id, mode === "absagen"
+      ? { date, cancelled: true }
+      : { date, startDate: text(form, "startDate"), startTime: opt("startTime"), endDate: opt("endDate"), endTime: opt("endTime") });
+  });
 }
 
 /** Reads an uploaded file as text; refuses oversized files before reading them into the service. */

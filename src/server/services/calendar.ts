@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { daysBetween } from "../../lib/week";
-import { expandEvent, externalItem, sortItems, type CalendarItem } from "../../lib/calendar-items";
+import { addDays, daysBetween } from "../../lib/week";
+import { expandEvent, externalItem, isRuleDay, sortItems, spanOf, type CalendarItem } from "../../lib/calendar-items";
 import { localParts, zonedToUtc } from "../../lib/tz";
 import { decryptSecret, encryptSecret } from "../calendar-crypto";
 import { ConflictError, NotFoundError } from "../errors";
@@ -192,6 +192,128 @@ export function getEvent(userId: string, familyId: string, id: string, client?: 
   );
 }
 
+// ---- Single instances of a series ------------------------------------------------------------
+
+export const instanceInput = z
+  .object({
+    /** Rule day of the instance. */
+    date: isoDate,
+    cancelled: z.boolean().default(false),
+    startDate: isoDate.nullish(),
+    startTime: z.string().regex(HHMM).nullish(),
+    endDate: isoDate.nullish(),
+    endTime: z.string().regex(HHMM).nullish(),
+  })
+  .superRefine((e, ctx) => {
+    if (e.cancelled) return;
+    if (!e.startDate) return ctx.addIssue({ code: "custom", path: ["startDate"], message: "Date required" });
+    const endDate = e.endDate ?? e.startDate;
+    if (endDate < e.startDate || daysBetween(e.startDate, endDate) > 366) ctx.addIssue({ code: "custom", path: ["endDate"], message: "Bad end" });
+    if (e.startTime && `${endDate}T${e.endTime ?? e.startTime}` < `${e.startDate}T${e.startTime}`) {
+      ctx.addIssue({ code: "custom", path: ["endTime"], message: "End before start" });
+    }
+  });
+export type InstanceInput = z.input<typeof instanceInput>;
+
+async function ownSeries(ctx: FamilyContext, id: string) {
+  const e = await ctx.tx.calendarEvent.findFirst({ where: { id, familyId: ctx.familyId } });
+  if (!e || !e.freq) throw new NotFoundError("Series not found");
+  const tz = await familyZone(ctx);
+  return { e, tz };
+}
+
+/** Moves or cancels one instance of a repeated event; the series itself stays as it is. */
+export async function setEventInstance(userId: string, familyId: string, eventId: string, raw: InstanceInput, client?: PrismaClient) {
+  const d = instanceInput.parse(raw);
+  return withFamily(
+    userId,
+    familyId,
+    async (ctx) => {
+      const { e, tz } = await ownSeries(ctx, eventId);
+      const rule = {
+        freq: e.freq!, interval: e.interval, weekdays: e.weekdays, monthDay: e.monthDay,
+        startDate: e.allDay ? iso(e.startDate!) : localParts(e.startsAt!, tz).date, endDate: e.repeatUntil ? iso(e.repeatUntil) : null,
+      };
+      if (!isRuleDay(rule, d.date)) throw new NotFoundError("No instance on this day");
+      let shape: { startsAt: Date | null; endsAt: Date | null; startDate: Date | null; endDate: Date | null } = { startsAt: null, endsAt: null, startDate: null, endDate: null };
+      if (!d.cancelled) {
+        const endDate = d.endDate ?? d.startDate!;
+        if (e.allDay) shape = { ...shape, startDate: day(d.startDate!), endDate: day(endDate) };
+        else {
+          // Keep the series' times unless new ones are given; the wall clock time is read in the family zone.
+          const span = spanOf({ allDay: false, startsAt: e.startsAt, endsAt: e.endsAt, startDate: null, endDate: null }, tz);
+          const startTime = d.startTime ?? span.startTime!;
+          const endTime = d.endTime ?? (d.startTime ? d.startTime : localParts(e.endsAt!, tz).time);
+          const length = daysBetween(span.startDate, localParts(e.endsAt!, tz).date);
+          const end = d.endDate ?? (d.startTime && !d.endTime ? d.startDate! : addDays(d.startDate!, length));
+          shape = { ...shape, startsAt: zonedToUtc(d.startDate!, startTime, tz), endsAt: zonedToUtc(end, endTime, tz) };
+          if (shape.endsAt! < shape.startsAt!) throw new z.ZodError([{ code: "custom", path: ["endTime"], message: "End before start", input: d }]);
+        }
+      }
+      const data = { cancelled: d.cancelled, ...shape };
+      await ctx.tx.calendarEventException.upsert({
+        where: { eventId_date: { eventId, date: day(d.date) } },
+        create: { familyId: ctx.familyId, eventId, date: day(d.date), ...data },
+        update: data,
+      });
+    },
+    client,
+  );
+}
+
+/** Puts one instance back to the series' time. */
+export function resetEventInstance(userId: string, familyId: string, eventId: string, date: string, client?: PrismaClient) {
+  const dt = isoDate.parse(date);
+  return withFamily(
+    userId,
+    familyId,
+    async (ctx) => {
+      await ownSeries(ctx, eventId);
+      await ctx.tx.calendarEventException.deleteMany({ where: { eventId, familyId: ctx.familyId, date: day(dt) } });
+    },
+    client,
+  );
+}
+
+export interface InstanceView {
+  date: string;
+  cancelled: boolean;
+  moved: boolean;
+  startDate: string;
+  startTime: string | null;
+  endDate: string;
+  endTime: string | null;
+}
+
+/** The instance of a series on its rule day `date` (as currently shown), or null when there is none. */
+export function getEventInstance(userId: string, familyId: string, eventId: string, date: string, client?: PrismaClient): Promise<InstanceView | null> {
+  const parsed = isoDate.safeParse(date);
+  if (!parsed.success) return Promise.resolve(null);
+  return withFamily(
+    userId,
+    familyId,
+    async (ctx) => {
+      const e = await ctx.tx.calendarEvent.findFirst({ where: { id: eventId, familyId: ctx.familyId }, include: { exceptions: { where: { date: day(date) } } } });
+      if (!e || !e.freq) return null;
+      const tz = await familyZone(ctx);
+      const raw = {
+        id: e.id, title: e.title, description: null, location: null, allDay: e.allDay, startsAt: e.startsAt, endsAt: e.endsAt,
+        startDate: e.startDate ? iso(e.startDate) : null, endDate: e.endDate ? iso(e.endDate) : null,
+        freq: e.freq, interval: e.interval, weekdays: e.weekdays, monthDay: e.monthDay, repeatUntil: e.repeatUntil ? iso(e.repeatUntil) : null,
+        participantIds: [], exceptions: [],
+      };
+      const plain = expandEvent(raw, tz, date, date).find((i) => i.seriesDate === date);
+      if (!plain) return null;
+      const x = e.exceptions[0];
+      if (!x) return { date, cancelled: false, moved: false, startDate: plain.startDate, startTime: plain.startTime, endDate: plain.endDate, endTime: plain.endTime };
+      if (x.cancelled) return { date, cancelled: true, moved: false, startDate: plain.startDate, startTime: plain.startTime, endDate: plain.endDate, endTime: plain.endTime };
+      const s = spanOf({ allDay: e.allDay, startsAt: x.startsAt, endsAt: x.endsAt, startDate: x.startDate ? iso(x.startDate) : null, endDate: x.endDate ? iso(x.endDate) : null }, tz);
+      return { date, cancelled: false, moved: true, ...s };
+    },
+    client,
+  );
+}
+
 // ---- Reading items ----------------------------------------------------------------------------
 
 /** Every calendar item (internal and enabled external) that touches the local days [from, to]. */
@@ -209,7 +331,10 @@ export async function itemsBetween(ctx: FamilyContext, from: string, to: string)
           { freq: null, allDay: true, startDate: { lte: day(to) }, endDate: { gte: day(from) } },
         ],
       },
-      include: { participants: { select: { profileId: true } } },
+      include: {
+        participants: { select: { profileId: true } },
+        exceptions: { select: { date: true, cancelled: true, startsAt: true, endsAt: true, startDate: true, endDate: true }, take: 500 },
+      },
       take: 2000,
     }),
     ctx.tx.externalCalendarEvent.findMany({
@@ -234,6 +359,10 @@ export async function itemsBetween(ctx: FamilyContext, from: string, to: string)
           startsAt: e.startsAt, endsAt: e.endsAt, startDate: e.startDate ? iso(e.startDate) : null, endDate: e.endDate ? iso(e.endDate) : null,
           freq: e.freq, interval: e.interval, weekdays: e.weekdays, monthDay: e.monthDay,
           repeatUntil: e.repeatUntil ? iso(e.repeatUntil) : null, participantIds: e.participants.map((p) => p.profileId),
+          exceptions: e.exceptions.map((x) => ({
+            date: iso(x.date), cancelled: x.cancelled, startsAt: x.startsAt, endsAt: x.endsAt,
+            startDate: x.startDate ? iso(x.startDate) : null, endDate: x.endDate ? iso(x.endDate) : null,
+          })),
         },
         tz, from, to,
       ),
