@@ -23,12 +23,16 @@ function Who({ profiles, ids }: { profiles: Profiles; ids: string[] }) {
   );
 }
 
-const timeRange = (a: AgendaEntry) => (a.endTime ? `${a.startTime}–${a.endTime}` : a.startTime);
+const timeRange = (a: AgendaEntry) => {
+  const from = a.since === a.startTime ? a.startTime : a.since;
+  if (a.endTime) return `${from}–${a.endTime}`;
+  return a.kind === "event" && a.end >= 24 * 60 ? `${from}, mehrtägig` : from;
+};
 
 /** "Als Nächstes" and "Danach": the next timed event or routine today, then up to three more. */
 export function NextCard({ d, now }: { d: DashboardData; now: Date }) {
   const agenda = agendaOf(d.today, d.eventsToday, d.routinesToday);
-  const { next, inMinutes, after } = nextUp(agenda, nowMinutes(now, d.timezone));
+  const { next, inMinutes, running, after } = nextUp(agenda, nowMinutes(now, d.timezone));
   return (
     <section
       aria-label="Als Nächstes"
@@ -37,7 +41,7 @@ export function NextCard({ d, now }: { d: DashboardData; now: Date }) {
     >
       <div className="min-w-0">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-terracotta-dark">
-          Als Nächstes{next && inMinutes !== null ? <span data-testid="next-in"> · {inLabel(inMinutes)}</span> : null}
+          Als Nächstes{next && inMinutes !== null ? <span data-testid="next-in"> · {running ? `läuft seit ${next.since}` : inLabel(inMinutes)}</span> : null}
         </h2>
         {next ? (
           <div className="mt-2 space-y-2" data-testid="next-entry">
@@ -63,7 +67,7 @@ export function NextCard({ d, now }: { d: DashboardData; now: Date }) {
             {after.map((a) => (
               <li key={a.key} className="flex items-center gap-2 rounded-xl bg-stone-50 px-2.5 py-2 text-sm ring-1 ring-stone-200" data-testid="after-entry">
                 {a.personIds.length ? <Avatar name={names(d.profiles, [a.personIds[0]!])} colorIndex={d.profiles.find((p) => p.id === a.personIds[0])?.colorIndex ?? 0} size={24} /> : null}
-                <span className="font-semibold">{a.startTime}</span>
+                <span className="font-semibold">{a.since}</span>
                 <span className="min-w-0 truncate" title={a.title}>{a.title}</span>
               </li>
             ))}

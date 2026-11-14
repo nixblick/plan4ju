@@ -47,6 +47,34 @@ describe("nextUp", () => {
   });
 });
 
+describe("nextUp: running and multi-day", () => {
+  it("shows an event that is running right now, with its real start", () => {
+    const a = agendaOf(today, [ev({ key: "r", title: "Training", startTime: "09:00", endTime: "10:30" }), ev({ key: "l", title: "Später", startTime: "11:00" })], []);
+    const n = nextUp(a, 9 * 60 + 40);
+    expect(n.next?.title).toBe("Training");
+    expect(n.running).toBe(true);
+    expect(n.inMinutes).toBe(0);
+    expect(n.next?.since).toBe("09:00");
+    expect(n.after.map((x) => x.title)).toEqual(["Später"]);
+    expect(nextUp(a, 10 * 60 + 30).next?.title).toBe("Später"); // ended exactly now
+  });
+  it("shows a multi-day event that began yesterday or earlier", () => {
+    const y = agendaOf(today, [ev({ key: "y", title: "Klassenfahrt", startDate: "2026-11-15", startTime: "20:00", endDate: "2026-11-17", endTime: "12:00" })], []);
+    const n = nextUp(y, 8 * 60);
+    expect(n.next?.title).toBe("Klassenfahrt");
+    expect(n.running).toBe(true);
+    expect(n.next?.since).toBe("gestern 20:00");
+    const older = agendaOf(today, [ev({ key: "o", title: "Kur", startDate: "2026-11-12", startTime: "08:00", endDate: "2026-11-16", endTime: "18:00" })], []);
+    expect(nextUp(older, 17 * 60).next?.since).toBe("12.11. 08:00");
+    expect(nextUp(older, 18 * 60).next).toBeNull();
+  });
+  it("a future entry is not running", () => {
+    const n = nextUp(agendaOf(today, [ev({ key: "f", title: "F", startTime: "15:00" })], []), 14 * 60);
+    expect(n.running).toBe(false);
+    expect(n.inMinutes).toBe(60);
+  });
+});
+
 describe("labels and strip", () => {
   it("inLabel", () => {
     expect(inLabel(0)).toBe("jetzt");

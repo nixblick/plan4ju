@@ -4,6 +4,7 @@
 
 import type { CalendarItem } from "./calendar-items";
 import { localParts } from "./tz";
+import { addDays } from "./week";
 
 export const STRIP_FROM = 6; // hours
 export const STRIP_TO = 22;
@@ -34,10 +35,15 @@ export interface AgendaEntry {
   personIds: string[];
   /** Routine already ticked off. */
   done: boolean;
+  /** When the entry really began: "07:30" today, "gestern 20:00" or "12.11. 20:00" for multi-day events. */
+  since: string;
 }
 
 const minutes = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+const sinceDay = (day: string, today: string) =>
+  day === addDays(today, -1) ? "gestern" : `${day.slice(8, 10)}.${day.slice(5, 7)}.`;
 
 /** Timed entries of `today` (events that start earlier or are all-day are not part of the agenda). */
 export function agendaOf(today: string, events: CalendarItem[], occurrences: AgendaOccurrence[]): AgendaEntry[] {
@@ -52,6 +58,7 @@ export function agendaOf(today: string, events: CalendarItem[], occurrences: Age
       key: e.key, kind: "event", title: e.title, start, end: Math.min(end, 24 * 60),
       startTime: hhmm(start), endTime: e.endDate > today || !e.endTime ? null : e.endTime,
       location: e.location, personIds: e.participantIds, done: false,
+      since: e.startDate === today ? e.startTime : `${sinceDay(e.startDate, today)} ${e.startTime}`,
     });
   }
   for (const o of occurrences) {
@@ -60,6 +67,7 @@ export function agendaOf(today: string, events: CalendarItem[], occurrences: Age
     out.push({
       key: `routine:${o.id}`, kind: "routine", title: o.title, start, end: Math.min(start + ROUTINE_MINUTES, 24 * 60),
       startTime: o.time, endTime: null, location: null, personIds: o.assigneeIds, done: o.status === "DONE",
+      since: o.time,
     });
   }
   return out.sort((a, b) => a.start - b.start || a.title.localeCompare(b.title, "de") || a.key.localeCompare(b.key));
@@ -72,16 +80,23 @@ export function nowMinutes(now: Date, tz: string): number {
 
 export interface NextUp {
   next: AgendaEntry | null;
-  /** Minutes until `next` starts (0 = running right now is not counted here, see `running`). */
+  /** Minutes until `next` starts; 0 when it is already running. */
   inMinutes: number | null;
+  /** `next` began before now and has not ended yet. */
+  running: boolean;
   after: AgendaEntry[];
 }
 
-/** The next open entry that starts at or after now, and up to `limit` that follow it. */
+/** The next open entry that has not ended yet (running ones first), and up to `limit` that follow it. */
 export function nextUp(agenda: AgendaEntry[], nowMin: number, limit = 3): NextUp {
-  const upcoming = agenda.filter((a) => !a.done && a.start >= nowMin);
+  const upcoming = agenda.filter((a) => !a.done && a.end > nowMin);
   const next = upcoming[0] ?? null;
-  return { next, inMinutes: next ? next.start - nowMin : null, after: upcoming.slice(1, 1 + limit) };
+  return {
+    next,
+    inMinutes: next ? Math.max(0, next.start - nowMin) : null,
+    running: next !== null && next.start < nowMin,
+    after: upcoming.slice(1, 1 + limit),
+  };
 }
 
 /** "in 33 Minuten", "in 1 Stunde 5 Minuten", "jetzt". */

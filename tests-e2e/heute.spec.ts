@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { localParts } from "../src/lib/tz";
-import { todayIn } from "../src/lib/week";
+import { addDays, todayIn } from "../src/lib/week";
 import { createFamilyWithOwnerInvitation } from "../src/server/admin";
 import { createEvent } from "../src/server/services/calendar";
 import { createInvitation } from "../src/server/services/invitations";
@@ -23,11 +23,9 @@ const today = todayIn("Europe/Berlin");
 const EARLY = `Zahnarzt ${run}`; // 07:00 Anna
 const ROUTINE = `Kita holen ${run}`; // 18:30 Ben
 const LATE = `Spätdienst ${run}`; // 23:30 Ben (outside the 6-22 h strip)
-const entries = [
-  { title: EARLY, start: 7 * 60 },
-  { title: ROUTINE, start: 18 * 60 + 30 },
-  { title: LATE, start: 23 * 60 + 30 },
-];
+// Yesterday 20:00 to tomorrow 12:00, nobody assigned: running at any time of day, so the check
+// for "Als Nächstes" does not depend on the clock (and does not flip at midnight).
+const TRIP = `Klassenfahrt ${run}`;
 
 let familyA = "";
 let familyB = "";
@@ -64,6 +62,7 @@ test.describe.serial("Dashboard: Als Nächstes, Zeitstrahl, Woche", () => {
     const ben = profileOf(people.ben.name);
     await createEvent(annaUser.id, familyA, { title: EARLY, location: "Praxis am Markt", startDate: today, startTime: "07:00", endTime: "08:00", participantIds: [anna] });
     await createEvent(annaUser.id, familyA, { title: LATE, startDate: today, startTime: "23:30", endTime: "23:45", participantIds: [ben] });
+    await createEvent(annaUser.id, familyA, { title: TRIP, startDate: addDays(today, -1), startTime: "20:00", endDate: addDays(today, 1), endTime: "12:00", participantIds: [] });
     await createRoutine(annaUser.id, familyA, { title: ROUTINE, freq: "DAILY", startDate: today, timeOfDay: "18:30", assignMode: "FIXED", assigneeIds: [ben] });
   });
 
@@ -91,20 +90,13 @@ test.describe.serial("Dashboard: Als Nächstes, Zeitstrahl, Woche", () => {
     }
   });
 
-  test("Als Nächstes: der nächste Eintrag nach der Uhrzeit, danach die übrigen", async () => {
+  test("Als Nächstes: ein laufender mehrtägiger Termin steht vorn, mit „läuft seit gestern“", async () => {
     const p = sessions.anna!;
     await p.goto("/");
-    const t = localParts(new Date(), "Europe/Berlin").time;
-    const now = Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-    const upcoming = entries.filter((e) => e.start >= now + 1); // a minute of slack for the render
     const card = p.getByTestId("next-card");
-    if (upcoming.length === 0) {
-      await expect(card).toContainText("nichts mehr");
-    } else {
-      await expect(card.getByTestId("next-entry")).toContainText(upcoming[0]!.title);
-      await expect(p.getByTestId("next-in")).toContainText(/in \d+ (Minuten?|Stunden?)/);
-      await expect(card.getByTestId("after-entry")).toHaveCount(Math.min(3, upcoming.length - 1));
-    }
+    await expect(card.getByTestId("next-entry")).toContainText(TRIP);
+    await expect(p.getByTestId("next-in")).toHaveText("· läuft seit gestern 20:00");
+    expect(await card.getByTestId("after-entry").count()).toBeLessThanOrEqual(3);
   });
 
   test("Diese Woche: Termin und Routine mit Personenfarben, für beide Mitglieder gleich", async () => {
@@ -129,7 +121,7 @@ test.describe.serial("Dashboard: Als Nächstes, Zeitstrahl, Woche", () => {
     const p = sessions.clara!;
     await p.goto("/");
     const body = p.locator("body");
-    for (const t of [EARLY, ROUTINE, LATE, "Praxis am Markt"]) await expect(body).not.toContainText(t);
+    for (const t of [EARLY, ROUTINE, LATE, TRIP, "Praxis am Markt"]) await expect(body).not.toContainText(t);
     await expect(p.getByTestId("strip-bar")).toHaveCount(0);
     await expect(p.getByTestId("next-card")).toContainText("nichts mehr");
   });
