@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.8.0 (14.11.2026)
+
+Customer feedback (#19): menu, start page per user, shopping categories, POI search, bell.
+
 - Default AI model for recipe ideas is now claude-haiku-5-5 (current Haiku).
 - Menu (#19): "Feste" becomes "Reminder" with the tabs Wunschzettel, POI (formerly Karte) and Achtsamkeit (moved from "Familie"). "Familie" becomes "Einstellungen" (bottom bar: "Optionen", the long word does not fit a seventh of 375 px) with the tabs Mitglieder, Module and Feedback. The floating feedback button, the menu entry and the start page tile are gone; feedback is a tab now and sends the page the person came from. Calendar in tabs: Kalender, Geburtstage (`/kalender/geburtstage`), Quellen (external calendars and the waste calendar). The waste module is called "FES". Old addresses redirect (307): `/geburtstage`, `/familie`, `/familie/*` (`src/lib/legacy-routes.mjs`).
 - Start page: the three task tiles sit in one group tile. "Schule heute" and "Sterne" are modules now, off for new families; existing families keep them on and can switch them off. Each user chooses the elements of the start page (Einstellungen → Module → "Meine Startseite", table `dashboard_pref`, own row only); default is everything the family's modules allow. Birthdays: the last 2 and the next 3 days.
