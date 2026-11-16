@@ -71,6 +71,8 @@ export async function changeMemberRole(
         throw new ConflictError("A family needs at least one owner");
       }
       await ctx.tx.familyMembership.update({ where: { id: target.id }, data: { role: newRole } });
+      // a demoted member may lose the edit right on lists they shared: their links end (issue 21)
+      if (!atLeast(newRole, target.role)) await ctx.tx.wishlistShare.deleteMany({ where: { familyId, createdById: targetUserId } });
     },
     client,
   );
@@ -94,6 +96,7 @@ export function removeMember(userId: string, familyId: string, targetUserId: str
       if (target.role === "OWNER" && (await ownerCount(ctx)) <= 1) {
         throw new ConflictError("A family needs at least one owner");
       }
+      await ctx.tx.wishlistShare.deleteMany({ where: { familyId, createdById: targetUserId } });
       await ctx.tx.familyMembership.delete({ where: { id: target.id } });
       await ctx.tx.familyProfile.updateMany({ where: { familyId, userId: targetUserId }, data: { userId: null } });
     },

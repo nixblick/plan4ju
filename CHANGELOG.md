@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 0.9.1 (16.11.2026)
+
+Security fixes for the wish list share link (#21).
+
+- A share link only works while its creator may still edit the list. `app_wishlist_share_lookup` (migration `20261216000000_share_edit_right`) now checks the edit right with the same rule as the service (creator, wishing person, or ADMIN/OWNER for a profile without login; private lists only for their creator). The service also deletes the link when profile, person or visibility of the list change, and the links of a member who is demoted or removed.
+- Share page route: the miss limit counts only after a failed lookup, so a valid link is never blocked by failed attempts of others. Without a client address misses no longer share a small "unknown" pot but a separate global limit (3000 per hour).
+
 ## 0.9.0 (16.11.2026)
 
 Customer feedback (#20): POI in two tabs, start page order, mindfulness topics and symbol, deleting routines, sharing wish lists.

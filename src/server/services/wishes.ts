@@ -243,6 +243,9 @@ export async function updateWishlist(userId: string, familyId: string, id: strin
       if (isWisher(ctx, l) && ((l.surprise && !d.surprise) || d.profileId !== l.profileId || d.personName !== l.personName))
         throw new ForbiddenError("Surprise protection");
       await ctx.tx.wishlist.update({ where: { id: l.id }, data: d });
+      // who may edit (and so share) depends on profile and visibility: a change voids the link (issue 21)
+      if (d.profileId !== l.profileId || d.personName !== l.personName || d.visibility !== l.visibility)
+        await ctx.tx.wishlistShare.deleteMany({ where: { listId: l.id, familyId: ctx.familyId } });
     },
     client,
   );

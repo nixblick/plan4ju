@@ -4,7 +4,7 @@
  * the n-th entry from the right is the address the outermost trusted proxy saw. Everything
  * left of it is client controlled. X-Real-IP is used only when TRUSTED_REAL_IP=true says the
  * proxy always overwrites it. TRUSTED_PROXY_HOPS=0 means no proxy: forwarded headers are ignored.
- * Without a trusted address the result is null; callers then use one shared bucket ("unknown"),
+ * Without a trusted address the result is null; callers then use a shared bucket (the share link route a large global one),
  * Better Auth its own shared bucket, so the limits still apply.
  */
 export const CLIENT_IP_HEADER = "x-plan4ju-client-ip";

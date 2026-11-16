@@ -50,11 +50,15 @@ Getestet in `tests/wishes.test.ts` (Dienst und Datenbank) und `tests-e2e/wuensch
   **nur einmal** angezeigt; gespeichert ist nur der SHA-256-Hash eines zufälligen 256-Bit-Tokens (Tabelle
   `wishlist_share`, eine Zeile je Liste, RLS: Familie und Sichtbarkeit der Liste).
 - „Neuen Link erzeugen“ macht den alten sofort ungültig, „Link widerrufen“ beendet ihn. Der Link endet auch, wenn die
-  Liste gelöscht wird, das Modul Wunschzettel aus ist oder die Person, die ihn erzeugt hat, die Familie verlässt.
+  Liste gelöscht wird, das Modul Wunschzettel aus ist oder die Person, die ihn erzeugt hat, die Familie verlässt
+  oder die Liste nicht mehr bearbeiten darf (0.9.1). Ändern sich Profil, Person oder Sichtbarkeit der Liste oder wird
+  die Rolle der Person herabgestuft, wird der Link gelöscht; die Lese-Funktion prüft das Bearbeitungsrecht zusätzlich.
 - Die Seite `/geteilt/wunschzettel/<token>` ist nur lesend und zeigt **nur** den Vornamen der Person und die offenen
   Wünsche (Titel, Beschreibung, https-Link, Preis, Priorität, Anlass). Nie: Reservierungen, wer schenkt, Notizen,
   Titel der Liste, erhaltene Wünsche, hochgeladene Bilder (die brauchen eine Anmeldung). Gelesen wird über die
   `SECURITY DEFINER`-Funktion `app_wishlist_share_lookup`, die genau diese Felder zurückgibt.
 - Schlichtes HTML außerhalb des App-Layouts: keine Navigation, keine Analyse, kein Skript; `noindex`, `no-store`,
-  `no-referrer`. Grenzen: 120 Abrufe je Link und Stunde, 30 unbekannte Links je Adresse und Stunde; unbekannt,
+  `no-referrer`. Grenzen: 120 Abrufe je Link und Stunde, 30 unbekannte Links je Adresse und Stunde (gezählt erst nach
+  dem gescheiterten Nachschlagen, ein gültiger Link wird nie durch Fehlversuche anderer gesperrt; ohne Adresse eine
+  eigene globale Grenze von 3000 je Stunde); unbekannt,
   widerrufen und ausgeschaltet sehen gleich aus (404).

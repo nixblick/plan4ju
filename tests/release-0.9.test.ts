@@ -249,10 +249,13 @@ describe("wish list share links", () => {
     const tmp = await admin.user.create({ data: { id: `u-tmp-${listId}`, name: "Tmp", email: `tmp-${listId}@example.test` } });
     await admin.familyMembership.create({ data: { familyId: f.familyA, userId: tmp.id, role: "ADMIN" } });
     // the share row's creator is replaced by a member who then leaves
+    // (0.9.1: the creator must still be able to edit the list, so tmp also becomes the list's creator)
     await admin.wishlistShare.update({ where: { listId }, data: { createdById: tmp.id } });
+    await admin.wishlist.update({ where: { id: listId }, data: { createdById: tmp.id } });
     expect(await resolveShare(token, app)).not.toBeNull();
     await admin.familyMembership.delete({ where: { familyId_userId: { familyId: f.familyA, userId: tmp.id } } });
     expect(await resolveShare(token, app)).toBeNull();
+    await admin.wishlist.update({ where: { id: listId }, data: { createdById: f.userA } });
     await admin.user.delete({ where: { id: tmp.id } });
     token = await createShare(f.userA, f.familyA, listId, app);
     await admin.wishlist.delete({ where: { id: listId } });
