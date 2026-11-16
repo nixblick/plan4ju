@@ -62,6 +62,20 @@ test.describe.serial("Karte", () => {
   test("Anna adds a playground by tapping the map", async () => {
     await a.goto("/karte");
     await expect(a.getByRole("heading", { name: "POI" })).toBeVisible();
+    // 0.9: two tabs; the map tab has no form, "Neuer Ort" has search, then map, then the fields
+    const tabs = a.getByTestId("karte-tabs");
+    await expect(tabs.getByRole("link", { name: "Karte und Liste" })).toHaveAttribute("aria-current", "page");
+    await expect(a.getByRole("button", { name: "Ort speichern" })).toHaveCount(0);
+    await expect(a.getByText("Unter „Neuer Ort“ trägst du den ersten ein.")).toBeVisible();
+    await tabs.getByRole("link", { name: "Neuer Ort" }).click();
+    await expect(a).toHaveURL(/\/karte\?tab=neu$/);
+    await expect(tabs.getByRole("link", { name: "Neuer Ort" })).toHaveAttribute("aria-current", "page");
+    const y = async (l: import("@playwright/test").Locator) => (await l.boundingBox())!.y;
+    const ySearch = await y(a.getByTestId("address-search").first());
+    const yMap = await y(a.getByTestId("karte"));
+    const yName = await y(a.getByLabel("Name", { exact: true }));
+    expect(ySearch).toBeLessThan(yMap);
+    expect(yMap).toBeLessThan(yName);
     await expect(a.getByRole("navigation", { name: "Bereiche von Reminder" }).getByRole("link", { name: "POI" })).toHaveAttribute("aria-current", "page");
     await expect(a.getByText(`Fremder Ort ${run}`)).toHaveCount(0);
     await noOverflow(a);
@@ -76,6 +90,11 @@ test.describe.serial("Karte", () => {
     await expect(a.getByRole("heading", { name: "Spielplatz am Bach" })).toBeVisible();
     await expect(a.getByText("Ort gespeichert.")).toBeVisible();
     await noOverflow(a);
+    // the list sits below the map in the first tab
+    await a.goto("/karte");
+    const yMap2 = (await a.getByTestId("karte").boundingBox())!.y;
+    const yRow = (await a.getByTestId("poi-row").first().boundingBox())!.y;
+    expect(yRow).toBeGreaterThan(yMap2);
   });
 
   test("Ben sees it, filters, cannot edit; a past event is archived", async () => {

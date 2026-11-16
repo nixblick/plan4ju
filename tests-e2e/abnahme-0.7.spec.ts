@@ -156,8 +156,8 @@ test.describe.serial("Abnahme Release 0.7", () => {
     const a = pages.anna!;
     await a.goto("/achtsamkeit");
     const form = a.getByRole("form", { name: "Fragebogen ausfüllen" });
-    await expect(form.getByTestId("topic-row")).toHaveCount(6);
-    for (const t of ["Essen", "Schlaf", "Stimmung", "Arbeit", "Freizeit", "Gesundheit"]) await expect(form.getByLabel(`${t} bewerten`)).toBeChecked();
+    await expect(form.getByTestId("topic-row")).toHaveCount(9);
+    for (const t of ["Essen", "Schlaf", "Stimmung", "Arbeit", "Freizeit", "Gesundheit", "Bewegung", "Frische Luft", "Soziale Kontakte"]) await expect(form.getByLabel(`${t} bewerten`)).toBeChecked();
     // Only person and date are selects; no topic select and no visibility in the form.
     await expect(form.getByRole("combobox")).toHaveCount(1);
     await expect(form.getByLabel("Datum")).toBeVisible();
@@ -174,7 +174,7 @@ test.describe.serial("Abnahme Release 0.7", () => {
     await expect(a.getByTestId("visibility-setting")).toContainText("Sichtbar für: Ganze Familie");
 
     const pick = async (topic: string, r: number) => {
-      const radio = form.getByLabel(new RegExp(`^${topic}: \\S+ ${r} von 5`));
+      const radio = form.getByLabel(new RegExp(`^${topic}: ${r} von 5`));
       await radio.locator("xpath=..").click();
       await expect(radio).toBeChecked();
     };

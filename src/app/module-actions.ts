@@ -56,8 +56,8 @@ export async function setDashboardAction(form: FormData) {
 }
 
 /** Up/down on the start page list: saves the ticks of the same form and moves one element by one step. */
-export async function moveDashboardAction(form: FormData) {
-  const [key, dir] = text(form, "move").split(":");
+export async function moveDashboardAction(move: string, form: FormData) {
+  const [key, dir] = String(move).split(":");
   await run("/einstellungen/module", "dashboard-reihenfolge", (a) =>
     setVisibleElements(a.user.id, a.familyId, form.getAll("offered").map(String), form.getAll("show").map(String), undefined, {
       key: key ?? "",

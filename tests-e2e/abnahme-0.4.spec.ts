@@ -66,7 +66,7 @@ async function signIn(browser: Browser, key: keyof typeof people): Promise<Page>
 }
 
 async function addPoi(p: Page, o: { name: string; category: string; lat: string; lng: string; from?: string; to?: string }) {
-  await p.goto("/karte");
+  await p.goto("/karte?tab=neu");
   await p.getByLabel("Name", { exact: true }).fill(o.name);
   await p.locator("select[name=categoryId]").selectOption({ label: o.category });
   await p.locator("#neu-lat").fill(o.lat);
@@ -94,10 +94,10 @@ async function rate(p: Page, o: { topic: string; rating: number; note: string; v
   await setting.getByRole("button", { name: "Sichtbarkeit speichern" }).click();
   await expect(p.getByRole("status")).toHaveText("Sichtbarkeit gespeichert. Sie gilt für neue Einträge.");
   const form = p.getByRole("form", { name: "Fragebogen ausfüllen" });
-  for (const t of ["Essen", "Schlaf", "Stimmung", "Arbeit", "Freizeit", "Gesundheit"]) {
+  for (const t of ["Essen", "Schlaf", "Stimmung", "Arbeit", "Freizeit", "Gesundheit", "Bewegung", "Frische Luft", "Soziale Kontakte"]) {
     if (t !== o.topic) await form.getByLabel(`${t} bewerten`).uncheck();
   }
-  const radio = form.getByLabel(new RegExp(`^${o.topic}: \\S+ ${o.rating} von 5`));
+  const radio = form.getByLabel(new RegExp(`^${o.topic}: ${o.rating} von 5`));
   await radio.locator("xpath=..").click();
   await expect(radio).toBeChecked();
   await form.getByText("Notiz hinzufügen (optional)").click();

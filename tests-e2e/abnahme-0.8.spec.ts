@@ -172,8 +172,8 @@ test.describe.serial("Abnahme Release 0.8", () => {
     // Anna hides "Diese Woche" and "Schule heute" for herself only
     await a.goto("/einstellungen/module");
     const prefs = a.getByTestId("dashboard-prefs");
-    await prefs.getByLabel("Diese Woche").uncheck();
-    await prefs.getByLabel("Schule heute").uncheck();
+    await prefs.getByLabel("Diese Woche", { exact: true }).uncheck();
+    await prefs.getByLabel("Schule heute", { exact: true }).uncheck();
     await prefs.getByRole("button", { name: "Startseite speichern" }).click();
     await expect(a.getByRole("status")).toHaveText("Deine Startseite ist gespeichert.");
     await noOverflow(a);
@@ -187,8 +187,8 @@ test.describe.serial("Abnahme Release 0.8", () => {
 
     // back to the default for Anna, school off again for the family
     await a.goto("/einstellungen/module");
-    await a.getByTestId("dashboard-prefs").getByLabel("Diese Woche").check();
-    await a.getByTestId("dashboard-prefs").getByLabel("Schule heute").check();
+    await a.getByTestId("dashboard-prefs").getByLabel("Diese Woche", { exact: true }).check();
+    await a.getByTestId("dashboard-prefs").getByLabel("Schule heute", { exact: true }).check();
     await a.getByRole("button", { name: "Startseite speichern" }).click();
     await a.getByRole("button", { name: "Schule heute ausschalten" }).click();
     await expect(a.getByRole("status")).toHaveText("Modul ausgeschaltet.");
@@ -238,7 +238,7 @@ test.describe.serial("Abnahme Release 0.8", () => {
       asked = new URL(route.request().url()).searchParams.get("q");
       await route.fulfill({ json: { results: [{ label: "Musterstraße 1, 12345 Musterstadt", lat: 50.111111, lng: 8.666666 }] } });
     });
-    await a.goto("/karte");
+    await a.goto("/karte?tab=neu");
     const search = a.getByTestId("address-search").first();
     await search.getByLabel("Adresse suchen").fill("Mu");
     await search.getByRole("button", { name: "Suchen" }).click();

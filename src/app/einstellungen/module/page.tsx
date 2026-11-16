@@ -77,12 +77,12 @@ export default async function Module({ searchParams }: { searchParams: Promise<R
                 </label>
                 <span className="flex shrink-0 gap-1">
                   {i > 0 ? (
-                    <button formAction={moveDashboardAction} name="move" value={`${k}:up`} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-stone-300 bg-white" aria-label={`${DASHBOARD_ELEMENTS[k].label} nach oben`}>
+                    <button formAction={moveDashboardAction.bind(null, `${k}:up`)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-stone-300 bg-white" aria-label={`${DASHBOARD_ELEMENTS[k].label} nach oben`}>
                       <span aria-hidden="true">↑</span>
                     </button>
                   ) : <span className="h-11 w-11" aria-hidden="true" />}
                   {i < offered.length - 1 ? (
-                    <button formAction={moveDashboardAction} name="move" value={`${k}:down`} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-stone-300 bg-white" aria-label={`${DASHBOARD_ELEMENTS[k].label} nach unten`}>
+                    <button formAction={moveDashboardAction.bind(null, `${k}:down`)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-stone-300 bg-white" aria-label={`${DASHBOARD_ELEMENTS[k].label} nach unten`}>
                       <span aria-hidden="true">↓</span>
                     </button>
                   ) : <span className="h-11 w-11" aria-hidden="true" />}
