@@ -38,7 +38,9 @@ export function renderSharedList(v: SharedListView): string {
     const img = httpsUrl(w.imageUrl ?? null);
     return `<li data-testid="shared-wish"><div class="t">${esc(w.title)}</div>${meta ? `<div class="m">${meta}</div>` : ""}${
       w.description ? `<p class="d">${esc(w.description)}</p>` : ""
-    }${url ? `<a href="${esc(url)}" rel="noopener noreferrer nofollow" target="_blank">Zum Angebot (${esc(new URL(url).hostname)})</a>` : ""}</li>`;
+    }${url ? `<a href="${esc(url)}" rel="noopener noreferrer nofollow" target="_blank">Zum Angebot (${esc(new URL(url).hostname)})</a>` : ""}${
+      img ? `<a href="${esc(img)}" rel="noopener noreferrer nofollow" target="_blank">Bild ansehen</a>` : ""
+    }</li>`;
   });
   return `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

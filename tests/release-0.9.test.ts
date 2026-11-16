@@ -163,7 +163,7 @@ describe("wish list share links", () => {
     expect(v).not.toBeNull();
     expect(v!.ownerName).toBe("Anna");
     expect(v!.wishes.map((w) => w.title)).toEqual(["Fahrrad <rot>", "Buch"]);
-    expect(v!.wishes[0]).toEqual({ title: "Fahrrad <rot>", description: "28 Zoll", url: "https://example.test/rad", priceCents: null, priority: 1, occasion: "ANY" });
+    expect(v!.wishes[0]).toEqual({ title: "Fahrrad <rot>", description: "28 Zoll", url: "https://example.test/rad", imageUrl: null, priceCents: null, priority: 1, occasion: "ANY" });
     const json = JSON.stringify(v);
     for (const leak of ["nur intern", "Bodo", "Muster", "reserv", f.userA, f.userBoth, "Anna Geburtstag", "Schon erhalten"]) expect(json).not.toContain(leak);
   });
