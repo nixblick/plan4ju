@@ -177,6 +177,16 @@ describe("wish list share links", () => {
     expect(html).not.toContain("<script");
   });
 
+  it("offers an https image link and drops other schemes", () => {
+    const html = renderSharedList({ ownerName: "Anna", wishes: [
+      { title: "Roller", description: null, url: null, imageUrl: "https://example.org/roller.jpg", priceCents: null, priority: 1, occasion: "ANY" },
+      { title: "Ball", description: null, url: null, imageUrl: "javascript:alert(1)", priceCents: null, priority: 1, occasion: "ANY" },
+    ] });
+    expect(html).toContain('href="https://example.org/roller.jpg"');
+    expect(html.match(/Bild ansehen/g)).toHaveLength(1);
+    expect(html).not.toContain("javascript:");
+  });
+
   it("returns nothing for malformed or unknown tokens", async () => {
     expect(await resolveShare("", app)).toBeNull();
     expect(await resolveShare("x".repeat(43), app)).toBeNull();

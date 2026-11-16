@@ -411,6 +411,7 @@ export interface SharedWish {
   title: string;
   description: string | null;
   url: string | null;
+  imageUrl: string | null;
   priceCents: number | null;
   priority: number;
   occasion: Occasion;
@@ -435,6 +436,7 @@ export async function resolveShare(token: string, client: PrismaClient = prisma)
       title: String(w.title),
       description: w.description ?? null,
       url: httpsUrl(w.url),
+      imageUrl: httpsUrl(w.imageUrl),
       priceCents: typeof w.priceCents === "number" ? w.priceCents : null,
       priority: Number(w.priority),
       occasion: (OCCASIONS as readonly string[]).includes(w.occasion) ? w.occasion : "ANY",

@@ -5,7 +5,7 @@ import { formatPrice, httpsUrl, occasionLabels, wishPriorityLabels, type Occasio
 
 export interface SharedListView {
   ownerName: string;
-  wishes: { title: string; description: string | null; url: string | null; priceCents: number | null; priority: number; occasion: Occasion }[];
+  wishes: { title: string; description: string | null; url: string | null; imageUrl?: string | null; priceCents: number | null; priority: number; occasion: Occasion }[];
 }
 
 export function esc(s: string): string {
@@ -23,7 +23,7 @@ li{background:#fff;border-radius:1rem;padding:1rem;margin:0 0 .75rem;box-shadow:
 .t{font-weight:600;overflow-wrap:anywhere}
 .m{color:#57534e;font-size:.875rem}
 .d{margin:.25rem 0 0;font-size:.9rem;white-space:pre-line;overflow-wrap:anywhere}
-a{color:#9a3f22;display:inline-flex;min-height:44px;align-items:center}
+a{color:#9a3f22;display:inline-flex;margin-right:1rem;min-height:44px;align-items:center}
 footer{color:#78716c;font-size:.75rem;text-align:center;margin-top:2rem}
 `;
 
@@ -35,6 +35,7 @@ export function renderSharedList(v: SharedListView): string {
       .map(esc)
       .join(" · ");
     const url = httpsUrl(w.url);
+    const img = httpsUrl(w.imageUrl ?? null);
     return `<li data-testid="shared-wish"><div class="t">${esc(w.title)}</div>${meta ? `<div class="m">${meta}</div>` : ""}${
       w.description ? `<p class="d">${esc(w.description)}</p>` : ""
     }${url ? `<a href="${esc(url)}" rel="noopener noreferrer nofollow" target="_blank">Zum Angebot (${esc(new URL(url).hostname)})</a>` : ""}</li>`;

@@ -203,10 +203,14 @@ export default async function Wunschzettel({
               ) : null}
               <ShareCreate listId={list.id} exists={Boolean(share)} />
               {share ? (
-                <form action={revokeShareAction}>
-                  <Hidden listId={list.id} />
-                  <button className={ghostButtonCls}>Link widerrufen</button>
-                </form>
+                <details data-testid="share-revoke">
+                  <summary className="flex min-h-11 cursor-pointer items-center text-sm text-terracotta-dark underline">Link widerrufen …</summary>
+                  <form action={revokeShareAction} className="mt-2 space-y-2">
+                    <Hidden listId={list.id} />
+                    <p className="text-sm font-medium">Link wirklich widerrufen? Wer ihn hat, sieht den Wunschzettel dann nicht mehr.</p>
+                    <button className={ghostButtonCls}>Endgültig widerrufen</button>
+                  </form>
+                </details>
               ) : null}
             </div>
           </Card>

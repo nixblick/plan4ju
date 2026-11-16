@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { errorMessages } from "@/lib/messages";
 import { createShareAction } from "../wunsch-actions";
 import { buttonCls, inputCls } from "../ui";
@@ -8,12 +8,23 @@ import { buttonCls, inputCls } from "../ui";
 /** Creates the share link of a wish list and shows it exactly once (like the calendar link). */
 export function ShareCreate({ listId, exists }: { listId: string; exists: boolean }) {
   const [state, action, pending] = useActionState(createShareAction, null);
+  const [copied, setCopied] = useState(false);
   return (
     <div className="space-y-3">
       {state && "url" in state ? (
         <div className="space-y-2" data-testid="share-url">
           <p className="text-sm font-medium">Dein neuer Link (wird nur jetzt angezeigt):</p>
           <input readOnly value={state.url} className={`${inputCls} font-mono text-sm`} aria-label="Link zum Wunschzettel" onFocus={(e) => e.currentTarget.select()} />
+          <button
+            type="button"
+            className={buttonCls}
+            onClick={() => {
+              navigator.clipboard?.writeText(state.url).then(() => setCopied(true), () => setCopied(false));
+            }}
+          >
+            Link kopieren
+          </button>
+          <p role="status" className="text-sm text-stone-600">{copied ? "Kopiert." : ""}</p>
         </div>
       ) : null}
       {state && "error" in state ? <p role="alert" className="text-sm text-red-700">{errorMessages[state.error] ?? "Das hat nicht geklappt."}</p> : null}

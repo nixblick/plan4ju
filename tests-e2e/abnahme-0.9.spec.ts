@@ -201,7 +201,8 @@ test.describe.serial("Abnahme Release 0.9", () => {
     expect((await v.goto(path))?.status()).toBe(404);
     expect((await v.goto(new URL(url2).pathname))?.status()).toBe(200);
     await a.reload();
-    await a.getByTestId("share-card").getByRole("button", { name: "Link widerrufen" }).click();
+    await a.getByTestId("share-revoke").locator("summary").click();
+    await a.getByTestId("share-card").getByRole("button", { name: "Endgültig widerrufen" }).click();
     await expect(a.getByText("Link widerrufen.", { exact: false })).toBeVisible();
     expect((await v.goto(new URL(url2).pathname))?.status()).toBe(404);
     // Ben (no edit right) sees no share card
