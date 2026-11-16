@@ -43,3 +43,46 @@ export function visibleElements(modules: Record<ModuleKey, boolean>, hidden: rea
   const h = new Set(hidden);
   return new Set(allowedElements(modules).filter((k) => !h.has(k)));
 }
+
+/**
+ * Default order of the start page (Release 0.9): the meals of the day sit directly above the tasks. Every user
+ * can change the order (Einstellungen → Module → Meine Startseite).
+ */
+export const DEFAULT_ORDER: readonly DashboardElement[] = [
+  "next", "today", "week", "events", "routines", "meals", "tasks", "waste", "school", "stars", "birthdays", "mindfulness",
+];
+
+/**
+ * The full display order from a stored list: known keys in their stored order (duplicates and unknown keys
+ * dropped), every missing key inserted after its predecessor in the default order (or first).
+ */
+export function orderElements(stored: readonly string[]): DashboardElement[] {
+  const out: DashboardElement[] = [];
+  for (const k of stored) if (isDashboardElement(k) && !out.includes(k)) out.push(k);
+  DEFAULT_ORDER.forEach((k, i) => {
+    if (out.includes(k)) return;
+    let at = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      const pos = out.indexOf(DEFAULT_ORDER[j]!);
+      if (pos >= 0) { at = pos + 1; break; }
+    }
+    out.splice(at, 0, k);
+  });
+  return out;
+}
+
+/**
+ * Moves `key` one step up (-1) or down (+1) among the `offered` elements (those the settings list shows);
+ * elements not offered keep their place. Returns the new full order; unchanged at the edges.
+ */
+export function moveElement(order: readonly DashboardElement[], offered: readonly string[], key: string, dir: -1 | 1): DashboardElement[] {
+  const full = orderElements(order);
+  const seq = full.filter((k) => offered.includes(k));
+  const i = seq.indexOf(key as DashboardElement);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= seq.length) return full;
+  const a = full.indexOf(seq[i]!);
+  const b = full.indexOf(seq[j]!);
+  [full[a], full[b]] = [full[b]!, full[a]!];
+  return full;
+}

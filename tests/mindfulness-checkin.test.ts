@@ -61,7 +61,7 @@ describe("questionnaire", () => {
   });
 
   it("the visibility setting applies to new check-ins only; health never goes to the family", async () => {
-    expect(await getPref(f.userA, f.familyA, app)).toEqual({ visibility: "PRIVATE", viewerIds: [] });
+    expect(await getPref(f.userA, f.familyA, app)).toEqual({ visibility: "PRIVATE", viewerIds: [], symbol: "EMOJI" });
     await savePref(f.userA, f.familyA, { visibility: "FAMILY" }, app);
     await saveCheckin(f.userA, f.familyA, { profileId: f.profileA, date: "2026-11-15", ratings: [{ topic: "FOOD", rating: 2 }, { topic: "HEALTH", rating: 3 }] }, app);
     const seen = await listEntries(f.userBoth, f.familyA, { ...range, profileId: f.profileA }, app);

@@ -1,7 +1,7 @@
 "use server";
 
 import { TOPICS, VISIBILITIES, type Topic, type Visibility } from "@/lib/achtsamkeit";
-import { deleteCheckin, deleteEntry, saveCheckin, saveEntry, savePref } from "@/server/services/mindfulness";
+import { deleteCheckin, deleteEntry, saveCheckin, saveEntry, savePref, saveSymbol } from "@/server/services/mindfulness";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireFamily } from "@/server/session";
@@ -82,5 +82,11 @@ export async function savePrefAction(form: FormData) {
 export async function deleteCheckinAction(form: FormData) {
   await run(form, "achtsamkeit-geloescht", async ({ user, familyId }) => {
     await deleteCheckin(user.id, familyId, text(form, "checkinId").slice(0, 100));
+  });
+}
+
+export async function saveSymbolAction(form: FormData) {
+  await run(form, "achtsamkeit-symbol", async ({ user, familyId }) => {
+    await saveSymbol(user.id, familyId, text(form, "symbol"));
   });
 }

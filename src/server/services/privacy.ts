@@ -81,7 +81,10 @@ export async function exportOwnData(userId: string, client?: PrismaClient) {
               select: { kind: true, title: true, link: true, createdAt: true, readAt: true },
             }),
             notificationPrefs: await tx.notificationPref.findMany({ where: { userId } }),
-            dashboardPrefs: await tx.dashboardPref.findMany({ where: { userId }, select: { hidden: true, updatedAt: true } }),
+            dashboardPrefs: await tx.dashboardPref.findMany({ where: { userId }, select: { hidden: true, order: true, updatedAt: true } }),
+            mindfulnessPrefs: await tx.mindfulnessPref.findMany({ where: { userId }, select: { visibility: true, viewerIds: true, symbol: true, updatedAt: true } }),
+            // Share links the user created: which list and when; the token itself is never stored.
+            wishlistShares: await tx.wishlistShare.findMany({ where: { createdById: userId }, select: { listId: true, createdAt: true } }),
           };
         },
         client,

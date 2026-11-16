@@ -5,8 +5,8 @@ import { atLeast } from "@/server/permissions";
 import { getModules } from "@/server/services/modules";
 import { requireFamily } from "@/server/session";
 import { allowedElements, DASHBOARD_ELEMENTS } from "@/lib/dashboard-elements";
-import { getHiddenElements } from "@/server/services/dashboard-prefs";
-import { setDashboardAction, setModuleAction } from "../../module-actions";
+import { getDashboardLayout } from "@/server/services/dashboard-prefs";
+import { moveDashboardAction, setDashboardAction, setModuleAction } from "../../module-actions";
 import { buttonCls, Card, ghostButtonCls, Notice } from "../../ui";
 import { EinstellungenTabs } from "../tabs";
 
@@ -18,8 +18,10 @@ export default async function Module({ searchParams }: { searchParams: Promise<R
   const sp = await searchParams;
   const fehler = one(sp.fehler);
   const ok = one(sp.ok);
-  const [state, hidden] = await Promise.all([getModules(user.id, familyId), getHiddenElements(user.id, familyId)]);
-  const offered = allowedElements(state);
+  const [state, layout] = await Promise.all([getModules(user.id, familyId), getDashboardLayout(user.id, familyId)]);
+  const { hidden } = layout;
+  const allowed = allowedElements(state);
+  const offered = layout.order.filter((k) => allowed.includes(k));
   const isAdmin = atLeast(role, "ADMIN");
   return (
     <div className="space-y-6">
@@ -59,20 +61,35 @@ export default async function Module({ searchParams }: { searchParams: Promise<R
       </Card>
       <Card title="Meine Startseite">
         <form action={setDashboardAction} className="space-y-3" data-testid="dashboard-prefs">
+          {/* Enter in the form saves the ticks, not the first arrow button. */}
+          <button className="hidden" tabIndex={-1} aria-hidden="true">Startseite speichern</button>
           <p className="text-sm text-stone-600">
-            Was „Heute“ für dich zeigt. Gilt nur für dich; Elemente ausgeschalteter Module erscheinen hier nicht.
+            Was „Heute“ für dich zeigt und in welcher Reihenfolge (von oben nach unten). Gilt nur für dich; Elemente
+            ausgeschalteter Module erscheinen hier nicht. „Nach oben“ und „Nach unten“ speichern sofort, auch die Haken.
           </p>
-          <ul className="grid gap-x-6 sm:grid-cols-2">
-            {offered.map((k) => (
-              <li key={k}>
+          <ol className="divide-y divide-stone-100" data-testid="dashboard-order">
+            {offered.map((k, i) => (
+              <li key={k} className="flex items-center gap-2" data-testid="dashboard-row">
                 <input type="hidden" name="offered" value={k} />
-                <label className="flex min-h-11 items-center gap-3 text-sm">
-                  <input type="checkbox" name="show" value={k} defaultChecked={!hidden.includes(k)} className="h-5 w-5 accent-terracotta" />
-                  {DASHBOARD_ELEMENTS[k].label}
+                <label className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-sm">
+                  <input type="checkbox" name="show" value={k} defaultChecked={!hidden.includes(k)} className="h-5 w-5 shrink-0 accent-terracotta" />
+                  <span className="min-w-0 break-words">{DASHBOARD_ELEMENTS[k].label}</span>
                 </label>
+                <span className="flex shrink-0 gap-1">
+                  {i > 0 ? (
+                    <button formAction={moveDashboardAction} name="move" value={`${k}:up`} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-stone-300 bg-white" aria-label={`${DASHBOARD_ELEMENTS[k].label} nach oben`}>
+                      <span aria-hidden="true">↑</span>
+                    </button>
+                  ) : <span className="h-11 w-11" aria-hidden="true" />}
+                  {i < offered.length - 1 ? (
+                    <button formAction={moveDashboardAction} name="move" value={`${k}:down`} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-stone-300 bg-white" aria-label={`${DASHBOARD_ELEMENTS[k].label} nach unten`}>
+                      <span aria-hidden="true">↓</span>
+                    </button>
+                  ) : <span className="h-11 w-11" aria-hidden="true" />}
+                </span>
               </li>
             ))}
-          </ul>
+          </ol>
           <button className={buttonCls}>Startseite speichern</button>
         </form>
       </Card>

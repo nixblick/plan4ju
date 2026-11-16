@@ -12,7 +12,9 @@ Seit 0.3.4/0.3.5, Release 0.4. Erreichbar über die Unter-Navigation „Geburtst
 - **Orte** mit Name, Kategorie, Koordinaten (Tipp auf die Karte, Markierung ziehbar, oder Eingabe), Adresse als Text,
   Beschreibung, Notiz, Link und Bild-Link (nur https, nur verlinkt), Bewertung 1–5, Ersteller und Datum.
   Alle Orte sind für die ganze Familie sichtbar; ändern, verschieben und löschen darf der Ersteller oder ein Admin.
-- **Filter** nach Kategorie, Ersteller und Name; die Liste steht mobil unter, auf großen Bildschirmen neben der Karte.
+- **Zwei Tabs** (0.9): „Karte und Liste“ mit Filter nach Kategorie, Ersteller und Name, der Karte und darunter der
+  Liste; „Neuer Ort“ (`/karte?tab=neu`) mit zuerst der Adresssuche, dann der Karte (Tippen setzt die Position), dann den
+  übrigen Feldern.
 
 ## Veranstaltungen (Orte mit Zeitraum)
 

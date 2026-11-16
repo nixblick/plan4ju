@@ -5,8 +5,8 @@ import { parseIso, weekdayIndex } from "@/lib/week";
 import { syncStaleCalendars } from "@/server/services/calendar";
 import { getDashboard, type DashTask } from "@/server/services/dashboard";
 import { activeModules } from "@/server/active-modules";
-import { visibleElements } from "@/lib/dashboard-elements";
-import { getHiddenElements } from "@/server/services/dashboard-prefs";
+import { visibleElements, type DashboardElement } from "@/lib/dashboard-elements";
+import { getDashboardLayout } from "@/server/services/dashboard-prefs";
 import { requireFamily } from "@/server/session";
 import { DashboardHeader } from "./clock";
 import { occurrenceStatusAction } from "./planung-actions";
@@ -76,23 +76,14 @@ function TaskList({ tasks, profiles, empty, showDue }: { tasks: DashTask[]; prof
 export default async function Home() {
   const { user, familyId } = await requireFamily();
   const now = new Date();
-  const [d, modules, hidden] = await Promise.all([getDashboard(user.id, familyId, now), activeModules(), getHiddenElements(user.id, familyId)]);
-  // per user (Einstellungen → Module): what the family allows, minus what this user hid
-  const show = visibleElements(modules, hidden);
+  const [d, modules, layout] = await Promise.all([getDashboard(user.id, familyId, now), activeModules(), getDashboardLayout(user.id, familyId)]);
+  // per user (Einstellungen → Module): what the family allows, minus what this user hid, in the user's order
+  const show = visibleElements(modules, layout.hidden);
+  const order = layout.order;
   // refresh stale calendar subscriptions after the response is sent
   after(() => syncStaleCalendars(user.id, familyId));
   const when = (n: number) => (n === -2 ? "vorgestern" : n === -1 ? "gestern" : n === 0 ? "heute" : n === 1 ? "morgen" : `in ${n} Tagen`);
-  const side = show.has("meals") || show.has("waste") || show.has("school") || show.has("stars");
-
-  return (
-    <div className="space-y-6">
-      <DashboardHeader timeZone={d.timezone} familyName={d.familyName} initial={now.getTime()} />
-
-      <div className={`grid gap-6 ${side ? "xl:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
-        <div className="min-w-0 space-y-6">
-          {show.has("next") ? <NextCard d={d} now={now} /> : null}
-          {show.has("today") ? <TodayStrip d={d} now={now} /> : null}
-      {show.has("week") ? (
+  const WEEK = (
       <section aria-labelledby="woche" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200" data-testid="week">
         <h2 id="woche" className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-600">Diese Woche</h2>
         <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
@@ -165,17 +156,16 @@ export default async function Home() {
           </ul>
         ) : null}
       </section>
-      ) : null}
-        </div>
-        {side ? (
-        <aside className="grid content-start gap-4 sm:grid-cols-3 xl:grid-cols-1" aria-label="Weitere Module">
-          {d.mealsToday && show.has("meals") ? (
+  );
+  const mealsToday = d.mealsToday ?? [];
+  const nextPickups = d.nextPickups ?? [];
+  const MEALS = (
           <Tile title="Essen heute" href="/essen">
-            {d.mealsToday.length === 0 ? (
+            {mealsToday.length === 0 ? (
               <p className="text-sm text-stone-600">Für heute ist noch nichts geplant.</p>
             ) : (
               <ul className="space-y-2">
-                {d.mealsToday.map((m) => (
+                {mealsToday.map((m) => (
                   <li key={m.id} className="flex items-start gap-2 text-sm" data-testid="today-meal">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-xl" aria-hidden="true">🍽</span>
                     <span className="min-w-0 flex-1">
@@ -198,14 +188,14 @@ export default async function Home() {
               </ul>
             )}
           </Tile>
-          ) : null}
-          {d.nextPickups && show.has("waste") ? (
+  );
+  const WASTE = (
             <Tile title="FES" href="/kalender/abfall">
-              {d.nextPickups.length === 0 ? (
+              {nextPickups.length === 0 ? (
                 <p className="text-sm text-stone-600">In den nächsten 7 Tagen keine Abfuhr.</p>
               ) : (
                 <ul className="space-y-1.5" data-testid="pickups">
-                  {d.nextPickups.map((p) => (
+                  {nextPickups.map((p) => (
                     <li key={p.id} className="flex items-center gap-2 text-sm">
                       <span aria-hidden="true">🗑</span>
                       <span className="shrink-0 text-xs font-medium text-stone-700">{p.label}:</span>
@@ -215,17 +205,8 @@ export default async function Home() {
                 </ul>
               )}
             </Tile>
-          ) : null}
-          {(["school", "stars"] as const).filter((k) => show.has(k)).map((k) => (
-            <Tile key={k} title={k === "school" ? "Schule heute" : "Sterne"} soon>
-              <p className="text-sm text-stone-600">Dieses Modul folgt in einer späteren Version.</p>
-            </Tile>
-          ))}
-        </aside>
-        ) : null}
-      </div>
-
-      {show.has("events") ? (
+  );
+  const EVENTS = (
 
       <Tile title="Termine heute" href="/kalender" count={d.eventsToday.length}>
         {d.eventsToday.length === 0 ? (
@@ -244,9 +225,8 @@ export default async function Home() {
           </ul>
         )}
       </Tile>
-      ) : null}
-
-      {show.has("routines") ? (
+  );
+  const ROUTINES = (
       <Tile title="Routinen heute" href="/routinen" count={d.routinesToday.filter((o) => o.status === "OPEN").length}>
         {d.routinesToday.length === 0 ? (
           <p className="text-sm text-stone-600">Heute stehen keine Routinen an.</p>
@@ -275,9 +255,8 @@ export default async function Home() {
           </ul>
         )}
       </Tile>
-      ) : null}
-
-      {show.has("tasks") ? (
+  );
+  const TASKS = (
         <section aria-labelledby="aufgaben-gruppe" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200" data-testid="tasks-group">
           <h2 id="aufgaben-gruppe" className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-stone-600">
             <span>Aufgaben</span>
@@ -295,11 +274,8 @@ export default async function Home() {
             </SubTile>
           </div>
         </section>
-      ) : null}
-
-      {show.has("birthdays") || show.has("mindfulness") ? (
-      <div className="grid gap-4 sm:grid-cols-2">
-        {show.has("birthdays") ? (
+  );
+  const BIRTHDAYS = (
         <Tile title="Geburtstage" href="/kalender/geburtstage">
           {d.nextBirthdays.length === 0 ? (
             <p className="text-sm text-stone-600">Keine Geburtstage von vorgestern bis in 3 Tagen.</p>
@@ -314,17 +290,44 @@ export default async function Home() {
             </ul>
           )}
         </Tile>
-        ) : null}
-        {show.has("mindfulness") ? (
+  );
+  const MINDFULNESS = (
           <Tile title="Achtsamkeit">
             <p className="text-sm text-stone-600">Wie war dein Tag? Ein kurzer Eintrag hilft, den Überblick zu behalten.</p>
             <Link href="/achtsamkeit" className="mt-2 inline-flex min-h-11 items-center rounded-xl bg-orange-100 px-4 text-sm font-medium text-terracotta-dark">
               Eintrag für heute
             </Link>
           </Tile>
-        ) : null}
-      </div>
-      ) : null}
+  );
+  const soon = (title: string) => (
+    <Tile title={title} soon>
+      <p className="text-sm text-stone-600">Dieses Modul folgt in einer späteren Version.</p>
+    </Tile>
+  );
+  const SOON_SCHOOL = soon("Schule heute");
+  const SOON_STARS = soon("Sterne");
+
+  const blocks: Record<DashboardElement, ReactNode> = {
+    next: <NextCard d={d} now={now} />,
+    today: <TodayStrip d={d} now={now} />,
+    week: WEEK,
+    meals: d.mealsToday ? MEALS : null,
+    waste: d.nextPickups ? WASTE : null,
+    school: SOON_SCHOOL,
+    stars: SOON_STARS,
+    events: EVENTS,
+    routines: ROUTINES,
+    tasks: TASKS,
+    birthdays: BIRTHDAYS,
+    mindfulness: MINDFULNESS,
+  };
+
+  return (
+    <div className="space-y-6">
+      <DashboardHeader timeZone={d.timezone} familyName={d.familyName} initial={now.getTime()} />
+      {order.filter((k) => show.has(k)).map((k) => (
+        <div key={k} className="min-w-0" data-element={k}>{blocks[k]}</div>
+      ))}
     </div>
   );
 }

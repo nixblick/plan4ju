@@ -8,12 +8,13 @@ import { NotFoundError } from "@/server/errors";
 import { listBirthdays } from "@/server/services/birthdays";
 import { getDashboard } from "@/server/services/dashboard";
 import { listProfiles } from "@/server/services/members";
-import { getWishlist, type WishView } from "@/server/services/wishes";
+import { getWishlist, shareInfo, type WishView } from "@/server/services/wishes";
+import { ShareCreate } from "../share";
 import { requireFamily } from "@/server/session";
 import { ReminderTabs } from "../../reminder-tabs";
 import { buttonCls, Card, ghostButtonCls, Notice } from "../../ui";
 import {
-  createWishAction, deleteWishAction, deleteWishlistAction, releaseWishAction, reserveWishAction, setGivenAction, setWishReceivedAction,
+  createWishAction, deleteWishAction, deleteWishlistAction, releaseWishAction, reserveWishAction, revokeShareAction, setGivenAction, setWishReceivedAction,
   updateWishAction, updateWishlistAction,
 } from "../../wunsch-actions";
 import { ListFields, WishFields } from "../list-fields";
@@ -83,7 +84,12 @@ export default async function Wunschzettel({
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const [dash, profiles, birthdays] = await Promise.all([getDashboard(user.id, familyId), listProfiles(user.id, familyId), listBirthdays(user.id, familyId)]);
+  const [dash, profiles, birthdays, share] = await Promise.all([
+    getDashboard(user.id, familyId),
+    listProfiles(user.id, familyId),
+    listBirthdays(user.id, familyId),
+    shareInfo(user.id, familyId, id),
+  ]);
   const today = todayIn(dash.timezone);
   const next = nextListOccasion(list.wishes.map((w) => w.occasion), today, list.birthday);
 
@@ -183,6 +189,26 @@ export default async function Wunschzettel({
               <WishFields />
               <button className={buttonCls}>Wunsch speichern</button>
             </form>
+          </Card>
+          <Card title="Teilen ohne Konto">
+            <div className="space-y-3" data-testid="share-card">
+              <p className="text-sm text-stone-600">
+                Wer den Link hat, sieht ohne Anmeldung den Vornamen und die offenen Wünsche – nur lesend, ohne Reservierungen
+                und ohne Namen von Schenkenden. Ein neuer Link macht den alten ungültig.
+              </p>
+              {share ? (
+                <p className="text-sm font-medium" data-testid="share-active">
+                  Ein Link ist aktiv (seit {share.createdAt.toLocaleDateString("de-DE", { timeZone: dash.timezone })}).
+                </p>
+              ) : null}
+              <ShareCreate listId={list.id} exists={Boolean(share)} />
+              {share ? (
+                <form action={revokeShareAction}>
+                  <Hidden listId={list.id} />
+                  <button className={ghostButtonCls}>Link widerrufen</button>
+                </form>
+              ) : null}
+            </div>
           </Card>
           <Card title="Wunschzettel bearbeiten">
             <details>

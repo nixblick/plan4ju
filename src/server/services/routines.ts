@@ -293,6 +293,23 @@ export function setRoutineStatus(
   );
 }
 
+/**
+ * Deletes a routine for good (Release 0.9, customer feedback). Its occurrences, past and future, go with it
+ * (ON DELETE CASCADE), so it disappears from the history as well. Whoever wants to keep the history archives
+ * the routine instead; the page says so next to the delete button (CHANGELOG 0.9.0).
+ */
+export function deleteRoutine(userId: string, familyId: string, id: string, client?: PrismaClient) {
+  return withFamilyChange(
+    userId,
+    familyId,
+    async (ctx) => {
+      const res = await ctx.tx.routine.deleteMany({ where: { id, familyId: ctx.familyId } });
+      if (res.count === 0) throw new NotFoundError("Routine not found");
+    },
+    client,
+  );
+}
+
 /** Occurrences of active routines between two local days (inclusive), tops up the window first. */
 export function listOccurrences(
   userId: string,

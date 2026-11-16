@@ -1,12 +1,22 @@
+import type { ReactNode } from "react";
 import type { CategoryView, PoiView } from "@/server/services/map";
 import { Field, inputCls } from "../ui";
 import { AddressSearch } from "./address-search";
 
-/** Form fields of a point. lat/lng get fixed ids so the map can fill them on click. */
-export function PoiFields({ categories, poi, idPrefix }: { categories: CategoryView[]; poi?: PoiView; idPrefix: string }) {
+/**
+ * Form fields of a point. lat/lng get fixed ids so the map can fill them on click. With `map` (tab "Neuer Ort",
+ * Release 0.9) the address search comes first, then the map, then all other fields.
+ */
+export function PoiFields({ categories, poi, idPrefix, map }: { categories: CategoryView[]; poi?: PoiView; idPrefix: string; map?: ReactNode }) {
   const usable = categories.filter((c) => c.active || c.id === poi?.category.id);
   return (
     <>
+      {map ? (
+        <>
+          <AddressSearch idPrefix={idPrefix} />
+          <div className="mb-4">{map}</div>
+        </>
+      ) : null}
       <Field label="Name">
         <input name="name" required maxLength={120} defaultValue={poi?.name} className={inputCls} />
       </Field>
@@ -18,7 +28,7 @@ export function PoiFields({ categories, poi, idPrefix }: { categories: CategoryV
           ))}
         </select>
       </Field>
-      <AddressSearch idPrefix={idPrefix} />
+      {map ? null : <AddressSearch idPrefix={idPrefix} />}
       <p className="mb-2 text-sm text-stone-600">Position: Adresse suchen, „Mein Standort“, auf die Karte tippen (Markierung lässt sich ziehen) oder Koordinaten eingeben.</p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Breite (Lat)">

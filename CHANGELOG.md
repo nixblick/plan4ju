@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## 0.9.0 (16.11.2026)
+
+Customer feedback (#20): POI in two tabs, start page order, mindfulness topics and symbol, deleting routines, sharing wish lists.
+
+- POI: two tabs. "Karte und Liste" shows the map with the list below and the filters (category, author, name). "Neuer Ort" has the address search first, then the map (tap or drag sets the position), then the other fields. Saving with an error returns to the "Neuer Ort" tab.
+- Start page ("Heute"): every user sets the order of the elements, not only whether they show (Einstellungen → Module → "Meine Startseite", buttons "nach oben"/"nach unten" with accessible names, no drag and drop; a click also saves the ticks). Stored per user in `dashboard_pref.order` (own row only, at most 30 keys, unknown keys ignored). Default order: meals of the day directly above the tasks. The start page is now one column in the user's order; the side column on wide screens is gone, because a free order cannot be split into two columns.
+- Mindfulness: new topics "Bewegung", "Frische Luft" and "Soziale Kontakte" (enum values `MOVEMENT`, `FRESH_AIR`, `SOCIAL`, own migration). Rating symbol per user: emojis (default) or colour coded circles in pastel from bad to good (red, orange, yellow, green, blue). Each circle shows its number and has a darker border, screen readers hear "4 von 5 (gut)"; the setting (`mindfulness_pref.symbol`, DB check) is changed without touching the visibility.
+- Routines can be deleted (edit page, "Löschen …" then "Endgültig löschen"). Decision: deleting removes the routine with all its occurrences, past ones included, so it also leaves the history; whoever wants to keep the history archives instead. The page says so.
+- Wish lists: read-only share link for people without an account (docs/wunschzettel.md). Random 256 bit token, only its SHA-256 hash in the new table `wishlist_share` (RLS: family and list visibility; one link per list), shown once. A new link replaces the old one, "Link widerrufen" ends it. The public page `/geteilt/wunschzettel/<token>` shows only the owner's first name and the open wishes (title, description, https link, price, priority, occasion); never reservations, givers, notes, list title or received wishes. It is plain HTML outside the app layout (no navigation, no analytics, no scripts), with `noindex`, `no-store` and `no-referrer`, a rate limit per link and per address for unknown links, and 404 for unknown, revoked or switched-off links. Only who may edit the list can share it. A link stops working when its creator leaves the family or the wishes module is switched off.
+- Privacy export: start page order, mindfulness setting (with the symbol) and the share links one created (list and date, never the token).
+- Tests: `tests/release-0.9.test.ts` (order, topics, symbol, routine delete, share link incl. RLS, rotation, revocation, module off, escaping), RLS sweep with `wishlist_share`; Playwright: `karte.spec.ts`, `achtsamkeit.spec.ts`, `wuensche.spec.ts`, `module.spec.ts` adapted/extended, new `abnahme-0.9.spec.ts`.
+
 ## 0.8.2 (14.11.2026)
 
 Tooling only, the app is unchanged (no rollout).

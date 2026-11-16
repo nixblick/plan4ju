@@ -6,6 +6,7 @@ import { ConflictError, DayTakenError, ForbiddenError, ModuleOffError, NotFoundE
 import { createBirthday, deleteBirthday, updateBirthday } from "@/server/services/birthdays";
 import {
   createRoutine,
+  deleteRoutine,
   moveOccurrence,
   setOccurrenceAssignees,
   setOccurrenceStatus,
@@ -150,6 +151,10 @@ export async function routineStatusAction(form: FormData) {
   const status = text(form, "status") as "ACTIVE" | "PAUSED" | "ARCHIVED";
   const ok = status === "ARCHIVED" ? "routine-archiviert" : status === "PAUSED" ? "routine-pausiert" : "routine-aktiv";
   await run("/routinen?tab=alle", ok, (a) => setRoutineStatus(a.user.id, a.familyId, text(form, "routineId"), status));
+}
+
+export async function deleteRoutineAction(form: FormData) {
+  await run("/routinen?tab=alle", "routine-geloescht", (a) => deleteRoutine(a.user.id, a.familyId, text(form, "routineId")));
 }
 
 /** Done / skipped / open for one occurrence; `back` is a local path on this site. */

@@ -25,7 +25,8 @@ async function run(path: string, ok: string, job: (a: Awaited<ReturnType<typeof 
     else failure = calendarErrorCode(e);
   }
   revalidatePath("/", "layout");
-  redirect(failure ? `${path}?fehler=${failure}` : `${target}?ok=${ok}`);
+  const sep = (p: string) => (p.includes("?") ? "&" : "?");
+  redirect(failure ? `${path}${sep(path)}fehler=${failure}` : `${target}${sep(target)}ok=${ok}`);
 }
 
 function poiFromForm(form: FormData): PoiInput {
@@ -58,7 +59,7 @@ function categoryFromForm(form: FormData) {
 }
 
 export async function createPoiAction(form: FormData) {
-  await run("/karte", "ort", async ({ user, familyId }) => {
+  await run("/karte?tab=neu", "ort", async ({ user, familyId }) => {
     const p = await createPoi(user.id, familyId, poiFromForm(form));
     return `/karte/${p.id}`;
   });

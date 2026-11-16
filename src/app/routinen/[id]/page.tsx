@@ -6,7 +6,7 @@ import { NotFoundError } from "@/server/errors";
 import { getDashboard } from "@/server/services/dashboard";
 import { getRoutine, listOccurrences } from "@/server/services/routines";
 import { requireFamily } from "@/server/session";
-import { routineStatusAction, updateRoutineAction } from "../../planung-actions";
+import { deleteRoutineAction, routineStatusAction, updateRoutineAction } from "../../planung-actions";
 import { buttonCls, Card, ghostButtonCls, Notice } from "../../ui";
 import { RoutineFields } from "../form";
 import { OccurrenceRow } from "../occurrences";
@@ -100,6 +100,20 @@ export default async function RoutineBearbeiten({
           ) : null}
         </div>
         <p className="mt-3 text-xs text-stone-600">Erledigte Termine bleiben erhalten. Offene künftige Termine werden beim Pausieren entfernt.</p>
+      </Card>
+
+      <Card title="Routine löschen">
+        <p className="text-sm text-stone-600">
+          Löschen entfernt die Routine mit allen Terminen, auch den erledigten aus der Vergangenheit. Wer den Verlauf behalten will, archiviert sie stattdessen.
+        </p>
+        <details className="mt-2" data-testid="routine-delete">
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm text-terracotta-dark underline">Löschen …</summary>
+          <form action={deleteRoutineAction} className="mt-2 space-y-2">
+            <input type="hidden" name="routineId" value={routine.id} />
+            <p className="text-sm font-medium">„{routine.title}“ wirklich löschen? Das lässt sich nicht rückgängig machen.</p>
+            <button className={ghostButtonCls}>Endgültig löschen</button>
+          </form>
+        </details>
       </Card>
     </div>
   );

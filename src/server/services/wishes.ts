@@ -5,6 +5,8 @@ import { atLeast } from "../permissions";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { type FamilyContext } from "../tenant";
 import { withModule } from "./modules";
+import { prisma } from "../db";
+import { generateToken, hashToken } from "../tokens";
 
 // Surprise protection (docs/wunschzettel.md): the wishing person is the user linked to the list's profile.
 // In surprise mode that person gets no reservation information at all; row level security hides the
@@ -373,4 +375,69 @@ export async function canEditWish(ctx: FamilyContext, wishId: string): Promise<b
     if (e instanceof NotFoundError) return false;
     throw e;
   }
+}
+
+// ---- Share link (Release 0.9, docs/wunschzettel.md) ------------------------------------------------------
+// A read-only link for people without an account. Only the hash of a 256 bit random token is stored; the
+// token is shown once. A new link replaces the old one, revoking deletes it. Whoever may edit the list may
+// share it. The public read goes through app_wishlist_share_lookup, which returns a whitelist only.
+
+/** Creates (or replaces) the share link of a list; returns the token once. */
+export function createShare(userId: string, familyId: string, listId: string, client?: PrismaClient): Promise<string> {
+  return withModule("wishes", userId, familyId, async (ctx) => {
+    const l = await loadEditable(ctx, listId);
+    const token = generateToken();
+    await ctx.tx.wishlistShare.deleteMany({ where: { listId: l.id, familyId: ctx.familyId } });
+    await ctx.tx.wishlistShare.create({ data: { familyId: ctx.familyId, listId: l.id, tokenHash: hashToken(token), createdById: ctx.userId } });
+    return token;
+  }, client);
+}
+
+export function revokeShare(userId: string, familyId: string, listId: string, client?: PrismaClient): Promise<void> {
+  return withModule("wishes", userId, familyId, async (ctx) => {
+    const l = await loadEditable(ctx, listId);
+    await ctx.tx.wishlistShare.deleteMany({ where: { listId: l.id, familyId: ctx.familyId } });
+  }, client);
+}
+
+/** When the list's current link was created, or null without one. */
+export function shareInfo(userId: string, familyId: string, listId: string, client?: PrismaClient): Promise<{ createdAt: Date } | null> {
+  return withModule("wishes", userId, familyId, async (ctx) => {
+    return ctx.tx.wishlistShare.findFirst({ where: { listId, familyId: ctx.familyId }, select: { createdAt: true } });
+  }, client);
+}
+
+export interface SharedWish {
+  title: string;
+  description: string | null;
+  url: string | null;
+  priceCents: number | null;
+  priority: number;
+  occasion: Occasion;
+}
+
+export interface SharedList {
+  ownerName: string;
+  wishes: SharedWish[];
+}
+
+export const SHARE_TOKEN = /^[A-Za-z0-9_-]{43}$/;
+
+/** Contextless: the public view of a shared list, or null (unknown, revoked, malformed, module off). */
+export async function resolveShare(token: string, client: PrismaClient = prisma): Promise<SharedList | null> {
+  if (!SHARE_TOKEN.test(token)) return null;
+  const rows = await client.$queryRaw<{ data: SharedList | null }[]>`SELECT app_wishlist_share_lookup(${hashToken(token)}) AS data`;
+  const d = rows[0]?.data;
+  if (!d) return null;
+  return {
+    ownerName: String(d.ownerName ?? "").slice(0, 60),
+    wishes: (d.wishes ?? []).map((w) => ({
+      title: String(w.title),
+      description: w.description ?? null,
+      url: httpsUrl(w.url),
+      priceCents: typeof w.priceCents === "number" ? w.priceCents : null,
+      priority: Number(w.priority),
+      occasion: (OCCASIONS as readonly string[]).includes(w.occasion) ? w.occasion : "ANY",
+    })),
+  };
 }

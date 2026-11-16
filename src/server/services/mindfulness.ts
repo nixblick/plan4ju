@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { allowedVisibilities, NOTE_MAX, TOPICS, VISIBILITIES, type Topic, type Visibility } from "../../lib/achtsamkeit";
+import { allowedVisibilities, isSymbol, NOTE_MAX, SYMBOLS, TOPICS, VISIBILITIES, type RatingSymbol, type Topic, type Visibility } from "../../lib/achtsamkeit";
 import { todayIn } from "../../lib/week";
 import { ForbiddenError, NotFoundError } from "../errors";
 import { type FamilyContext } from "../tenant";
@@ -112,11 +112,14 @@ export async function saveEntry(userId: string, familyId: string, input: EntryIn
 export interface MindfulnessPrefView {
   visibility: Visibility;
   viewerIds: string[];
+  symbol: RatingSymbol;
 }
 
 async function readPref(ctx: FamilyContext): Promise<MindfulnessPrefView> {
   const p = await ctx.tx.mindfulnessPref.findUnique({ where: { familyId_userId: { familyId: ctx.familyId, userId: ctx.userId } } });
-  return p ? { visibility: p.visibility, viewerIds: p.viewerIds } : { visibility: "PRIVATE", viewerIds: [] };
+  return p
+    ? { visibility: p.visibility, viewerIds: p.viewerIds, symbol: isSymbol(p.symbol) ? p.symbol : "EMOJI" }
+    : { visibility: "PRIVATE", viewerIds: [], symbol: "EMOJI" };
 }
 
 export function getPref(userId: string, familyId: string, client?: PrismaClient) {
@@ -149,11 +152,23 @@ export function savePref(userId: string, familyId: string, raw: z.input<typeof p
   }, client);
 }
 
+/** Saves only the rating symbol; visibility and viewers stay as they are. */
+export async function saveSymbol(userId: string, familyId: string, symbol: string, client?: PrismaClient) {
+  const s = z.enum(SYMBOLS).parse(symbol);
+  return withModule("mindfulness", userId, familyId, async (ctx) => {
+    await ctx.tx.mindfulnessPref.upsert({
+      where: { familyId_userId: { familyId, userId } },
+      update: { symbol: s },
+      create: { familyId, userId, symbol: s },
+    });
+  }, client);
+}
+
 /**
  * Visibility of one topic under the user's setting. Health is never visible to the whole family:
  * with "Ganze Familie" it stays private (also a DB check).
  */
-export function visibilityFor(topic: Topic, pref: MindfulnessPrefView): Visibility {
+export function visibilityFor(topic: Topic, pref: Pick<MindfulnessPrefView, "visibility">): Visibility {
   return allowedVisibilities(topic).includes(pref.visibility) ? pref.visibility : "PRIVATE";
 }
 
@@ -184,7 +199,7 @@ export async function saveCheckin(userId: string, familyId: string, input: Check
     const viewers = pref.viewerIds.length
       ? (await ctx.tx.familyMembership.findMany({ where: { familyId, userId: { in: pref.viewerIds } }, select: { userId: true } })).map((m) => m.userId)
       : [];
-    const effective: MindfulnessPrefView = pref.visibility === "SELECTED" && viewers.length === 0 ? { visibility: "PRIVATE", viewerIds: [] } : { visibility: pref.visibility, viewerIds: viewers };
+    const effective: MindfulnessPrefView = pref.visibility === "SELECTED" && viewers.length === 0 ? { ...pref, visibility: "PRIVATE", viewerIds: [] } : { ...pref, viewerIds: viewers };
     const date = new Date(`${v.date}T00:00:00Z`);
     const checkinId = randomUUID();
     for (const r of v.ratings) {

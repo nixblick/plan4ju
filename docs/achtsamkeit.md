@@ -1,7 +1,7 @@
 # Achtsamkeit
 
-Jede Person bewertet für sich, wie es ihr in sechs Themen geht: Essen, Schlaf, Stimmung, Arbeit,
-Freizeit, Gesundheit. Skala 1 bis 5 mit festen Emojis und Worten:
+Jede Person bewertet für sich, wie es ihr in neun Themen geht: Essen, Schlaf, Stimmung, Arbeit,
+Freizeit, Gesundheit und seit 0.9 Bewegung, Frische Luft, Soziale Kontakte. Skala 1 bis 5 mit festen Emojis und Worten:
 
 | Wert | Emoji | Wort |
 |---|---|---|
@@ -18,6 +18,11 @@ Eintrag (`checkinId` gruppiert die Zeilen je Thema); ein Thema, das dieselbe Per
 bewertet hat, wird überschrieben. Dazu Datum (lokaler Tag der Familie) und eine optionale Notiz. Ansichten: Woche (Thema × Tag),
 Monat (Durchschnitt je Thema), Verlauf je Person, filterbar nach Thema. Keine Diagnose, keine
 automatische Bewertung.
+
+Symbol (0.9): Jede Person wählt oben auf der Seite „Emojis“ (Standard) oder „Farbkreise“. Die Kreise sind pastellfarben
+von schlecht nach gut: 1 rot, 2 orange, 3 gelb, 4 grün, 5 blau. Jeder Kreis zeigt seine Zahl und hat einen dunkleren
+Rand, Screenreader hören „4 von 5 (gut)“; die Farbe ist nie die einzige Information. Gespeichert in
+`mindfulness_pref.symbol` (nur die eigene Zeile), unabhängig von der Sichtbarkeit.
 
 Seite: `/achtsamkeit`, Unter-Tab „Achtsamkeit“ im Bereich Familie (die Tab-Leiste bleibt bei 7).
 

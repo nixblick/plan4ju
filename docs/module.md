@@ -27,6 +27,10 @@ Stand 0.4.x. Dieses Dokument sagt, was gebaut ist und was bewusst nicht.
 - Gespeichert wird nur die Liste der **ausgeblendeten** Elemente (Tabelle `dashboard_pref`, RLS: nur die eigene Zeile,
   auch Owner sehen fremde Einstellungen nicht). Neue Elemente sind damit automatisch sichtbar; unbekannte Schlüssel werden
   ignoriert. Elemente eines gerade ausgeschalteten Moduls behalten beim Speichern ihre frühere Einstellung.
+- Reihenfolge (0.9): Jeder Nutzer ordnet die Elemente mit „nach oben“/„nach unten“ (Knöpfe mit Namen, per Tastatur
+  bedienbar, kein Ziehen). Gespeichert als vollständige Liste in `dashboard_pref.order`; fehlende Schlüssel kommen an ihren
+  Standardplatz, unbekannte werden ignoriert. Standard: Essen heute steht direkt über den Aufgaben. Die Startseite ist
+  dafür einspaltig; die Seitenspalte auf breiten Bildschirmen entfällt.
 - Geburtstage auf der Startseite: die letzten 2 und die nächsten 3 Tage („vorgestern“ bis „in 3 Tagen“), auch über den
   Jahreswechsel; die volle Liste steht unter Kalender → Geburtstage.
 - Kein Modul ist Voraussetzung für eine Kernfunktion. Startseite, Kalender, Aufgaben und Einkauf lesen nur gespeicherte Daten;

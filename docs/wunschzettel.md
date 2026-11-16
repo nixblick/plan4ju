@@ -43,3 +43,18 @@ kein Abruf fremder Server beim Anzeigen, keine Änderung der Content-Security-Po
 - **Erhalten** markiert die beschenkte Person (oder wer die Liste bearbeitet); das sehen alle.
 
 Getestet in `tests/wishes.test.ts` (Dienst und Datenbank) und `tests-e2e/wuensche.spec.ts`.
+
+## Teilen ohne Konto (0.9)
+
+- Wer einen Wunschzettel bearbeiten darf, erzeugt auf dessen Seite unter „Teilen ohne Konto“ einen Link. Er wird
+  **nur einmal** angezeigt; gespeichert ist nur der SHA-256-Hash eines zufälligen 256-Bit-Tokens (Tabelle
+  `wishlist_share`, eine Zeile je Liste, RLS: Familie und Sichtbarkeit der Liste).
+- „Neuen Link erzeugen“ macht den alten sofort ungültig, „Link widerrufen“ beendet ihn. Der Link endet auch, wenn die
+  Liste gelöscht wird, das Modul Wunschzettel aus ist oder die Person, die ihn erzeugt hat, die Familie verlässt.
+- Die Seite `/geteilt/wunschzettel/<token>` ist nur lesend und zeigt **nur** den Vornamen der Person und die offenen
+  Wünsche (Titel, Beschreibung, https-Link, Preis, Priorität, Anlass). Nie: Reservierungen, wer schenkt, Notizen,
+  Titel der Liste, erhaltene Wünsche, hochgeladene Bilder (die brauchen eine Anmeldung). Gelesen wird über die
+  `SECURITY DEFINER`-Funktion `app_wishlist_share_lookup`, die genau diese Felder zurückgibt.
+- Schlichtes HTML außerhalb des App-Layouts: keine Navigation, keine Analyse, kein Skript; `noindex`, `no-store`,
+  `no-referrer`. Grenzen: 120 Abrufe je Link und Stunde, 30 unbekannte Links je Adresse und Stunde; unbekannt,
+  widerrufen und ausgeschaltet sehen gleich aus (404).

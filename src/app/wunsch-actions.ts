@@ -5,10 +5,11 @@ import { redirect } from "next/navigation";
 import { ConflictError } from "@/server/errors";
 import { OCCASIONS, parsePrice, type Occasion } from "@/lib/wishes";
 import {
-  createWish, createWishlist, deleteWish, deleteWishlist, releaseWish, reserveWish, setReservationGiven, setWishReceived,
-  updateWish, updateWishlist, type ListInput, type WishInput,
+  createShare, createWish, createWishlist, deleteWish, deleteWishlist, releaseWish, reserveWish, setReservationGiven, setWishReceived,
+  revokeShare, updateWish, updateWishlist, type ListInput, type WishInput,
 } from "@/server/services/wishes";
 import { requireFamily } from "@/server/session";
+import { baseUrl } from "@/server/env";
 import { calendarErrorCode, text } from "./action-helpers";
 
 const id = (form: FormData, k: string) => {
@@ -105,4 +106,23 @@ export async function releaseWishAction(form: FormData) {
 export async function setGivenAction(form: FormData) {
   const on = text(form, "given") === "1";
   await run(listPath(form), on ? "verschenkt" : "gespeichert", ({ user, familyId }) => setReservationGiven(user.id, familyId, id(form, "wishId"), on));
+}
+
+/** Creates a new share link and returns its address once; it is never stored or put into a URL of this app. */
+export async function createShareAction(_prev: { url: string } | { error: string } | null, form: FormData): Promise<{ url: string } | { error: string }> {
+  const { user, familyId } = await requireFamily();
+  const listId = id(form, "listId");
+  try {
+    const token = await createShare(user.id, familyId, listId);
+    revalidatePath(`/wuensche/${listId}`);
+    return { url: `${baseUrl()}/geteilt/wunschzettel/${token}` };
+  } catch (e) {
+    return { error: calendarErrorCode(e) };
+  }
+}
+
+export async function revokeShareAction(form: FormData) {
+  await run(listPath(form), "wunsch-link-weg", async ({ user, familyId }) => {
+    await revokeShare(user.id, familyId, id(form, "listId"));
+  });
 }

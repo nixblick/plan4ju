@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  average, RATINGS, ratingLabel, TOPIC_LABELS, TOPICS, VISIBILITY_LABELS, NOTE_MAX, type Topic,
+  average, RATINGS, ratingText, TOPIC_LABELS, TOPICS, VISIBILITY_LABELS, NOTE_MAX, type Topic,
 } from "@/lib/achtsamkeit";
 import { errorMessages, okMessages, one } from "@/lib/messages";
 import { addDays, weekOf } from "@/lib/week";
@@ -8,7 +8,8 @@ import {
   familyToday, getPref, listEntries, listViewerCandidates, listVisibleProfiles, listWritableProfiles, type EntryView,
 } from "@/server/services/mindfulness";
 import { requireFamily } from "@/server/session";
-import { deleteCheckinAction, saveCheckinAction, savePrefAction } from "../achtsamkeit-actions";
+import { deleteCheckinAction, saveCheckinAction, savePrefAction, saveSymbolAction } from "../achtsamkeit-actions";
+import { RatingMark } from "./rating";
 import { ReminderTabs } from "../reminder-tabs";
 import { buttonCls, Card, ghostButtonCls, inputCls, Notice } from "../ui";
 import { pageModule } from "@/server/active-modules";
@@ -43,6 +44,7 @@ export default async function Achtsamkeit({ searchParams }: { searchParams: Prom
     listViewerCandidates(user.id, familyId),
     getPref(user.id, familyId),
   ]);
+  const symbol = pref.symbol;
   const prefNames = pref.viewerIds.map((v) => viewers.find((x) => x.userId === v)?.name).filter(Boolean);
   const people = [...writable.map((p) => ({ id: p.id, name: p.displayName })), ...visible]
     .filter((p, i, all) => all.findIndex((x) => x.id === p.id) === i);
@@ -117,6 +119,25 @@ export default async function Achtsamkeit({ searchParams }: { searchParams: Prom
       ) : null}
 
       {writable.length > 0 ? (
+        <form action={saveSymbolAction} aria-label="Bewertungssymbol wählen" className="flex flex-wrap items-center gap-2 rounded-2xl bg-white p-3 text-sm ring-1 ring-stone-200" data-testid="symbol-setting">
+          {person ? <input type="hidden" name="person" value={person.id} /> : null}
+          <span className="font-medium">Symbol:</span>
+          {(["EMOJI", "CIRCLE"] as const).map((s) => (
+            <button
+              key={s}
+              name="symbol"
+              value={s}
+              aria-pressed={symbol === s}
+              className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 ${symbol === s ? "border-terracotta bg-orange-50 font-medium" : "border-stone-300 bg-white"}`}
+            >
+              {s === "EMOJI" ? <span aria-hidden="true">🙂</span> : <RatingMark r={4} symbol="CIRCLE" size="sm" />}
+              {s === "EMOJI" ? "Emojis" : "Farbkreise"}
+            </button>
+          ))}
+        </form>
+      ) : null}
+
+      {writable.length > 0 ? (
         <Card title="Wie geht es dir?">
           <form action={saveCheckinAction} aria-label="Fragebogen ausfüllen" className="space-y-3">
             {person ? <input type="hidden" name="person" value={person.id} /> : null}
@@ -145,8 +166,8 @@ export default async function Achtsamkeit({ searchParams }: { searchParams: Prom
                     <div className="grid grid-cols-5 gap-1">
                       {[1, 2, 3, 4, 5].map((r) => (
                         <label key={r} className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-stone-300 bg-white has-[:checked]:border-terracotta has-[:checked]:bg-orange-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-terracotta/50">
-                          <input type="radio" name={`rating-${t}`} value={r} className="sr-only" aria-label={`${TOPIC_LABELS[t]}: ${ratingLabel(r)}`} />
-                          <span className="text-2xl" aria-hidden="true">{RATINGS[r]!.emoji}</span>
+                          <input type="radio" name={`rating-${t}`} value={r} className="sr-only" aria-label={`${TOPIC_LABELS[t]}: ${ratingText(r)}`} />
+                          <RatingMark r={r} symbol={symbol} />
                         </label>
                       ))}
                     </div>
@@ -154,7 +175,7 @@ export default async function Achtsamkeit({ searchParams }: { searchParams: Prom
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-stone-500">😞 schlecht … 😄 super. Kein Thema ist Pflicht: abgehakte oder unbewertete Themen werden nicht gespeichert.</p>
+            <p className="text-xs text-stone-500">{symbol === "CIRCLE" ? "1 rot = schlecht … 5 blau = super." : "😞 schlecht … 😄 super."} Kein Thema ist Pflicht: abgehakte oder unbewertete Themen werden nicht gespeichert.</p>
             <details>
               <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">Notiz hinzufügen (optional)</summary>
               <textarea name="note" maxLength={NOTE_MAX} rows={2} className={inputCls} aria-label="Notiz" />
@@ -217,7 +238,7 @@ export default async function Achtsamkeit({ searchParams }: { searchParams: Prom
                           const es = entries.filter((e) => e.topic === t && e.date === day);
                           return (
                             <td key={day} className="px-0.5 py-1">
-                              {es.map((e) => <span key={e.id} title={ratingLabel(e.rating)} aria-label={ratingLabel(e.rating)}>{RATINGS[e.rating]!.emoji}</span>)}
+                              {es.map((e) => <span key={e.id} role="img" title={ratingText(e.rating)} aria-label={ratingText(e.rating)}><RatingMark r={e.rating} symbol={symbol} size="sm" /></span>)}
                             </td>
                           );
                         })}
@@ -237,7 +258,12 @@ export default async function Achtsamkeit({ searchParams }: { searchParams: Prom
                     <li key={t} className="flex items-center justify-between gap-3 py-2">
                       <span>{TOPIC_LABELS[t]}</span>
                       <span className="text-sm text-stone-700">
-                        {avg == null ? "–" : `${RATINGS[Math.round(avg)]!.emoji} Ø ${avg.toLocaleString("de-DE")} (${rs.length} ${rs.length === 1 ? "Bewertung" : "Bewertungen"})`}
+                        {avg == null ? "–" : (
+                          <span className="inline-flex items-center gap-1">
+                            <RatingMark r={avg} symbol={symbol} size="sm" />
+                            {`Ø ${avg.toLocaleString("de-DE")} (${rs.length} ${rs.length === 1 ? "Bewertung" : "Bewertungen"})`}
+                          </span>
+                        )}
                       </span>
                     </li>
                   );
@@ -265,7 +291,7 @@ export default async function Achtsamkeit({ searchParams }: { searchParams: Prom
                           <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
                             {c.map((x) => (
                               <li key={x.id} className="text-sm" aria-label={`${TOPIC_LABELS[x.topic]}: ${x.rating} von 5 (${RATINGS[x.rating]!.word})`}>
-                                <span aria-hidden="true">{RATINGS[x.rating]!.emoji} {TOPIC_LABELS[x.topic]}</span>
+                                <span aria-hidden="true" className="inline-flex items-center gap-1"><RatingMark r={x.rating} symbol={symbol} size="sm" /> {TOPIC_LABELS[x.topic]}</span>
                               </li>
                             ))}
                           </ul>
