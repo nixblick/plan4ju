@@ -139,11 +139,14 @@ test.describe.serial("Abnahme Release 0.5", () => {
     await a.screenshot({ path: `${shots}/02-prospekte-admin.png`, fullPage: true });
 
     const b = pages.ben!;
-    await b.goto("/einkauf/prospekte");
     const links = b.getByTestId("flyer-link");
-    await expect(links).toHaveCount(5);
-    await expect(links.filter({ hasText: "Lidl" })).toHaveCount(0);
-    await expect(links.filter({ hasText: MARKET }).getByRole("link")).toHaveAttribute("href", "https://markt.example.test/angebote");
+    // Anna's second save shows the same message as the first: wait for the saved state on Ben's side instead
+    await expect(async () => {
+      await b.goto("/einkauf/prospekte");
+      await expect(links).toHaveCount(5);
+      await expect(links.filter({ hasText: "Lidl" })).toHaveCount(0);
+      await expect(links.filter({ hasText: MARKET }).getByRole("link")).toHaveAttribute("href", "https://markt.example.test/angebote");
+    }).toPass({ timeout: 30_000 });
     await expect(links.first().getByRole("link")).toHaveAttribute("rel", /noopener/);
     await expect(b.getByRole("button", { name: "Hinzufügen" })).toHaveCount(0);
     await noOverflow(b);

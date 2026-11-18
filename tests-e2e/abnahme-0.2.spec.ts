@@ -86,13 +86,16 @@ test.describe.serial("Abnahme Release 0.2", () => {
     await p.goto("/aufgaben?tab=neu");
     await p.getByLabel("Was ist zu tun?").fill(TASK_NOBODY);
     await p.getByRole("button", { name: "Aufgabe anlegen" }).click();
+    await expect(p.getByText("Aufgabe angelegt.")).toBeVisible();
     await expect(p.getByTestId("task-row").filter({ hasText: TASK_NOBODY })).toContainText("Niemand zugewiesen");
     await p.screenshot({ path: `${shots}/01-aufgaben.png`, fullPage: true });
 
     // Ben sees the shared task as his own and ticks it off
     const b = sessions.ben!;
-    await b.goto("/");
-    await expect(b.getByRole("region", { name: "Meine Aufgaben" })).toContainText(TASK_BOTH);
+    await expect(async () => {
+      await b.goto("/");
+      await expect(b.getByRole("region", { name: "Meine Aufgaben" })).toContainText(TASK_BOTH);
+    }).toPass({ timeout: 30_000 });
     await b.goto("/aufgaben");
     await expect(b.getByTestId("task-row").filter({ hasText: TASK_BOTH })).toBeVisible();
     // 0.7: "Meine" shows open tasks only; tick it off under "Alle" to see it done

@@ -16,6 +16,9 @@ import { isoDate } from "./routines";
 export const MAX_EVENT_DAYS = 366;
 export const MAX_CALENDARS = 10;
 export const MAX_FILE_BYTES = 2 * 1024 * 1024;
+/** Explicit limit of the write transaction of a file import (Prisma's default is 5 s, too tight for a 2 MB file on a busy host). */
+export const IMPORT_TX_TIMEOUT_MS = 20_000;
+const IMPORT_TX = { timeout: IMPORT_TX_TIMEOUT_MS, maxWait: 10_000 };
 /** A subscription is fetched again when its data is older than this (lazily, when the calendar is opened). */
 export const STALE_AFTER_MS = 60 * 60 * 1000;
 /** Manual refresh: at most once per minute and calendar. */
@@ -519,6 +522,7 @@ export async function importIcsFile(
       return cal;
     },
     client,
+    IMPORT_TX,
   );
 }
 
@@ -544,6 +548,7 @@ export async function reimportIcsFile(userId: string, familyId: string, calendar
       if (r.count === 0) throw new NotFoundError("Calendar not found");
     },
     client,
+    IMPORT_TX,
   );
 }
 

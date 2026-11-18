@@ -106,11 +106,20 @@ test.describe.serial("Abnahme Release 0.9", () => {
     await a.goto("/einstellungen/module");
     const prefs = a.getByTestId("dashboard-prefs");
     await expect(prefs.getByRole("button", { name: "Als Nächstes nach oben" })).toHaveCount(0);
-    await prefs.getByRole("button", { name: "Essen heute nach oben" }).click();
+    // wait for the saved order (the rows), not for the message: the message of the previous save may still be on the page
+    const rows = () => a.getByTestId("dashboard-row").allInnerTexts();
+    const press = async (click: () => Promise<void>) => {
+      const before = await rows();
+      await click();
+      await expect.poll(rows, { timeout: 20_000 }).not.toEqual(before);
+    };
+    await press(() => prefs.getByRole("button", { name: "Essen heute nach oben" }).click());
     await expect(a.getByText("Reihenfolge gespeichert.")).toBeVisible();
-    await a.getByTestId("dashboard-prefs").getByRole("button", { name: "Essen heute nach oben" }).click();
-    await a.getByTestId("dashboard-prefs").getByRole("button", { name: "Aufgaben (Meine, Heute fällig, Überfällig) nach oben" }).focus();
-    await a.keyboard.press("Enter");
+    await press(() => a.getByTestId("dashboard-prefs").getByRole("button", { name: "Essen heute nach oben" }).click());
+    await press(async () => {
+      await a.getByTestId("dashboard-prefs").getByRole("button", { name: "Aufgaben (Meine, Heute fällig, Überfällig) nach oben" }).focus();
+      await a.keyboard.press("Enter");
+    });
     await expect(a.getByText("Reihenfolge gespeichert.")).toBeVisible();
     await noOverflow(a);
     await a.screenshot({ path: `${shots}/03-startseite-reihenfolge.png`, fullPage: true });

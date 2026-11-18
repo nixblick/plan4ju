@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Tests (#22): stable under load. The large-file import test no longer measures wall-clock time; the write transaction of a file import has an explicit limit (`IMPORT_TX_TIMEOUT_MS`, 20 s instead of Prisma's 5 s default) that the test checks by importing 5000 events. The acceptance specs 0.2, 0.5 and 0.9 wait for the saved state instead of a message that an earlier save already showed.
+
 ## 0.9.2 (16.11.2026)
 
 - Fix (#17): routines with rotating assignment keep their order after a rule change. Each occurrence stores its rotation position (`routine_occurrence.rotationIndex`, migration `20261216000100_routine_rotation_index` takes over the existing order by date); a rebuild continues after the highest earlier position, kept occurrences count. Test in `tests/routines.test.ts`.

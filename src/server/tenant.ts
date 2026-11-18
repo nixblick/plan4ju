@@ -30,6 +30,7 @@ export async function withFamily<T>(
   familyId: string,
   fn: (ctx: FamilyContext) => Promise<T>,
   client: PrismaClient = defaultClient,
+  options?: { timeout?: number; maxWait?: number },
 ): Promise<T> {
   return client.$transaction(async (tx) => {
     await setContext(tx, userId, familyId);
@@ -38,7 +39,7 @@ export async function withFamily<T>(
     });
     if (!membership) throw new ForbiddenError("Not a member of this family");
     return fn({ tx, userId, familyId, role: membership.role });
-  });
+  }, options);
 }
 
 /** withFamily for writes that can create notifications: marks the family as changed once committed. */
