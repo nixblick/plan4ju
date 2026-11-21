@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 0.9.3 (21.11.2026)
 
 - Cleanup (#27): the waste module no longer names a city. The service link comes from the optional env `WASTE_INFO_URL` (https, empty = no link; `wasteInfoUrl()` replaces the hard-coded constant), page text says "Entsorger", docs (`konzept`, `masterprompt`, `module`) describe it city-neutral. Test data in `feedback` tests was already "Familie Muster".
 - Fix (#23, part 2): routines no longer plan a removed member. New occurrences of FIXED and ROTATING routines go to the current people only (`materialize` skips former profiles, the rotation continues over the rest). Removing a member rebuilds the untouched future occurrences of every active routine that names the person (`rebuildRoutinesAfterLeave`); done, skipped, customized and past occurrences stay. The person stays on the routine itself (history). Test in `tests/members-removed.test.ts`.
