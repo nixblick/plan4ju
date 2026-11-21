@@ -1,7 +1,7 @@
 import { Field, inputCls } from "../ui";
 import { occasionLabels, OCCASIONS, wishPriorityLabels } from "@/lib/wishes";
 
-type Profile = { id: string; displayName: string };
+type Profile = { id: string; displayName: string; former: boolean };
 type Birthday = { id: string; name: string; day: number; month: number };
 
 export function ListFields({
@@ -34,8 +34,8 @@ export function ListFields({
       <Field label="Für wen?">
         <select className={inputCls} name="owner" defaultValue={owner} required>
           <option value="" disabled>Bitte wählen</option>
-          {profiles.map((p) => (
-            <option key={p.id} value={`p:${p.id}`}>{p.displayName}</option>
+          {profiles.filter((p) => !p.former || p.id === l?.profileId).map((p) => (
+            <option key={p.id} value={`p:${p.id}`}>{p.former ? `${p.displayName} (ehemalig)` : p.displayName}</option>
           ))}
           <option value="person">Andere Person (ohne Profil)</option>
         </select>

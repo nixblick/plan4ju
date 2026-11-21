@@ -82,7 +82,9 @@ export function NextCard({ d, now }: { d: DashboardData; now: Date }) {
 /** "Heute zu Hause": one row per person on a 6-22 h strip with the line for now. */
 export function TodayStrip({ d, now }: { d: DashboardData; now: Date }) {
   const agenda = agendaOf(d.today, d.eventsToday, d.routinesToday);
-  const rows = buildStrip(agenda, d.profiles.map((p) => p.id));
+  // one row per current person; someone who left the family only keeps a row while still on today's plan
+  const people = d.profiles.filter((p) => !p.former || agenda.some((a) => a.personIds.includes(p.id)));
+  const rows = buildStrip(agenda, people.map((p) => p.id));
   const allDay = d.eventsToday.filter((e) => e.allDay);
   const ticks = Array.from({ length: (STRIP_TO - STRIP_FROM) / 2 + 1 }, (_, i) => STRIP_FROM + i * 2);
   const empty = rows.every((r) => r.bars.length === 0);
@@ -95,7 +97,7 @@ export function TodayStrip({ d, now }: { d: DashboardData; now: Date }) {
           {allDay.map((e) => e.title).join(", ")}
         </p>
       ) : null}
-      {d.profiles.length === 0 ? (
+      {people.length === 0 ? (
         <p className="text-sm text-stone-600">Noch keine Personen angelegt.</p>
       ) : (
         <div className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2 gap-y-1.5 sm:grid-cols-[2.25rem_minmax(0,1fr)] sm:gap-x-3">
@@ -143,7 +145,7 @@ export function TodayStrip({ d, now }: { d: DashboardData; now: Date }) {
           <NowLine timeZone={d.timezone} initial={now.getTime()} />
         </div>
       )}
-      {empty && d.profiles.length > 0 ? (
+      {empty && people.length > 0 ? (
         <p className="mt-2 text-sm text-stone-600">
           Heute stehen keine Termine mit Uhrzeit an. <Link href="/kalender/termin/neu" className="text-terracotta-dark underline">Termin anlegen</Link>
         </p>

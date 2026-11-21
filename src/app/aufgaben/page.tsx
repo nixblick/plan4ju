@@ -6,7 +6,7 @@ import { findTasks, TASK_FILTERS, type TaskFilter } from "@/server/services/task
 import { requireFamily } from "@/server/session";
 import { createTaskAction, toggleTaskAction } from "../planung-actions";
 import { SubTabs } from "../sub-tabs";
-import { Dots, names } from "../people";
+import { Dots, names, pickable, pickName } from "../people";
 import { buttonCls, Card, ghostButtonCls, inputCls, Notice } from "../ui";
 import { PRIORITY_EDGE } from "@/lib/priority";
 import { AcceptDecline, PriorityBadge, STATUS_LABEL, TaskFields } from "./task-fields";
@@ -143,8 +143,8 @@ export default async function Aufgaben({ searchParams }: { searchParams: Promise
             <label htmlFor="f-person" className="mb-1 block font-medium">Person</label>
             <select id="f-person" className={inputCls} name="person" defaultValue={person ?? ""}>
               <option value="">Alle</option>
-              {dash.profiles.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+              {pickable(dash.profiles, person ? [person] : []).map((p) => (
+                <option key={p.id} value={p.id}>{pickName(p)}</option>
               ))}
             </select>
           </div>

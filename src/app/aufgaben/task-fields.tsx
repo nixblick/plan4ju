@@ -1,5 +1,5 @@
 import type { DashProfile } from "@/server/services/dashboard";
-import { Dots } from "../people";
+import { Dots, pickable, pickName } from "../people";
 import { DEFAULT_PRIORITY, PRIORITIES, PRIORITY_BADGE, PRIORITY_LABEL, type Priority } from "@/lib/priority";
 import { buttonCls, Field, ghostButtonCls, inputCls } from "../ui";
 import { acceptAssignmentAction, declineAssignmentAction } from "../planung-actions";
@@ -62,11 +62,11 @@ export function TaskFields({ profiles, t }: { profiles: DashProfile[]; t?: TaskV
       <fieldset className="mb-4">
         <legend className="mb-1 text-sm font-medium">Zuständig (keiner, eine oder mehrere Personen)</legend>
         <div className="flex flex-wrap gap-2">
-          {profiles.map((p) => (
+          {pickable(profiles, t?.assigneeIds).map((p) => (
             <label key={p.id} className="flex min-h-11 items-center gap-2 rounded-xl border border-stone-300 bg-white px-3">
               <input type="checkbox" name="assigneeIds" value={p.id} className="h-5 w-5" defaultChecked={t?.assigneeIds.includes(p.id)} />
               <Dots profiles={profiles} ids={[p.id]} />
-              {p.name}
+              {pickName(p)}
             </label>
           ))}
         </div>

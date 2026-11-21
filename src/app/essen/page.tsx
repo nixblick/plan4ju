@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { errorMessages, okMessages, one } from "@/lib/messages";
 import { addDays, parseIso, weekdayIndex } from "@/lib/week";
-import type { DashProfile } from "@/server/services/dashboard";
+import { toDashProfile, type DashProfile } from "@/server/services/dashboard";
 import { getMealWeek, MEAL_LIMITS, type MealView } from "@/server/services/meals";
 import { listProfiles } from "@/server/services/members";
 import { listRecipes } from "@/server/services/recipes";
 import { requireFamily } from "@/server/session";
 import { addSlotAction, copyWeekAction, deleteMealAction, deleteSlotAction, moveSlotAction, renameSlotAction, saveMealAction } from "../essen-actions";
-import { Dots, names } from "../people";
+import { Dots, names, pickable, pickName } from "../people";
 import { buttonCls, ghostButtonCls, inputCls, Notice } from "../ui";
 import { EssenTabs } from "./tabs";
 import { pageModule } from "@/server/active-modules";
@@ -23,6 +23,7 @@ function MealForm({ week, date, slotId, meal, slots, days, recipes, profiles }: 
   recipes: { id: string; title: string }[]; profiles: DashProfile[];
 }) {
   const fid = `${date}-${slotId}`;
+  const cooks = pickable(profiles, meal?.cookIds);
   return (
     <form action={saveMealAction} className="mt-2 space-y-3 rounded-xl bg-stone-50 p-3 text-sm">
       <input type="hidden" name="week" value={week} />
@@ -59,14 +60,14 @@ function MealForm({ week, date, slotId, meal, slots, days, recipes, profiles }: 
         <span className="mb-1 block font-medium">oder Freitext</span>
         <input name="text" maxLength={MEAL_LIMITS.text} defaultValue={meal?.text ?? ""} placeholder="z. B. Reste, Pizza, bei Oma" className={inputCls} />
       </label>
-      {profiles.length ? (
+      {cooks.length ? (
         <fieldset>
           <legend className="mb-1 font-medium">Wer kocht?</legend>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {profiles.map((p) => (
+            {cooks.map((p) => (
               <label key={p.id} className="flex min-h-11 items-center gap-2">
                 <input type="checkbox" name="cookIds" value={p.id} defaultChecked={meal?.cookIds.includes(p.id)} className="h-5 w-5" />
-                <Dots profiles={profiles} ids={[p.id]} /> {p.name}
+                <Dots profiles={profiles} ids={[p.id]} /> {pickName(p)}
               </label>
             ))}
           </div>
@@ -86,7 +87,7 @@ export default async function Essen({ searchParams }: { searchParams: Promise<Re
   const fehler = one(sp.fehler);
   const ok = one(sp.ok);
   const [w, rawProfiles, recipes] = await Promise.all([getMealWeek(user.id, familyId, one(sp.woche)), listProfiles(user.id, familyId), listRecipes(user.id, familyId)]);
-  const profiles: DashProfile[] = rawProfiles.map((p, i) => ({ id: p.id, name: p.displayName, colorIndex: i, userId: p.userId }));
+  const profiles: DashProfile[] = rawProfiles.map(toDashProfile);
   const week = w.days[0]!;
   const prev = addDays(week, -7);
   const next = addDays(week, 7);

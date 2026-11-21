@@ -6,6 +6,7 @@ import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { type FamilyContext } from "../tenant";
 import { withModule } from "./modules";
 import { prisma } from "../db";
+import { assertAssignable } from "../profiles";
 import { generateToken, hashToken } from "../tokens";
 
 // Surprise protection (docs/wunschzettel.md): the wishing person is the user linked to the list's profile.
@@ -116,9 +117,9 @@ async function loadWish(ctx: FamilyContext, wishId: string) {
   return { wish: w, list: await loadList(ctx, w.listId) };
 }
 
-async function assertRefs(ctx: FamilyContext, d: z.output<typeof listInput>) {
-  if (d.profileId && !(await ctx.tx.familyProfile.findFirst({ where: { id: d.profileId, familyId: ctx.familyId }, select: { id: true } })))
-    throw new NotFoundError("Unknown profile");
+/** `keep`: the profile the list had before; a person who left the family keeps an old list but gets no new one. */
+async function assertRefs(ctx: FamilyContext, d: z.output<typeof listInput>, keep: string | null = null) {
+  if (d.profileId) await assertAssignable(ctx, [d.profileId], keep ? [keep] : []);
   if (d.birthdayId && !(await ctx.tx.birthday.findFirst({ where: { id: d.birthdayId, familyId: ctx.familyId }, select: { id: true } })))
     throw new NotFoundError("Unknown birthday");
 }
@@ -236,7 +237,7 @@ export async function updateWishlist(userId: string, familyId: string, id: strin
     familyId,
     async (ctx) => {
       const l = await loadEditable(ctx, id);
-      await assertRefs(ctx, d);
+      await assertRefs(ctx, d, l.profileId);
       // only the creator may make a list private (it would vanish for everyone else, the creator keeps it)
       if (d.visibility === "PRIVATE" && l.createdById !== ctx.userId) throw new ForbiddenError("Only the creator can hide a list");
       // the wishing person must not lift the surprise protection: no switching it off, no moving the list away

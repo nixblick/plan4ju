@@ -31,6 +31,19 @@ export function Dots({ profiles, ids }: { profiles: DashProfile[]; ids: string[]
   );
 }
 
+/**
+ * People a picker offers: everyone who belongs to the family. Someone who left only shows up where
+ * already chosen (`chosen`), so editing keeps the old assignment until it is unticked.
+ */
+export function pickable<P extends { id: string; former: boolean }>(profiles: P[], chosen: readonly string[] = []): P[] {
+  return profiles.filter((p) => !p.former || chosen.includes(p.id));
+}
+
+/** Name in a picker; a person who left the family is marked. */
+export function pickName(p: { name: string; former: boolean }): string {
+  return p.former ? `${p.name} (ehemalig)` : p.name;
+}
+
 export function names(profiles: DashProfile[], ids: string[]): string {
   return ids.map((id) => profiles.find((p) => p.id === id)?.name).filter(Boolean).join(", ");
 }
