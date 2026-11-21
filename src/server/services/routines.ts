@@ -4,7 +4,7 @@ import { DayTakenError, NotFoundError } from "../errors";
 import { withFamily, withFamilyChange, type FamilyContext } from "../tenant";
 import { occurrencesBetween, type RecurrenceRule } from "../../lib/recurrence";
 import { addDays, todayIn } from "../../lib/week";
-import { assertAssignable } from "../profiles";
+import { assertAssignable, formerProfileIds } from "../profiles";
 
 /**
  * Routine occurrences are created ahead of time, but only a bounded window:
@@ -136,7 +136,9 @@ async function materialize(ctx: FamilyContext, routineId: string, today: string,
           where: { routineId, date: { in: fresh.map(day) } },
           select: { id: true, date: true },
         });
-        const ids = routine.assignments.map((a) => a.profileId);
+        // A former member stays on the routine (history), but new occurrences go to the current people only.
+        const former = await formerProfileIds(ctx);
+        const ids = routine.assignments.map((a) => a.profileId).filter((id) => !former.has(id));
         const byDate = new Map(created.map((o) => [iso(o.date), o.id]));
         const rows: Prisma.RoutineOccurrenceAssignmentCreateManyInput[] = [];
         fresh.forEach((d) => {
@@ -173,6 +175,25 @@ async function dropUntouchedFuture(ctx: FamilyContext, routineId: string, today:
     where: { routineId, familyId: ctx.familyId, date: { gte: day(today) }, status: "OPEN", customized: false },
   });
   await ctx.tx.routine.update({ where: { id: routineId }, data: { generatedUntil: null } });
+}
+
+/**
+ * After a person left the family: rebuild the untouched future occurrences of every active routine that
+ * names one of these profiles, so the person no longer shows up as responsible (FIXED) and the rotation
+ * continues with the current people (ROTATING). Done, skipped, customized and past occurrences stay.
+ */
+export async function rebuildRoutinesAfterLeave(ctx: FamilyContext, profileIds: string[], now: Date = new Date()) {
+  if (profileIds.length === 0) return;
+  const routines = await ctx.tx.routine.findMany({
+    where: { familyId: ctx.familyId, status: "ACTIVE", assignments: { some: { profileId: { in: profileIds } } } },
+    select: { id: true },
+  });
+  if (routines.length === 0) return;
+  const today = await familyToday(ctx, now);
+  for (const r of routines) {
+    await dropUntouchedFuture(ctx, r.id, today);
+    await materialize(ctx, r.id, today, true);
+  }
 }
 
 async function replaceAssignees(ctx: FamilyContext, routineId: string, ids: string[]) {

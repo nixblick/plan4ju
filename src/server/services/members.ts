@@ -4,6 +4,7 @@ import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { assertRole, atLeast, canManage } from "../permissions";
 import { withFamily, type FamilyContext } from "../tenant";
 import { isFormerProfile } from "../profiles";
+import { rebuildRoutinesAfterLeave } from "./routines";
 
 /** Members of the active family. E-mail addresses are only visible to ADMIN and OWNER. */
 export function listMembers(userId: string, familyId: string, client?: PrismaClient) {
@@ -88,7 +89,7 @@ export async function changeMemberRole(
  * OWNER removes anyone (not the last owner); ADMIN removes plain members only.
  * The person's profile stays (tasks keep their history) but loses the login link.
  */
-export function removeMember(userId: string, familyId: string, targetUserId: string, client?: PrismaClient) {
+export function removeMember(userId: string, familyId: string, targetUserId: string, client?: PrismaClient, now: Date = new Date()) {
   return withFamily(
     userId,
     familyId,
@@ -104,7 +105,9 @@ export function removeMember(userId: string, familyId: string, targetUserId: str
       }
       await ctx.tx.wishlistShare.deleteMany({ where: { familyId, createdById: targetUserId } });
       await ctx.tx.familyMembership.delete({ where: { id: target.id } });
+      const profiles = await ctx.tx.familyProfile.findMany({ where: { familyId, userId: targetUserId }, select: { id: true } });
       await ctx.tx.familyProfile.updateMany({ where: { familyId, userId: targetUserId }, data: { userId: null } });
+      await rebuildRoutinesAfterLeave(ctx, profiles.map((p) => p.id), now);
     },
     client,
   );
