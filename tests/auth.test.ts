@@ -267,11 +267,24 @@ describe("e-mail verification and password reset (Mailpit)", () => {
 });
 
 describe("rate limits", () => {
-  it("HTTP sign-in is limited per trusted client address; a spoofed left X-Forwarded-For does not help", async () => {
+  it("the direct HTTP routes for sign-in and password reset are not served (they would bypass account brake and mail limit)", async () => {
+    for (const path of ["sign-in/email", "request-password-reset", "sign-in/email/", "SIGN-IN/EMAIL"]) {
+      const res = await handleAuthRequest(
+        new Request(`http://localhost:3000/api/auth/${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/json", origin: "http://localhost:3000", "x-plan4ju-client-ip": "192.0.2.50" },
+          body: JSON.stringify({ email: mail("nobody"), password: fresh(), redirectTo: "http://localhost:3000/passwort-zuruecksetzen" }),
+        }),
+      );
+      expect(res.status).toBe(404);
+    }
+  });
+
+  it("HTTP routes are limited per trusted client address; a spoofed left X-Forwarded-For does not help", async () => {
     const statuses: number[] = [];
     for (let i = 0; i < 8; i++) {
       const res = await handleAuthRequest(
-        new Request("http://localhost:3000/api/auth/sign-in/email", {
+        new Request("http://localhost:3000/api/auth/sign-up/email", {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -279,38 +292,23 @@ describe("rate limits", () => {
             "x-forwarded-for": `192.0.2.${i + 1}, 198.51.100.77`,
             "x-plan4ju-client-ip": `192.0.2.${i + 100}`,
           },
-          body: JSON.stringify({ email: mail("nobody"), password: fresh() }),
+          body: JSON.stringify({ email: mail("nobody"), password: fresh(), name: "x" }),
         }),
       );
       statuses.push(res.status);
     }
-    expect(statuses.slice(0, 5).every((s) => s === 401)).toBe(true); // body reached Better Auth
+    expect(statuses.slice(0, 5).every((s) => s !== 429 && s !== 404)).toBe(true); // reached Better Auth
     expect(statuses.slice(5)).toContain(429);
   });
 
-  it("HTTP sign-in without a trusted client address still hits a (shared) limit", async () => {
+  it("HTTP routes without a trusted client address still hit a (shared) limit", async () => {
     const statuses: number[] = [];
     for (let i = 0; i < 8; i++) {
       const res = await handleAuthRequest(
-        new Request("http://localhost:3000/api/auth/sign-in/email", {
+        new Request("http://localhost:3000/api/auth/sign-up/email", {
           method: "POST",
           headers: { "content-type": "application/json", origin: "http://localhost:3000", "x-real-ip": `192.0.2.${i + 1}` },
-          body: JSON.stringify({ email: mail("nobody3"), password: fresh() }),
-        }),
-      );
-      statuses.push(res.status);
-    }
-    expect(statuses).toContain(429);
-  });
-
-  it("HTTP password reset requests are limited", async () => {
-    const statuses: number[] = [];
-    for (let i = 0; i < 6; i++) {
-      const res = await auth.handler(
-        new Request("http://localhost:3000/api/auth/request-password-reset", {
-          method: "POST",
-          headers: { "content-type": "application/json", origin: "http://localhost:3000", "x-forwarded-for": "198.51.100.88" },
-          body: JSON.stringify({ email: mail("nobody2"), redirectTo: "http://localhost:3000/passwort-zuruecksetzen" }),
+          body: JSON.stringify({ email: mail("nobody3"), password: fresh(), name: "x" }),
         }),
       );
       statuses.push(res.status);

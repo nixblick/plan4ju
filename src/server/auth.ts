@@ -107,7 +107,17 @@ export const auth = betterAuth({
   plugins: [nextCookies()],
 });
 
+/**
+ * Routes that only exist for the server actions (actions.ts calls auth.api directly). Over HTTP they would
+ * bypass the per-account login brake (guardedLogin) and the per-address mail limit, so they are not served.
+ */
+const ACTION_ONLY_PATHS = ["/sign-in/email", "/request-password-reset"];
+
 /** Entry point for the /api/auth route: sets the trusted client address before Better Auth sees the request. */
 export function handleAuthRequest(req: Request): Promise<Response> {
+  const path = new URL(req.url).pathname.replace(/\/+$/, "").toLowerCase();
+  if (ACTION_ONLY_PATHS.some((p) => path.endsWith(p))) {
+    return Promise.resolve(new Response(JSON.stringify({ message: "Not found" }), { status: 404, headers: { "content-type": "application/json" } }));
+  }
   return auth.handler(new Request(req, { headers: withClientIp(req.headers) }));
 }
