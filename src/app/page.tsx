@@ -146,9 +146,9 @@ export default async function Home() {
             );
           })}
         </ol>
-        {d.profiles.length > 0 ? (
+        {d.profiles.some((p) => !p.former) ? (
           <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-700" aria-label="Farben der Personen">
-            {d.profiles.map((p) => (
+            {d.profiles.filter((p) => !p.former).map((p) => (
               <li key={p.id} className="flex items-center gap-1.5">
                 <Dots profiles={d.profiles} ids={[p.id]} /> {p.name}
               </li>

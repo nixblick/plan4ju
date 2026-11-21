@@ -3,6 +3,7 @@ import type { FamilyRole, PrismaClient } from "@prisma/client";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { assertRole, atLeast, canManage } from "../permissions";
 import { withFamily, type FamilyContext } from "../tenant";
+import { isFormerProfile } from "../profiles";
 
 /** Members of the active family. E-mail addresses are only visible to ADMIN and OWNER. */
 export function listMembers(userId: string, familyId: string, client?: PrismaClient) {
@@ -28,17 +29,22 @@ export function listMembers(userId: string, familyId: string, client?: PrismaCli
   );
 }
 
-/** All people of the family: login members and child profiles. */
+/**
+ * All people of the family: login members, child profiles and people who left (`former`). Former
+ * members stay in the list (old assignments keep their name and colour); pickers offer only `!former`.
+ */
 export function listProfiles(userId: string, familyId: string, client?: PrismaClient) {
   return withFamily(
     userId,
     familyId,
-    (ctx) =>
-      ctx.tx.familyProfile.findMany({
+    async (ctx) => {
+      const rows = await ctx.tx.familyProfile.findMany({
         where: { familyId },
         orderBy: { createdAt: "asc" },
         select: { id: true, displayName: true, isChild: true, userId: true },
-      }),
+      });
+      return rows.map((p) => ({ ...p, former: isFormerProfile(p) }));
+    },
     client,
   );
 }

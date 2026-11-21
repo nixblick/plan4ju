@@ -13,6 +13,11 @@ export interface DashProfile {
   name: string;
   colorIndex: number;
   userId: string | null;
+  /**
+   * Left the family (login profile without login). Stays in the list, so colours and names of old
+   * assignments keep working, but pickers offer only current people (`!former`).
+   */
+  former: boolean;
 }
 export interface DashTask {
   id: string;
@@ -57,7 +62,7 @@ export interface DashboardData {
 export interface RawDashboard {
   familyName: string;
   timezone: string;
-  profiles: { id: string; displayName: string; userId: string | null }[]; // creation order
+  profiles: { id: string; displayName: string; userId: string | null; isChild?: boolean }[]; // creation order
   tasks: DashTask[];
   birthdays: DashBirthday[];
   /** Routine occurrences of the displayed week (skipped ones may be included, they are hidden here). */
@@ -84,11 +89,16 @@ export function birthdaysAround(birthdays: DashBirthday[], today: string): DashB
     .sort((a, b) => a.inDays - b.inDays || a.name.localeCompare(b.name, "de"));
 }
 
+/** Pure: a profile row (creation order index `i`) as the pages show it. Without `isChild` the profile counts as current. */
+export function toDashProfile(p: RawDashboard["profiles"][number], i: number): DashProfile {
+  return { id: p.id, name: p.displayName, colorIndex: i, userId: p.userId, former: p.isChild === false && p.userId === null };
+}
+
 /** Pure: shapes the raw family data into what the dashboard shows. */
 export function buildDashboard(raw: RawDashboard, userId: string, now: Date = new Date()): DashboardData {
   const today = todayIn(raw.timezone, now);
   const days = weekOf(today);
-  const profiles = raw.profiles.map((p, i) => ({ id: p.id, name: p.displayName, colorIndex: i, userId: p.userId }));
+  const profiles = raw.profiles.map((p, i) => toDashProfile(p, i));
   const myProfileId = profiles.find((p) => p.userId === userId)?.id ?? null;
   const open = raw.tasks.filter((t) => !t.done);
   const byDue = (a: DashTask, b: DashTask) => (a.due ?? "9") .localeCompare(b.due ?? "9") || a.title.localeCompare(b.title, "de");
@@ -138,7 +148,7 @@ export function getDashboard(userId: string, familyId: string, now: Date = new D
         ctx.tx.familyProfile.findMany({
           where: { familyId },
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-          select: { id: true, displayName: true, userId: true },
+          select: { id: true, displayName: true, userId: true, isChild: true },
         }),
         ctx.tx.task.findMany({
           where: { familyId, archivedAt: null, OR: [{ status: { not: "DONE" } }, { dueDate: { gte: from } }] },

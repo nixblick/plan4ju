@@ -3,6 +3,7 @@ import { z } from "zod";
 import { addDays, todayIn, weekOf } from "../../lib/week";
 import { ConflictError, NotFoundError } from "../errors";
 import { type FamilyContext } from "../tenant";
+import { assertAssignable, formerProfileIds } from "../profiles";
 import { withModule } from "./modules";
 
 export const DEFAULT_MEAL_SLOTS = ["Frühstück", "Mittag", "Abend"] as const;
@@ -119,17 +120,15 @@ export function mealsOn(ctx: FamilyContext, iso: string) {
   return mealsBetween(ctx, iso, iso);
 }
 
-async function assertRefs(ctx: FamilyContext, d: z.output<typeof mealInput>) {
+/** `keep`: cooks the meal had before; a person who left the family stays there but is never added anew. */
+async function assertRefs(ctx: FamilyContext, d: z.output<typeof mealInput>, keep: string[] = []) {
   const slot = await ctx.tx.mealSlot.count({ where: { id: d.slotId, familyId: ctx.familyId } });
   if (!slot) throw new NotFoundError("Unknown slot");
   if (d.recipeId) {
     const r = await ctx.tx.recipe.count({ where: { id: d.recipeId, familyId: ctx.familyId } });
     if (!r) throw new NotFoundError("Unknown recipe");
   }
-  if (d.cookIds.length) {
-    const found = await ctx.tx.familyProfile.count({ where: { id: { in: d.cookIds }, familyId: ctx.familyId } });
-    if (found !== d.cookIds.length) throw new NotFoundError("Unknown profile");
-  }
+  await assertAssignable(ctx, d.cookIds, keep);
 }
 
 async function slotTaken(ctx: FamilyContext, date: string, slotId: string, exceptId?: string) {
@@ -164,9 +163,9 @@ export async function updateMeal(userId: string, familyId: string, id: string, r
     userId,
     familyId,
     async (ctx) => {
-      const existing = await ctx.tx.meal.findFirst({ where: { id, familyId: ctx.familyId }, select: { id: true } });
+      const existing = await ctx.tx.meal.findFirst({ where: { id, familyId: ctx.familyId }, select: { id: true, cooks: { select: { profileId: true } } } });
       if (!existing) throw new NotFoundError("Meal not found");
-      await assertRefs(ctx, d);
+      await assertRefs(ctx, d, existing.cooks.map((c) => c.profileId));
       if (await slotTaken(ctx, d.date, d.slotId, id)) throw new MealConflictError("Target slot already planned");
       await ctx.tx.meal.updateMany({
         where: { id, familyId: ctx.familyId },
@@ -207,6 +206,8 @@ export function copyMealWeek(userId: string, familyId: string, fromIso: string, 
       if (src[0] === dst[0]) return 0;
       const meals = await mealsBetween(ctx, src[0]!, src[6]!);
       const taken = new Set((await mealsBetween(ctx, dst[0]!, dst[6]!)).map((m) => `${m.date}|${m.slotId}`));
+      // the copy is a new plan: a person who left the family does not cook there
+      const former = await formerProfileIds(ctx);
       let n = 0;
       for (const m of meals) {
         const date = dst[src.indexOf(m.date)]!;
@@ -215,7 +216,8 @@ export function copyMealWeek(userId: string, familyId: string, fromIso: string, 
           data: { familyId: ctx.familyId, date: toDate(date), slotId: m.slotId, recipeId: m.recipeId, text: m.text, createdById: ctx.userId },
           select: { id: true },
         });
-        if (m.cookIds.length) await ctx.tx.mealCook.createMany({ data: m.cookIds.map((profileId) => ({ mealId: c.id, profileId, familyId: ctx.familyId })) });
+        const cooks = m.cookIds.filter((profileId) => !former.has(profileId));
+        if (cooks.length) await ctx.tx.mealCook.createMany({ data: cooks.map((profileId) => ({ mealId: c.id, profileId, familyId: ctx.familyId })) });
         n += 1;
       }
       return n;

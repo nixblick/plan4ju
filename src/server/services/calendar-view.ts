@@ -3,7 +3,7 @@ import { birthdayIn, parseIso, todayIn } from "../../lib/week";
 import type { CalendarItem } from "../../lib/calendar-items";
 import { withFamily } from "../tenant";
 import { itemsBetween } from "./calendar";
-import type { DashProfile } from "./dashboard";
+import { toDashProfile, type DashProfile } from "./dashboard";
 import { ensureOccurrences, occurrencesIn, type OccurrenceView } from "./routines";
 
 export interface ViewTask {
@@ -41,7 +41,7 @@ export function getCalendarView(userId: string, familyId: string, from: string, 
       const family = await ctx.tx.family.findFirstOrThrow({ where: { id: familyId }, select: { timezone: true } });
       await ensureOccurrences(ctx, now);
       const [profiles, items, routines, tasks, birthdays] = await Promise.all([
-        ctx.tx.familyProfile.findMany({ where: { familyId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { id: true, displayName: true, userId: true } }),
+        ctx.tx.familyProfile.findMany({ where: { familyId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { id: true, displayName: true, userId: true, isChild: true } }),
         itemsBetween(ctx, from, to),
         occurrencesIn(ctx, from, to, false),
         ctx.tx.task.findMany({
@@ -62,7 +62,7 @@ export function getCalendarView(userId: string, familyId: string, from: string, 
       return {
         today: todayIn(family.timezone, now),
         timezone: family.timezone,
-        profiles: profiles.map((p, i) => ({ id: p.id, name: p.displayName, colorIndex: i, userId: p.userId })),
+        profiles: profiles.map(toDashProfile),
         items,
         routines,
         tasks: tasks.map((t) => ({

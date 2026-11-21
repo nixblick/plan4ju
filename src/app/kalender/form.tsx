@@ -1,5 +1,5 @@
 import type { DashProfile } from "@/server/services/dashboard";
-import { Dots } from "../people";
+import { Dots, pickable, pickName } from "../people";
 import { Field, inputCls } from "../ui";
 
 const WD = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
@@ -97,11 +97,11 @@ export function EventFields({ profiles, v }: { profiles: DashProfile[]; v: Event
       <fieldset className="mb-4 rounded-xl border border-stone-200 p-3">
         <legend className="px-1 text-sm font-medium">Wer ist dabei?</legend>
         <div className="flex flex-wrap gap-2">
-          {profiles.map((p) => (
+          {pickable(profiles, v.participantIds).map((p) => (
             <label key={p.id} className="flex min-h-11 items-center gap-2 rounded-xl border border-stone-300 bg-white px-3">
               <input type="checkbox" name="participantIds" value={p.id} className="h-5 w-5" defaultChecked={v.participantIds.includes(p.id)} />
               <Dots profiles={profiles} ids={[p.id]} />
-              {p.name}
+              {pickName(p)}
             </label>
           ))}
         </div>

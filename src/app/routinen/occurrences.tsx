@@ -1,7 +1,7 @@
 import type { OccurrenceView } from "@/server/services/routines";
 import type { DashProfile } from "@/server/services/dashboard";
 import { parseIso, weekdayIndex } from "@/lib/week";
-import { Dots, names } from "../people";
+import { Dots, names, pickable, pickName } from "../people";
 import { moveOccurrenceAction, occurrenceAssigneesAction, occurrenceStatusAction } from "../planung-actions";
 import { ghostButtonCls } from "../ui";
 
@@ -74,10 +74,10 @@ export function OccurrenceRow({ o, profiles, back, today }: { o: OccurrenceView;
         <form action={occurrenceAssigneesAction} className="mt-2 flex flex-wrap items-center gap-2">
           <input type="hidden" name="occurrenceId" value={o.id} />
           <input type="hidden" name="back" value={back} />
-          {profiles.map((p) => (
+          {pickable(profiles, o.assigneeIds).map((p) => (
             <label key={p.id} className="flex min-h-11 items-center gap-2 rounded-xl border border-stone-300 bg-white px-3 text-sm">
               <input type="checkbox" name="assigneeIds" value={p.id} className="h-5 w-5" defaultChecked={o.assigneeIds.includes(p.id)} />
-              {p.name}
+              {pickName(p)}
             </label>
           ))}
           <button className={ghostButtonCls}>Speichern</button>

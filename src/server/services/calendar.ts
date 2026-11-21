@@ -9,6 +9,7 @@ import { ConflictError, NotFoundError } from "../errors";
 import { defaultWindow, IcsError, parseIcs } from "../ics";
 import { fetchCalendarText, FetchError, parseCalendarUrl, type FetchOptions } from "../safe-fetch";
 import { prisma } from "../db";
+import { assertAssignable } from "../profiles";
 import { withFamily, type FamilyContext, type Tx } from "../tenant";
 import { isoDate } from "./routines";
 
@@ -90,12 +91,6 @@ async function familyZone(ctx: FamilyContext): Promise<string> {
   return (await ctx.tx.family.findFirstOrThrow({ where: { id: ctx.familyId }, select: { timezone: true } })).timezone;
 }
 
-async function assertProfiles(ctx: FamilyContext, ids: string[]) {
-  if (ids.length === 0) return;
-  const found = await ctx.tx.familyProfile.count({ where: { id: { in: ids }, familyId: ctx.familyId } });
-  if (found !== new Set(ids).size) throw new NotFoundError("Unknown profile");
-}
-
 function eventData(d: z.output<typeof eventInput>, tz: string) {
   const endDate = d.endDate ?? d.startDate;
   const shape = d.allDay
@@ -131,7 +126,7 @@ export async function createEvent(userId: string, familyId: string, raw: EventIn
     userId,
     familyId,
     async (ctx) => {
-      await assertProfiles(ctx, d.participantIds);
+      await assertAssignable(ctx, d.participantIds);
       const tz = await familyZone(ctx);
       const ev = await ctx.tx.calendarEvent.create({ data: { familyId, createdById: userId, ...eventData(d, tz) } });
       await replaceParticipants(ctx, ev.id, d.participantIds);
@@ -147,9 +142,10 @@ export async function updateEvent(userId: string, familyId: string, id: string, 
     userId,
     familyId,
     async (ctx) => {
-      const own = await ctx.tx.calendarEvent.findFirst({ where: { id, familyId }, select: { id: true } });
+      const own = await ctx.tx.calendarEvent.findFirst({ where: { id, familyId }, select: { id: true, participants: { select: { profileId: true } } } });
       if (!own) throw new NotFoundError("Event not found");
-      await assertProfiles(ctx, d.participantIds);
+      // a person who left the family stays a participant of an old event, but is never added anew
+      await assertAssignable(ctx, d.participantIds, own.participants.map((p) => p.profileId));
       const tz = await familyZone(ctx);
       await ctx.tx.calendarEvent.update({ where: { id }, data: eventData(d, tz) });
       await replaceParticipants(ctx, id, d.participantIds);

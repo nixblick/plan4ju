@@ -3,6 +3,7 @@ import { ForbiddenError, NotFoundError } from "../errors";
 import { withFamily, withFamilyChange, type FamilyContext } from "../tenant";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { compareByDue, DEFAULT_PRIORITY, PRIORITIES } from "../../lib/priority";
+import { assertAssignable } from "../profiles";
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -61,12 +62,6 @@ async function newAssignments(ctx: FamilyContext, taskId: string | null, ids: st
 async function myProfileId(ctx: FamilyContext): Promise<string | null> {
   const me = await ctx.tx.familyProfile.findFirst({ where: { familyId: ctx.familyId, userId: ctx.userId }, select: { id: true } });
   return me?.id ?? null;
-}
-
-async function assertProfiles(ctx: FamilyContext, ids: string[]) {
-  if (ids.length === 0) return;
-  const found = await ctx.tx.familyProfile.count({ where: { id: { in: ids }, familyId: ctx.familyId } });
-  if (found !== new Set(ids).size) throw new NotFoundError("Unknown profile");
 }
 
 const order = [{ status: "asc" }, { dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }] as Prisma.TaskOrderByWithRelationInput[];
@@ -145,7 +140,7 @@ export async function createTask(userId: string, familyId: string, raw: TaskInpu
     userId,
     familyId,
     async (ctx) => {
-      await assertProfiles(ctx, data.assigneeIds);
+      await assertAssignable(ctx, data.assigneeIds);
       const assignments = await newAssignments(ctx, null, data.assigneeIds);
       return ctx.tx.task.create({
         data: {
@@ -180,9 +175,11 @@ export async function updateTask(
     userId,
     familyId,
     async (ctx) => {
-      await assertProfiles(ctx, data.assigneeIds);
       const current = await ctx.tx.task.findFirst({ where: { id, familyId: ctx.familyId }, select: { status: true, doneAt: true } });
       if (!current) throw new NotFoundError("Task not found");
+      const existing = (await ctx.tx.taskAssignment.findMany({ where: { taskId: id, familyId: ctx.familyId }, select: { profileId: true } })).map((a) => a.profileId);
+      // a person who left the family keeps an old assignment, but is never assigned anew
+      await assertAssignable(ctx, data.assigneeIds, existing);
       const status = data.status ?? current.status;
       // updateMany with familyId in the filter: a foreign id matches zero rows.
       const res = await ctx.tx.task.updateMany({
@@ -201,7 +198,6 @@ export async function updateTask(
       if (res.count === 0) throw new NotFoundError("Task not found");
       // Diff, not replace: unchanged assignees keep their state (an edit does not ask again).
       const wanted = [...new Set(data.assigneeIds)];
-      const existing = (await ctx.tx.taskAssignment.findMany({ where: { taskId: id, familyId: ctx.familyId }, select: { profileId: true } })).map((a) => a.profileId);
       await ctx.tx.taskAssignment.deleteMany({ where: { taskId: id, familyId: ctx.familyId, profileId: { notIn: wanted } } });
       const added = await newAssignments(ctx, id, wanted.filter((p) => !existing.includes(p)));
       if (added.length) await ctx.tx.taskAssignment.createMany({ data: added as Prisma.TaskAssignmentCreateManyInput[] });

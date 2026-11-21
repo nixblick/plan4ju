@@ -4,6 +4,7 @@ import { DayTakenError, NotFoundError } from "../errors";
 import { withFamily, withFamilyChange, type FamilyContext } from "../tenant";
 import { occurrencesBetween, type RecurrenceRule } from "../../lib/recurrence";
 import { addDays, todayIn } from "../../lib/week";
+import { assertAssignable } from "../profiles";
 
 /**
  * Routine occurrences are created ahead of time, but only a bounded window:
@@ -58,12 +59,6 @@ export interface OccurrenceView {
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const day = (s: string) => new Date(`${s}T00:00:00Z`);
-
-async function assertProfiles(ctx: FamilyContext, ids: string[]) {
-  if (ids.length === 0) return;
-  const found = await ctx.tx.familyProfile.count({ where: { id: { in: ids }, familyId: ctx.familyId } });
-  if (found !== new Set(ids).size) throw new NotFoundError("Unknown profile");
-}
 
 const uniq = (ids: string[]) => [...new Set(ids)];
 
@@ -222,7 +217,7 @@ export async function createRoutine(userId: string, familyId: string, raw: Routi
     userId,
     familyId,
     async (ctx) => {
-      await assertProfiles(ctx, data.assigneeIds);
+      await assertAssignable(ctx, data.assigneeIds);
       const routine = await ctx.tx.routine.create({
         data: {
           familyId: ctx.familyId,
@@ -253,7 +248,9 @@ export async function updateRoutine(userId: string, familyId: string, id: string
     userId,
     familyId,
     async (ctx) => {
-      await assertProfiles(ctx, data.assigneeIds);
+      // a person who left the family stays where it was assigned, but is never assigned anew
+      const before = await ctx.tx.routineAssignment.findMany({ where: { routineId: id, familyId: ctx.familyId }, select: { profileId: true } });
+      await assertAssignable(ctx, data.assigneeIds, before.map((a) => a.profileId));
       const res = await ctx.tx.routine.updateMany({
         where: { id, familyId: ctx.familyId },
         data: {
@@ -401,7 +398,8 @@ export function setOccurrenceAssignees(
     userId,
     familyId,
     async (ctx) => {
-      await assertProfiles(ctx, assigneeIds);
+      const before = await ctx.tx.routineOccurrenceAssignment.findMany({ where: { occurrenceId, familyId: ctx.familyId }, select: { profileId: true } });
+      await assertAssignable(ctx, assigneeIds, before.map((a) => a.profileId));
       const res = await ctx.tx.routineOccurrence.updateMany({
         where: { id: occurrenceId, familyId: ctx.familyId },
         data: { customized: true },

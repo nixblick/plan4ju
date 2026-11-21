@@ -10,10 +10,10 @@ import { getDashboard } from "../src/server/services/dashboard";
 import { addDays } from "../src/lib/week";
 
 let f: Fixture;
-let second: string; // second profile of family A
+let second: string; // second profile of family A (a member with login: an adult profile without one has left the family)
 beforeAll(async () => {
   f = await seed();
-  second = (await admin.familyProfile.create({ data: { familyId: f.familyA, displayName: "Ben Muster" } })).id;
+  second = (await admin.familyProfile.create({ data: { familyId: f.familyA, displayName: "Ben Muster", userId: f.userBoth } })).id;
 });
 afterAll(async () => {
   await cleanup(f);
