@@ -20,6 +20,8 @@ let oldRoutine: string;
 let oldEvent: string;
 let oldMeal: string;
 let oldList: string;
+let fixedRoutine: string; // FIXED [ben, kid], created before Ben left
+let rotatingRoutine: string; // ROTATING [ben, profileA], created before Ben left
 
 // Monday 16.11.2026, 10:00 in Berlin.
 const NOW = new Date("2026-11-16T09:00:00Z");
@@ -36,7 +38,9 @@ beforeAll(async () => {
   const slot = (await getMealWeek(f.userA, f.familyA, TODAY, NOW, app)).slots[0]!;
   oldMeal = (await createMeal(f.userA, f.familyA, { date: TODAY, slotId: slot.id, text: "Suppe", cookIds: [ben] }, app)).id;
   oldList = (await createWishlist(f.userA, f.familyA, { title: "Bens Wünsche", profileId: ben }, app)).id;
-  await removeMember(f.userA, f.familyA, f.userBoth, app);
+  fixedRoutine = (await createRoutine(f.userA, f.familyA, { title: "Müll", startDate: TODAY, endDate: addDays(TODAY, 6), assigneeIds: [ben, kid] }, app, NOW)).id;
+  rotatingRoutine = (await createRoutine(f.userA, f.familyA, { title: "Spülmaschine", startDate: TODAY, endDate: addDays(TODAY, 6), assignMode: "ROTATING", assigneeIds: [ben, f.profileA] }, app, NOW)).id;
+  await removeMember(f.userA, f.familyA, f.userBoth, app, NOW);
 });
 afterAll(async () => {
   await cleanup(f);
@@ -79,6 +83,16 @@ describe("removed member: no new assignments", () => {
     // once removed from the task, the person cannot come back
     await updateTask(f.userA, f.familyA, oldTask, { title: "Alte Aufgabe", assigneeIds: [] }, app);
     await expect(updateTask(f.userA, f.familyA, oldTask, { title: "Alte Aufgabe", assigneeIds: [ben] }, app)).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("routines: future occurrences go to the current people only, fixed and in rotation", async () => {
+    const occ = await listOccurrences(f.userA, f.familyA, TODAY, addDays(TODAY, 6), app, NOW);
+    const fixed = occ.filter((o) => o.routineId === fixedRoutine);
+    const rotating = occ.filter((o) => o.routineId === rotatingRoutine);
+    expect(fixed).toHaveLength(7);
+    expect(rotating).toHaveLength(7);
+    for (const o of fixed) expect(o.assigneeIds).toEqual([kid]);
+    for (const o of rotating) expect(o.assigneeIds).toEqual([f.profileA]);
   });
 
   it("routines: creating, adding and assigning one occurrence refuse the former member", async () => {
