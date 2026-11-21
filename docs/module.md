@@ -51,12 +51,12 @@ Stand 0.4.x. Dieses Dokument sagt, was gebaut ist und was bewusst nicht.
 
 - Unter **Kalender → Abfallkalender** (`/kalender/abfall`) und als Kachel „Abfuhr“ auf der Startseite (nächste 7 Tage,
   mit „Heute“ und „Morgen“ in der Zeitzone der Familie, z. B. „Morgen: Biotonne“). Eine Push- oder E-Mail-Erinnerung gibt es nicht.
-- Recherche (13.11.2026, Masterprompt Abschnitt 18): Für den FES-Abfallkalender Frankfurt bzw. die App FrankfurtPlus ist **keine
+- Recherche (13.11.2026, Masterprompt Abschnitt 18): Für Abfallkalender örtlicher Entsorger (und deren Apps) ist **keine
   offizielle, dokumentierte Schnittstelle und kein dokumentierter Kalender-Feed** zu finden. Die App bietet einen Export in den
   Kalender des Telefons; private App-Endpunkte setzen wir nicht voraus.
 - Umsetzung als Adapter auf den vorhandenen externen Kalendern (ICS-Datei oder Abo, siehe `docs/kalender.md`): Die Familie legt die
   Termine als ICS-Datei oder Abo-Adresse unter „Externe Kalender“ an, ein Admin wählt diesen Kalender als Abfallkalender. Gibt
-  der Entsorger später eine offizielle Adresse heraus, genügt das Abo, ohne neuen Code. Ein Link führt zur Seite der FES.
+  der Entsorger später eine offizielle Adresse heraus, genügt das Abo, ohne neuen Code. Ein Link führt zur Seite des Entsorgers, wenn die Umgebungsvariable `WASTE_INFO_URL` (https) gesetzt ist; die Stadt steht nur dort.
 - Es wird **keine Adresse** (Straße, Hausnummer) gespeichert. Eine Abo-Adresse kann eine Adresse enthalten und wird wie jede
   Abo-Adresse verschlüsselt gespeichert und nie angezeigt.
 - Fehlt die Verbindung, zeigt die Seite die zuletzt gespeicherten Termine mit einem Hinweis; der Rest der App merkt nichts.

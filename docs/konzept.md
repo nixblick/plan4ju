@@ -187,7 +187,7 @@ Die Bewertung kann beispielsweise über Emojis erfolgen. Für jeden Eintrag muss
 Als spätere Erweiterungen sind vorgesehen:
 
 - Supermarkt-Prospekte,
-- Abfallkalender der FES Frankfurt,
+- Abfallkalender des örtlichen Entsorgers (Stadt nur als Konfiguration),
 - weitere externe Kalender und Datenquellen.
 
 Diese Integrationen gehören nicht zum Umfang von Release 0.1.

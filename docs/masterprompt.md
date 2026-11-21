@@ -696,10 +696,11 @@ Einbindungswege vorhanden sind.
 
 ------------------------------------------------------------------------
 
-## 18. Optionale Erweiterung: FES-Abfallkalender Frankfurt
+## 18. Optionale Erweiterung: Abfallkalender des örtlichen Entsorgers
 
-Prüfe die Möglichkeiten der Integration des FES-Abfallkalenders bzw. der
-FES-App FrankfurtPlus.
+Prüfe die Möglichkeiten der Integration des Abfallkalenders des
+örtlichen Entsorgers bzw. seiner App. Die Stadt ist nur Konfiguration,
+nichts davon steht fest im Code.
 
 -   Zuerst offizielle Schnittstellen, Exportmöglichkeiten oder
     dokumentierte Kalenderfeeds recherchieren.

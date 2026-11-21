@@ -51,8 +51,13 @@ export const DEFAULT_FLYERS: Omit<FlyerLink, "id">[] = [
   { name: "Netto", url: "https://www.netto-online.de/", active: true },
 ];
 
-/** Official website of the Frankfurt waste service; there is no documented ICS or API (docs/module.md). */
-export const WASTE_INFO_URL = "https://www.fes-frankfurt.de/";
+/**
+ * Website of the local waste service, configured per installation (env WASTE_INFO_URL, https only; empty = no link).
+ * No city is hard-coded; there is no documented ICS or API (docs/module.md).
+ */
+export function wasteInfoUrl(): string | null {
+  return httpsUrl(process.env.WASTE_INFO_URL ?? "") ?? null;
+}
 
 export const flyerInput = z.object({
   name: z.string().trim().min(1).max(FLYER_NAME_MAX),

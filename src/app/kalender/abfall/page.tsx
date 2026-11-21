@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { errorMessages, okMessages, one } from "@/lib/messages";
-import { WASTE_INFO_URL } from "@/lib/modules";
+import { wasteInfoUrl } from "@/lib/modules";
 import { NotFoundError } from "@/server/errors";
 import { getWaste, type WasteView } from "@/server/services/modules";
 import { requireFamily } from "@/server/session";
@@ -57,11 +57,13 @@ export default async function Abfall({ searchParams }: { searchParams: Promise<R
       </Card>
       <Card title="Woher kommen die Termine?">
         <p className="mb-2 text-sm text-stone-600">
-          Eine dokumentierte Schnittstelle der FES haben wir nicht gefunden. Bietet die FES (oder ihre App) die Termine als Kalenderdatei
+          Eine dokumentierte Schnittstelle des Entsorgers haben wir nicht gefunden. Bietet der Entsorger (oder seine App) die Termine als Kalenderdatei
           oder Kalender-Adresse an, trage sie unter „Externe Kalender“ ein und wähle den Kalender danach hier aus.
         </p>
         <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-          <a href={WASTE_INFO_URL} target="_blank" rel="noopener noreferrer nofollow" className="text-terracotta-dark underline">Seite der FES öffnen ↗</a>
+          {wasteInfoUrl() ? (
+            <a href={wasteInfoUrl()!} target="_blank" rel="noopener noreferrer nofollow" className="text-terracotta-dark underline">Seite des Entsorgers öffnen ↗</a>
+          ) : null}
           <Link href="/kalender/quellen" className="text-terracotta-dark underline">Externe Kalender verwalten</Link>
         </p>
         {v.canManage ? (
